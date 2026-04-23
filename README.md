@@ -10,9 +10,9 @@ But raw intelligence isn't enough without a system to direct it. Left alone, AIs
 
 The harness solves context loss for everyone. It treats humans and AIs as equals in a shared operating system, using the repository as the absolute source of truth.
 
-- If a decision isn't written in the repo, it doesn't exist.
-- We don't rely on model memory, and we don't rely on human memory. 
-- Every participant must read the current state and explicit handoff files before taking action.
+- **If a decision isn't written in the repo, it doesn't exist.**
+- **We don't rely on model memory, and we don't rely on human memory.** 
+- **Every participant must read the current state and explicit handoff files before taking action.**
 
 ## The Roadmap & Current Progress
 
@@ -20,30 +20,31 @@ The harness solves context loss for everyone. It treats humans and AIs as equals
 
 We have built the foundational architecture for memory, context isolation, and task routing. 
 
-- **`Human/`**: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents don't read this unless explicitly instructed.
-- **`Agents/`**: The execution layer. Shared context, task queues, and handoff files.
-- **Roles**: "Claudia" plans. "Augustus" and "Julius" execute. No role-switching mid-session.
-- **Handoffs**: Workers pass the baton via explicit markdown files (`Agents/handoffs/`), not chat history.
+- `Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents don't read this unless explicitly instructed.
+- `Agents/`: The execution layer. Shared context, task queues, and handoff files.
+- Roles: "Claudia" plans. "Augustus" and "Julius" execute. No role-switching mid-session.
+- Handoffs: Workers pass the baton via explicit markdown files (`Agents/handoffs/`), not chat history.
 
 ### ⏳ Next: Concurrency & Team Mode (Layer 2)
 
 *The Problem:* Throwing multiple agents at a codebase causes chaotic pile-ups and overlapping edits. 
+
 *The Fix:* A true "Team Mode." Agents will get isolated workspaces and point-to-point communication. We will use strict state-machine routing so workers are physically blocked from touching code until the planner approves the dependency graph.
 
 ### ⏳ Next: The Evaluator (Layer 3)
 
 *The Problem:* LLMs are blindly confident. They will mark a feature as "done" even when the UI is broken or the logic is flawed.
+
 *The Fix:* Splitting execution and evaluation. We will introduce a dedicated adversarial `Evaluator` agent. Running in an isolated sandbox, its only job is to aggressively try to break the worker's output.
 
 ### ⏳ Next: Agentic Infra & Background Sweeping
 
 *The Problem:* Over time, lessons, patterns, and handoffs bloat into noisy overhead.
+
 *The Fix:* - **Auto-Sweeping:** A background process that runs while we sleep to silently deduplicate, compress, and organize the `lessons/` folder.
 - **Pluggable Hooks:** Custom CI-style checkpoints where specific scripts or linters can automatically halt an agent if it breaks an architectural rule.
 
 ## How to Operate the Harness (The User Guide)
-
-This isn't just a folder structure; it's a strict management system for AI. To use it correctly, you need to adopt the engineering practices discovered by teams scaling long-running agents.
 
 ### 1. Repo-as-Truth
 As OpenAI found in their agent experiments: *If it is not in the repository, it does not exist.* Slack messages, your internal mental model, and previous chat history do not matter. The only reality the agent can see is the files on disk.
