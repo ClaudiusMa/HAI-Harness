@@ -1,14 +1,13 @@
 # HAI-Harness
 
 HAI-Harness is a collaboration architecture for both humans and AI agents. 
-
 ## The Philosophy: Horsepower & Transmission
 
 In this system, humans and AI are peers. Both humans and AI are the high-octane fuel driving the project. They provide the raw cognitive horsepower.
 
 But raw intelligence isn't enough without a system to direct it. Left alone, AIs act like amnesiac interns—they forget instructions from 100 turns ago and hallucinate progress. Humans aren't much better—we forget why we made a product decision three months ago, or we step on each other's toes when collaborating.
 
-The harness solves context loss for everyone. It treats humans and AIs as equals in a shared operating system, using the repository as the absolute source of truth.
+The collaboration harness built on one simple idea: humans and AI don’t need more context—they need accurate context. It treats humans and AIs as equals in a shared operating system, using the repository as the absolute source of truth.
 
 - **If a decision isn't written in the repo, it doesn't exist.**
 - **We don't rely on model memory, and we don't rely on human memory.** 
