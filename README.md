@@ -1,117 +1,42 @@
 # HAI-Harness
 
-HAI-Harness is a collaboration harness for both humans and AI agents.
+HAI-Harness is a collaboration architecture for both humans and AI agents. 
 
-Its job is simple:
+## The Philosophy: Horsepower & Transmission
 
-- locate the correct context
-- remove the noise
-- give the minimum correct context to the correct human or agent
+In this system, humans and AI are peers. Both humans and AI are the high-octane fuel driving the project. They provide the raw cognitive horsepower.
 
-The repository is the source of truth. If context matters across sessions, roles, or decisions, it belongs in the repo rather than only in chat history.
+But raw intelligence isn't enough without a system to direct it. Left alone, AIs act like amnesiac interns—they forget instructions from 100 turns ago and hallucinate progress. Humans aren't much better—we forget why we made a product decision three months ago, or we step on each other's toes when collaborating.
 
-## High-Level Philosophy
+The harness solves context loss for everyone. It treats humans and AIs as equals in a shared operating system, using the repository as the absolute source of truth.
 
-HAI-Harness is not mainly about storing more context. It is about routing less context, more precisely.
+- If a decision isn't written in the repo, it doesn't exist.
+- We don't rely on model memory, and we don't rely on human memory. 
+- Every participant must read the current state and explicit handoff files before taking action.
 
-Correct context means:
+## The Roadmap & Current Progress
 
-- relevant to the current participant
-- sufficient for the current task
-- minimal enough to avoid noise, drift, and wasted effort
+### ✅ Where We Are Right Now (Layer 1: The Management System)
 
-The harness applies to both humans and AI agents. They are all participants in the same operating system.
+We have built the foundational architecture for memory, context isolation, and task routing. 
 
-One way to think about it:
+- **`Human/`**: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents don't read this unless explicitly instructed.
+- **`Agents/`**: The execution layer. Shared context, task queues, and handoff files.
+- **Roles**: "Claudia" plans. "Augustus" and "Julius" execute. No role-switching mid-session.
+- **Handoffs**: Workers pass the baton via explicit markdown files (`Agents/handoffs/`), not chat history.
 
-- humans and AI are the water
-- the harness is the water mill
-- the repository is the machinery that turns flow into useful work
+### ⏳ Next: Concurrency & Team Mode (Layer 2)
 
-Without structure, energy gets wasted as repeated explanation, stale assumptions, and context overload. The harness exists to direct that flow.
+*The Problem:* Throwing multiple agents at a codebase causes chaotic pile-ups and overlapping edits. 
+*The Fix:* A true "Team Mode." Agents will get isolated workspaces and point-to-point communication. We will use strict state-machine routing so workers are physically blocked from touching code until the planner approves the dependency graph.
 
-## Core Purpose
+### ⏳ Next: The Evaluator (Layer 3)
 
-HAI-Harness gives each participant only the context they should load now.
+*The Problem:* LLMs are blindly confident. They will mark a feature as "done" even when the UI is broken or the logic is flawed.
+*The Fix:* Splitting execution and evaluation. We will introduce a dedicated adversarial `Evaluator` agent. Running in an isolated sandbox, its only job is to aggressively try to break the worker's output.
 
-It does that by structuring the repository into clear layers:
+### ⏳ Next: Agentic Infra & Background Sweeping
 
-- `Human/` for human judgment, decisions, open questions, and reflections
-- `Agents/` for shared execution context, planner state, worker task contracts, handoffs, and reusable lessons
-
-This separation helps, but it is not the main point. The main point is precise context routing with the repository as the only durable source of truth.
-
-## Repository Map
-
-- [Human/onboarding.md](Human/onboarding.md): where the human starts
-- [Agents/onboarding.md](Agents/onboarding.md): mandatory first read for every agent
-- [Agents/project_context.md](Agents/project_context.md): durable shared context
-- [Agents/planning.md](Agents/planning.md): planner-owned active queue
-- [Agents/tasks/](Agents/tasks/): execution contracts for worker roles
-- [Agents/handoffs/](Agents/handoffs/): task baton passes for later sessions
-- [Agents/lessons/](Agents/lessons/): compact reusable learnings
-- [Agents/skills/](Agents/skills/): small role-like workflows for specific doc operations
-
-## Roles
-
-- `Claudia`: planner and orchestrator
-- `Augustus`: worker slot assigned by the planner
-- `Julius`: worker slot assigned by the planner
-
-Each chat/session gets exactly one active role. Roles do not switch mid-session.
-
-## Working Model
-
-1. Human thinks in `Human/`.
-2. Planner translates approved work into `Agents/planning.md` and task files.
-3. A worker reads onboarding, role doc, task doc, and current handoff.
-4. The worker executes only within role boundaries.
-5. Handoffs and lessons preserve continuity across later chats.
-
-## Starter Files
-
-This repository is structured as starter templates, not a real product repo.
-
-The important working files are already prepared to copy into another repository and fill in:
-
-- [Human/](Human/)
-- [Agents/](Agents/)
-
-Critical files include:
-
-- [Human/brief.md](Human/brief.md)
-- [Human/decisions.md](Human/decisions.md)
-- [Human/open_questions.md](Human/open_questions.md)
-- [Human/reflections.md](Human/reflections.md)
-- [Agents/project_context.md](Agents/project_context.md)
-- [Agents/planning.md](Agents/planning.md)
-- [Agents/tasks/augustus.md](Agents/tasks/augustus.md)
-- [Agents/tasks/julius.md](Agents/tasks/julius.md)
-
-## Principles
-
-- The repository is the source of truth.
-- Correct context beats broad context.
-- Minimum sufficient context beats maximum available context.
-- Humans and AI follow the same routing discipline.
-- Planner state should be explicit and centralized.
-- Workers should receive execution contracts, not vague goals.
-- Preserve continuity with handoffs and lessons instead of relying on chat memory.
-- Require explicit approval before high-cost or risky actions.
-
-## Suggested Adoption Order
-
-1. Replace [Human/brief.md](Human/brief.md) with your own product thesis.
-2. Replace [Agents/project_context.md](Agents/project_context.md) with your real architecture and rules.
-3. Rewrite [Agents/planning.md](Agents/planning.md) to reflect your active backlog.
-4. Update worker task files under [Agents/tasks/](Agents/tasks/).
-5. Keep handoffs and lessons small, current, and task-specific.
-
-## Skills
-
-The repo includes a few lightweight doc skills:
-
-- `guardian`: read-only alignment audit between human and agent layers
-- `decision-logger`: append a durable human decision
-- `handoff`: refresh a task baton-pass note
-- `retrospective`: capture reusable lessons from a messy task
+*The Problem:* Over time, lessons, patterns, and handoffs bloat into noisy overhead.
+*The Fix:* - **Auto-Sweeping:** A background process that runs while we sleep to silently deduplicate, compress, and organize the `lessons/` folder.
+- **Pluggable Hooks:** Custom CI-style checkpoints where specific scripts or linters can automatically halt an agent if it breaks an architectural rule.
