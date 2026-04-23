@@ -1,29 +1,45 @@
 # HAI-Harness
 
-HAI-Harness is a document-first collaboration method for humans and coding agents.
+HAI-Harness is a collaboration harness for both humans and AI agents.
 
-It separates:
+Its job is simple:
 
-- human thinking from agent execution
-- planning from implementation
-- live work from cross-session memory
+- locate the correct context
+- remove the noise
+- give the minimum correct context to the correct human or agent
 
-This repository is intentionally published as a method repo, not a real product repo. Where examples are useful, the docs use a fictional sample product so the workflow stays concrete without exposing private project context.
+The repository is the source of truth. If context matters across sessions, roles, or decisions, it belongs in the repo rather than only in chat history.
 
-## Core Idea
+## High-Level Philosophy
 
-Use `Human/` for product judgment, thesis, decisions, and unresolved questions.
+HAI-Harness is not mainly about storing more context. It is about routing less context, more precisely.
 
-Use `Agents/` for:
+Correct context means:
 
-- shared execution context
-- role boundaries
-- planner-owned queue state
-- worker task contracts
-- task handoffs
-- reusable lessons
+- relevant to the current participant
+- sufficient for the current task
+- minimal enough to avoid noise, drift, and wasted effort
 
-The human does not dump raw thinking straight into agent execution. The planner translates what matters into the agent-facing layer first.
+The harness applies to both humans and AI agents. They are all participants in the same operating system.
+
+One way to think about it:
+
+- humans and AI are the water
+- the harness is the water mill
+- the repository is the machinery that turns flow into useful work
+
+Without structure, energy gets wasted as repeated explanation, stale assumptions, and context overload. The harness exists to direct that flow.
+
+## Core Purpose
+
+HAI-Harness gives each participant only the context they should load now.
+
+It does that by structuring the repository into clear layers:
+
+- `Human/` for human judgment, decisions, open questions, and reflections
+- `Agents/` for shared execution context, planner state, worker task contracts, handoffs, and reusable lessons
+
+This separation helps, but it is not the main point. The main point is precise context routing with the repository as the only durable source of truth.
 
 ## Repository Map
 
@@ -39,8 +55,8 @@ The human does not dump raw thinking straight into agent execution. The planner 
 ## Roles
 
 - `Claudia`: planner and orchestrator
-- `Augustus`: data, persistence, services, and backend-heavy work
-- `Julius`: UI, interaction, and user-facing behavior
+- `Augustus`: worker slot assigned by the planner
+- `Julius`: worker slot assigned by the planner
 
 Each chat/session gets exactly one active role. Roles do not switch mid-session.
 
@@ -52,27 +68,36 @@ Each chat/session gets exactly one active role. Roles do not switch mid-session.
 4. The worker executes only within role boundaries.
 5. Handoffs and lessons preserve continuity across later chats.
 
-## What Is Example Content
+## Starter Files
 
-The following files contain fictional example content so the method is understandable on its own:
+This repository is structured as starter templates, not a real product repo.
+
+The important working files are already prepared to copy into another repository and fill in:
+
+- [Human/](Human/)
+- [Agents/](Agents/)
+
+Critical files include:
 
 - [Human/brief.md](Human/brief.md)
+- [Human/decisions.md](Human/decisions.md)
+- [Human/open_questions.md](Human/open_questions.md)
+- [Human/reflections.md](Human/reflections.md)
 - [Agents/project_context.md](Agents/project_context.md)
 - [Agents/planning.md](Agents/planning.md)
-- [Agents/tasks/](Agents/tasks/)
-- [Agents/handoffs/](Agents/handoffs/)
-- [Agents/lessons/](Agents/lessons/)
-
-When adopting the harness for a real project, replace those examples with your own project context and live task state.
+- [Agents/tasks/augustus.md](Agents/tasks/augustus.md)
+- [Agents/tasks/julius.md](Agents/tasks/julius.md)
 
 ## Principles
 
-- Keep human reflection private until it is ready to be translated.
-- Make planner state explicit and centralized.
-- Give workers execution contracts, not vague goals.
-- Preserve session continuity with short handoffs instead of long chat history.
+- The repository is the source of truth.
+- Correct context beats broad context.
+- Minimum sufficient context beats maximum available context.
+- Humans and AI follow the same routing discipline.
+- Planner state should be explicit and centralized.
+- Workers should receive execution contracts, not vague goals.
+- Preserve continuity with handoffs and lessons instead of relying on chat memory.
 - Require explicit approval before high-cost or risky actions.
-- Prefer clarity over cleverness in both docs and delegation.
 
 ## Suggested Adoption Order
 
