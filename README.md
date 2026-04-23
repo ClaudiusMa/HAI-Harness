@@ -1,6 +1,9 @@
 # HAI-Harness
 
 HAI-Harness is a collaboration architecture for both humans and AI agents. 
+
+*Author's Note: In my own testing, whether spinning up a rapid 0-to-1 demo or tackling complex long-running tasks, using this harness consistently outperforms using Claude Code out of the box. My core assumption is that every product needs its own independent harness layer—one that governs both human and AI. Open to discussion on this.*
+
 ## The Philosophy: Horsepower & Transmission
 
 In this system, humans and AI are peers. Both humans and AI are the high-octane fuel driving the project. They provide the raw cognitive horsepower.
