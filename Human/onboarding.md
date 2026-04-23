@@ -25,6 +25,5 @@ Start here when you return to the project.
 
 - Changes in `Human/` do not automatically reach agents.
 - Before delegating work, translate anything agents need into the agent-facing docs under `Agents/`.
-- Use [../Agents/project_context.md](../Agents/project_context.md) for execution context and [../Agents/planning.md](../Agents/planning.md) for planner-owned work allocation.
 - If you want a read-only alignment check between `Human/` and `Agents/`, invoke the `guardian` skill explicitly.
 - If you want a critical decision recorded in the human log, invoke the `decision-logger` skill explicitly.

@@ -12,9 +12,9 @@ Shared high-level context for all agents. This file is intentionally architectur
 
 ## 1. Purpose
 
-- Describe the product shape, system boundaries, major technologies, and non-negotiable rules.
+- Describe only the durable facts every agent should know before touching the project.
 - Give every agent enough shared context to reason about the codebase before reading role docs or task docs.
-- Stay high level. Detailed implementation notes belong elsewhere.
+- Stay high level. Detailed implementation notes, file-by-file guidance, and temporary task context belong elsewhere.
 
 ## 2. Maintenance Contract
 
@@ -23,66 +23,46 @@ Shared high-level context for all agents. This file is intentionally architectur
 - The agent who changes architecture or introduces a new durable constraint is responsible for updating this file in the same task.
 - If a subsystem is in transition, document the boundary or ambiguity at a high level instead of narrating the full history.
 - Put task baton-pass notes in [handoffs/](handoffs). Put hard-question learnings in [lessons/](lessons). Put stable cross-task patterns in [patterns.md](patterns.md). Put only high-value cross-task failures in [graveyard.md](graveyard.md).
+- If a section does not matter yet, leave it short or blank rather than inventing detail.
 
-## 3. Product Shape
+## 3. What This Project Is
 
-- Product name:
+- Product or system name:
 - One-sentence description:
-- Primary user-facing surfaces:
-  - Surface:
-  - Surface:
-  - Surface:
+- Primary users, operators, or collaborators:
+  - Group:
+  - Group:
+  - Group:
+- Core workflows, surfaces, or jobs every agent should understand:
+  - Workflow or surface:
+  - Workflow or surface:
+  - Workflow or surface:
 
-## 4. Platform And Stack
+## 4. Durable Technical Shape
 
-- Platform(s):
-- Language(s):
-- Framework(s):
-- Storage / database:
-- External services:
-- Deployment shape:
+- Platform(s), runtime(s), or environment(s) only if they affect design decisions:
+- Major technologies or stack choices only if they are architecturally important:
+- Main data, state, or storage owners:
+- External systems or dependencies that materially constrain the project:
 
-## 5. Architecture
+## 5. Boundaries And Source Of Truth
 
-### 5.1 App Shell
+- Main components, subsystems, or ownership areas:
+  - Component:
+  - Component:
+  - Component:
+- Source-of-truth boundaries agents must not violate:
+- Coupling, layering, or interface rules agents should preserve:
+- Migration, compatibility, or legacy constraints that affect reasoning:
+- Environments, secrets, or operational dependencies:
 
-- Entry point(s):
-- Root shell:
-- Navigation or app-frame rules:
-
-### 5.2 Presentation Layer
-
-- UI directories:
-- Major areas:
-  - Area:
-  - Area:
-  - Area:
-- Interaction rules the team should preserve:
-
-### 5.3 State, Models, And Persistence
-
-- Core domain entities:
-  - Entity:
-  - Entity:
-  - Entity:
-- Main orchestration layer(s):
-- Persistence layer(s):
-- Migration / legacy constraints:
-
-### 5.4 Sync And Online Systems
-
-- Auth / identity:
-- Sync / background jobs:
-- External APIs / integrations:
-- Source-of-truth rules:
-
-## 6. Core Domain Rules
+## 6. Core Project Rules
 
 - Rule:
 - Rule:
 - Rule:
-- The app should remain usable in degraded mode when critical online systems are unavailable, if that is a product requirement.
-- Query and read paths should stay side-effect free.
+- Read, query, preview, or inspection paths should stay side-effect free when that is a system requirement.
+- If degraded or offline operation matters for this project, preserve a usable failure mode when dependencies are unavailable.
 
 ## 7. Collaboration Map
 
@@ -102,10 +82,12 @@ Shared high-level context for all agents. This file is intentionally architectur
 - Always read a file before editing it, even mid-session.
 - Never merge to `main` unless the user explicitly asks.
 - Never push to `origin/main` unless the user explicitly asks.
-- Query paths should remain side-effect free.
+- Preserve explicit source-of-truth boundaries. Do not create competing state without documenting it here.
+- Keep side-effect-free paths side-effect free when the project defines them that way.
 - Risky migrations and backfills need explicit approval before live execution.
 - High-cost validation should stay opt-in.
-- When a rollout changes identity, ownership, or access control, preserve user data before polishing the UI around it.
+- When a rollout changes identity, ownership, permissions, or durable data shape, preserve existing data before polishing workflow details around it.
+- Prefer durable constraints over exhaustive description. If a detail will go stale quickly, it probably does not belong here.
 - Add project-specific rules below:
   - Rule:
   - Rule:
