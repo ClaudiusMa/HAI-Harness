@@ -1,0 +1,28 @@
+{
+  "name": "hai-harness",
+  "version": "0.1.0",
+  "description": "Install the HAI-Harness collaboration layer into an existing project.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ClaudiusMa/HAI-Harness.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ClaudiusMa/HAI-Harness/issues"
+  },
+  "homepage": "https://github.com/ClaudiusMa/HAI-Harness#readme",
+  "bin": {
+    "hai-harness": "./bin/hai-harness.mjs"
+  },
+  "files": [
+    "Agents",
+    "Human",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --check bin/hai-harness.mjs"
+  },
+  "license": "MIT"
+}

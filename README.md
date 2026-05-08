@@ -46,6 +46,45 @@ We have built the foundational architecture for memory, context isolation, and t
 *The Fix:* - **Auto-Sweeping:** A background process that runs while we sleep to silently deduplicate, compress, and organize the `lessons/` folder.
 - **Pluggable Hooks:** Custom CI-style checkpoints where specific scripts or linters can automatically halt an agent if it breaks an architectural rule.
 
+## Installing HAI-Harness Into An Existing Project
+
+HAI-Harness is designed to be installed as a repository overlay. It does not replace your app structure and it is not a runtime dependency for your product code. It adds the `Agents/` and `Human/` collaboration layer alongside the project files you already have.
+
+From an existing project:
+
+```sh
+cd your-existing-project
+npx hai-harness init
+```
+
+The short `npx hai-harness init` command works after the package is published to npm. Before npm publishing, you can run the CLI from this repository directly:
+
+```sh
+cd your-existing-project
+node ../HAI-Harness/bin/hai-harness.mjs init
+```
+
+Or, once this repository is available on GitHub with package metadata, you can run it through `npx` without publishing to npm:
+
+```sh
+cd your-existing-project
+npx github:ClaudiusMa/HAI-Harness init
+```
+
+The installer is conservative by default. It creates missing harness files and skips files that already exist:
+
+```sh
+npx hai-harness init --dry-run
+npx hai-harness init --force
+npx hai-harness doctor
+```
+
+After installation, start new agent sessions by pointing them at the harness:
+
+```txt
+Read Agents/onboarding.md first and operate through the HAI-Harness.
+```
+
 ## How to Operate the Harness (The User Guide)
 
 ### 1. Repo-as-Truth
