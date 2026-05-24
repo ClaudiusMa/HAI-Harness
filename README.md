@@ -56,28 +56,7 @@ From inside an existing project:
 
 ```sh
 cd your-existing-project
-npx hai-harness init
-```
-
-The short `npx hai-harness init` form works once the package is published to npm. Until then, install directly from GitHub:
-
-```sh
-cd your-existing-project
 npx github:ClaudiusMa/HAI-Harness init
-```
-
-Or, if you have this repo cloned locally:
-
-```sh
-cd your-existing-project
-node ../HAI-Harness/bin/hai-harness.mjs init
-```
-
-The installer is conservative — it creates missing harness files and skips files that already exist. Use `--dry-run` to preview, `--force` to overwrite:
-
-```sh
-npx hai-harness init --dry-run
-npx hai-harness init --force
 ```
 
 After install you'll have:
@@ -86,18 +65,18 @@ After install you'll have:
 - `Agents/` — the agent operating layer.
 - `Human/` — your private workspace for product thinking.
 
-You can verify the install at any time:
+Verify the install at any time:
 
 ```sh
-npx hai-harness doctor
+npx github:ClaudiusMa/HAI-Harness doctor
 ```
 
 ### Pulling the latest harness changes
 
-HAI-Harness evolves. To pull in the latest role definitions and onboarding files without touching your project-specific content:
+HAI-Harness evolves. To pull the latest role definitions and onboarding files without touching your project-specific content:
 
 ```sh
-npx hai-harness update
+npx github:ClaudiusMa/HAI-Harness update
 ```
 
 `update` only refreshes the stable scaffold (role docs, onboarding files, `AGENTS.md`). It **never** overwrites your project-specific files: `brief.md`, `decisions.md`, `open_questions.md`, `reflections.md`, `project_context.md`, `planning.md`, `tasks/`, `handoffs/`, `lessons/`, `patterns.md`, `graveyard.md`, `_archive/`, `skills/`.
@@ -105,7 +84,7 @@ npx hai-harness update
 If you want a full reset (overwrite everything from the latest version), use:
 
 ```sh
-npx hai-harness init --force
+npx github:ClaudiusMa/HAI-Harness init --force
 ```
 
 Preview either command with `--dry-run` first.
