@@ -48,42 +48,67 @@ We have built the foundational architecture for memory, context isolation, and t
 
 ## Installing HAI-Harness Into An Existing Project
 
-HAI-Harness is designed to be installed as a repository overlay. It does not replace your app structure and it is not a runtime dependency for your product code. It adds the `Agents/` and `Human/` collaboration layer alongside the project files you already have.
+HAI-Harness is a repository overlay, not a runtime dependency. It adds the `Agents/` and `Human/` collaboration layer (plus a root `AGENTS.md` pointer for AI tools) alongside the project files you already have. It does not replace your app structure.
 
-From an existing project:
+### First-time install
+
+From inside an existing project:
 
 ```sh
 cd your-existing-project
 npx hai-harness init
 ```
 
-The short `npx hai-harness init` command works after the package is published to npm. Before npm publishing, you can run the CLI from this repository directly:
-
-```sh
-cd your-existing-project
-node ../HAI-Harness/bin/hai-harness.mjs init
-```
-
-Or, once this repository is available on GitHub with package metadata, you can run it through `npx` without publishing to npm:
+The short `npx hai-harness init` form works once the package is published to npm. Until then, install directly from GitHub:
 
 ```sh
 cd your-existing-project
 npx github:ClaudiusMa/HAI-Harness init
 ```
 
-The installer is conservative by default. It creates missing harness files and skips files that already exist:
+Or, if you have this repo cloned locally:
+
+```sh
+cd your-existing-project
+node ../HAI-Harness/bin/hai-harness.mjs init
+```
+
+The installer is conservative — it creates missing harness files and skips files that already exist. Use `--dry-run` to preview, `--force` to overwrite:
 
 ```sh
 npx hai-harness init --dry-run
 npx hai-harness init --force
+```
+
+After install you'll have:
+
+- `AGENTS.md` at the project root — the entry point any AI agent reads first. It points the agent at `Agents/onboarding.md` and explicitly tells it not to read `Human/`.
+- `Agents/` — the agent operating layer.
+- `Human/` — your private workspace for product thinking.
+
+You can verify the install at any time:
+
+```sh
 npx hai-harness doctor
 ```
 
-After installation, start new agent sessions by pointing them at the harness:
+### Pulling the latest harness changes
 
-```txt
-Read Agents/onboarding.md first and operate through the HAI-Harness.
+HAI-Harness evolves. To pull in the latest role definitions and onboarding files without touching your project-specific content:
+
+```sh
+npx hai-harness update
 ```
+
+`update` only refreshes the stable scaffold (role docs, onboarding files, `AGENTS.md`). It **never** overwrites your project-specific files: `brief.md`, `decisions.md`, `open_questions.md`, `reflections.md`, `project_context.md`, `planning.md`, `tasks/`, `handoffs/`, `lessons/`, `patterns.md`, `graveyard.md`, `_archive/`, `skills/`.
+
+If you want a full reset (overwrite everything from the latest version), use:
+
+```sh
+npx hai-harness init --force
+```
+
+Preview either command with `--dry-run` first.
 
 ## How to Operate the Harness (The User Guide)
 
