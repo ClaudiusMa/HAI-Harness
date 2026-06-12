@@ -68,7 +68,8 @@ Shared high-level context for all agents. This file is intentionally architectur
 
 - [onboarding.md](onboarding.md) is the mandatory first read for every agent.
 - `project_context.md` is shared, high-level context only.
-- Role docs (`claudia.md`, `augustus.md`, `julius.md`) define stable collaboration rules. Worker scope is planner-assigned unless your project intentionally adds durable role biases.
+- Role docs (`claudia.md`, `augustus.md`, `julius.md`, `alex.md`) define stable collaboration rules. Worker scope is planner-assigned unless your project intentionally adds durable role biases.
+- Alex is a user-driven worker with a durable design-system-first bias: Alex takes design tasks directly from the user, reconciles touched screens against the design-system source of truth, and never edits that source unless the task is explicitly to change the design system. Alex has no task doc and is not queued through `planning.md`.
 - Each chat/session has exactly one active role. Roles do not switch mid-session, and one chat does not run another role live.
 - [planning.md](planning.md) is Claudia-owned and is the single iteration source of truth for task allocation, implementation strategy, and worker execution planning.
 - Claudia edits planner-owned coordination docs only. Augustus and Julius own implementation code within their assigned write scopes.

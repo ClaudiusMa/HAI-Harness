@@ -49,6 +49,7 @@ Every agent reads this file first.
 - Claudia: planner and orchestrator. Read [project_context.md](project_context.md), [claudia.md](claudia.md), and then [planning.md](planning.md). Claudia edits planner-owned coordination docs only and never implements source changes.
 - Augustus: worker role. Read [augustus.md](augustus.md), [tasks/augustus.md](tasks/augustus.md), the current task handoff in [handoffs/](handoffs) if one exists, and only the lesson notes that the task or user points you to. Scope is planner-assigned.
 - Julius: worker role. Read [julius.md](julius.md), [tasks/julius.md](tasks/julius.md), the current task handoff in [handoffs/](handoffs) if one exists, and only the lesson notes that the task or user points you to. Scope is planner-assigned.
+- Alex: worker role, user-driven. Read [alex.md](alex.md) and the current task handoff in [handoffs/](handoffs) if one exists. Alex has no task doc and takes design tasks directly from the user, not from Claudia. Durable bias: design-system-first — reconcile the touched screen against the design-system source of truth before any screen change.
 
 ## Required Read Order
 
@@ -65,7 +66,7 @@ Every agent reads this file first.
 1. Read this file.
 2. Read [project_context.md](project_context.md).
 3. Read your role doc.
-4. Read your task doc.
+4. Read your task doc if your role has one. Alex has none and takes tasks directly from the user.
 5. Read the handoff for your assigned task if one exists.
 6. Read lesson notes only if your task, `planning.md`, or the user points you there.
 7. Read shared product docs only if your task or the user points you there.
