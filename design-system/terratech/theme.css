@@ -1,0 +1,79 @@
+/**
+ * TerraTech theme — CSS variables mapped from design-system/terratech/tokens.js
+ * Scoped to .terratech-theme so the main Serif app stays unchanged.
+ *
+ * HMR demo: edit --tt-primary or --tt-text-base below and save.
+ */
+
+.terratech-theme {
+  --font-terra-sans: var(--font-terra-sans-loaded, system-ui, sans-serif);
+  --radius: 0.625rem;
+
+  /* Color tokens — sync with tokens.js */
+  --tt-primary: hsl(142 45% 38%);
+  --tt-primary-foreground: hsl(0 0% 98%);
+  --tt-secondary: hsl(38 35% 72%);
+  --tt-secondary-foreground: hsl(28 25% 18%);
+  --tt-accent: hsl(85 30% 88%);
+  --tt-accent-foreground: hsl(142 35% 22%);
+  --tt-destructive: hsl(0 55% 48%);
+  --tt-destructive-foreground: hsl(0 0% 98%);
+  --tt-background: hsl(45 20% 97%);
+  --tt-foreground: hsl(28 20% 14%);
+  --tt-card: hsl(0 0% 100%);
+  --tt-card-foreground: hsl(28 20% 14%);
+  --tt-muted: hsl(42 18% 92%);
+  --tt-muted-foreground: hsl(28 10% 42%);
+  --tt-border: hsl(38 16% 85%);
+  --tt-input: hsl(38 16% 85%);
+  --tt-ring: hsl(142 45% 38%);
+
+  /* Typography scale — edit --tt-text-base for HMR font-size demo */
+  --tt-text-sm: 0.875rem;
+  --tt-text-base: 1rem;
+  --tt-text-lg: 1.125rem;
+  --tt-text-xl: 1.25rem;
+  --tt-text-2xl: 1.5rem;
+  --tt-text-3xl: 1.875rem;
+  --tt-text-4xl: 2.25rem;
+
+  /* shadcn semantic mapping */
+  --background: var(--tt-background);
+  --foreground: var(--tt-foreground);
+  --card: var(--tt-card);
+  --card-foreground: var(--tt-card-foreground);
+  --popover: var(--tt-card);
+  --popover-foreground: var(--tt-card-foreground);
+  --primary: var(--tt-primary);
+  --primary-foreground: var(--tt-primary-foreground);
+  --secondary: var(--tt-secondary);
+  --secondary-foreground: var(--tt-secondary-foreground);
+  --muted: var(--tt-muted);
+  --muted-foreground: var(--tt-muted-foreground);
+  --accent: var(--tt-accent);
+  --accent-foreground: var(--tt-accent-foreground);
+  --destructive: var(--tt-destructive);
+  --border: var(--tt-border);
+  --input: var(--tt-input);
+  --ring: var(--tt-ring);
+
+  font-family: "Terra Sans", var(--font-terra-sans-loaded, system-ui, sans-serif);
+  font-size: var(--tt-text-base);
+  color: var(--foreground);
+  background-color: var(--background);
+}
+
+.terratech-theme.dark {
+  --tt-background: hsl(28 22% 10%);
+  --tt-foreground: hsl(45 20% 96%);
+  --tt-card: hsl(28 20% 14%);
+  --tt-card-foreground: hsl(45 20% 96%);
+  --tt-primary: hsl(142 50% 45%);
+  --tt-primary-foreground: hsl(28 22% 10%);
+  --tt-secondary: hsl(38 25% 28%);
+  --tt-secondary-foreground: hsl(45 20% 96%);
+  --tt-muted: hsl(28 18% 18%);
+  --tt-muted-foreground: hsl(38 12% 65%);
+  --tt-border: hsl(28 15% 22%);
+  --tt-input: hsl(28 15% 22%);
+}

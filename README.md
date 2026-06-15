@@ -114,3 +114,25 @@ When you sit down to work, follow this loop:
 5. **Generate the Plan:** Claudia automatically writes the execution plan in `Agents/planning.md` and assigns the specific task contracts to the worker slots (Augustus and Julius).
 6. **Execute, Handoff, and Reset:** Switch to an execution agent (Augustus/Julius) in a *new chat session*. Let them work through the task contract. Before the context window degrades, trigger the **`handoff`** skill. 
 7. **Capture Lessons:** If a task fails or gets messy, trigger the **`retrospective`** skill. Models will confidently repeat the same mistakes in new chat sessions unless the failure is distilled into a clean, reusable lesson in `Agents/lessons/`.
+
+## TerraTech / Alex Design Team Simulator (Demo App)
+
+This branch includes a Next.js demo for the **TerraTech design team simulator** — a multi-agent workspace where **Alex** (design-system worker) collaborates with the design team on TerraTech tokens, components, and artboards.
+
+### Run the demo
+
+```bash
+pnpm install
+pnpm dev
+```
+
+Then open:
+
+- [http://localhost:3000/terratech](http://localhost:3000/terratech) — TerraTech brand demo
+- [http://localhost:3000/workspace](http://localhost:3000/workspace) — Cohort multi-agent workspace with Alex design canvas
+
+Apply Supabase migrations before using the workspace:
+
+```bash
+supabase db push
+```

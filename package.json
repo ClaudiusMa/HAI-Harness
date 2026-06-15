@@ -1,8 +1,10 @@
 {
   "name": "hai-harness",
   "version": "0.1.0",
-  "description": "Install the HAI-Harness collaboration layer into an existing project.",
+  "description": "HAI-Harness collaboration layer with TerraTech / Alex design team simulator demo.",
+  "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.15.1",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ClaudiusMa/HAI-Harness.git"
@@ -23,7 +25,42 @@
     "LICENSE"
   ],
   "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint",
     "test": "node --check bin/hai-harness.mjs"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.16",
+    "@radix-ui/react-label": "^2.1.7",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.57.4",
+    "@tiptap/extension-image": "^3.10.7",
+    "@tiptap/extension-link": "^3.10.7",
+    "@tiptap/extension-placeholder": "^3.10.7",
+    "@tiptap/react": "^3.10.7",
+    "@tiptap/starter-kit": "^3.10.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.543.0",
+    "next": "15.5.2",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.2",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.8",
+    "typescript": "^5"
   },
   "license": "MIT"
 }
