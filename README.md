@@ -24,7 +24,7 @@ We have built the foundational architecture for memory, context isolation, and t
 
 - `Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents don't read this unless explicitly instructed.
 - `Agents/`: The execution layer. Shared context, task queues, and handoff files.
-- Roles: "Claudia" plans. "Augustus" and "Julius" execute. No role-switching mid-session.
+- Roles: "Claudia" plans. "Augustus" and "Julius" execute. "Athena" and "Hephaestus" review design (read-only, against `Agents/design.md`). No role-switching mid-session.
 - Handoffs: Workers pass the baton via explicit markdown files (`Agents/handoffs/`), not chat history.
 
 ### ⏳ Next: Concurrency & Team Mode (Layer 2)
@@ -79,7 +79,7 @@ HAI-Harness evolves. To pull the latest role definitions and onboarding files wi
 npx github:ClaudiusMa/HAI-Harness update
 ```
 
-`update` only refreshes the stable scaffold (role docs, onboarding files, `AGENTS.md`). It **never** overwrites your project-specific files: `brief.md`, `decisions.md`, `open_questions.md`, `reflections.md`, `project_context.md`, `planning.md`, `tasks/`, `handoffs/`, `lessons/`, `patterns.md`, `graveyard.md`, `_archive/`, `skills/`.
+`update` only refreshes the stable scaffold (role docs, onboarding files, `AGENTS.md`). It **never** overwrites your project-specific files: `brief.md`, `decisions.md`, `open_questions.md`, `reflections.md`, `project_context.md`, `planning.md`, `design.md`, `tasks/`, `handoffs/`, `lessons/`, `patterns.md`, `graveyard.md`, `_archive/`, `skills/`.
 
 If you want a full reset (overwrite everything from the latest version), use:
 

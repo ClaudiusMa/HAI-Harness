@@ -12,15 +12,17 @@ const ignoredNames = new Set([".DS_Store"]);
 
 // Scaffold files are the stable, method-level docs that define how the harness
 // works. `update` refreshes them in place. Project-specific content
-// (project_context.md, planning.md, anything under Human/, tasks/, handoffs/,
-// lessons/, _archive/, skills/, patterns.md, graveyard.md) is never touched
-// by `update` — use `init --force` for a full reset.
+// (project_context.md, planning.md, design.md, anything under Human/, tasks/,
+// handoffs/, lessons/, _archive/, skills/, patterns.md, graveyard.md) is never
+// touched by `update` — use `init --force` for a full reset.
 const scaffoldPaths = [
   "AGENTS.md",
   "Agents/onboarding.md",
   "Agents/claudia.md",
   "Agents/augustus.md",
   "Agents/julius.md",
+  "Agents/athena.md",
+  "Agents/hephaestus.md",
   "Human/onboarding.md"
 ];
 
@@ -177,6 +179,12 @@ async function doctor(options) {
     "Agents/onboarding.md",
     "Agents/project_context.md",
     "Agents/planning.md",
+    "Agents/design.md",
+    "Agents/claudia.md",
+    "Agents/augustus.md",
+    "Agents/julius.md",
+    "Agents/athena.md",
+    "Agents/hephaestus.md",
     "Agents/tasks/augustus.md",
     "Agents/tasks/julius.md",
     "Human/onboarding.md",
