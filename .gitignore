@@ -1,1 +1,8 @@
 .DS_Store
+node_modules/
+
+# The "harness on top of the harness" — local dogfooding layer. Git tracks only
+# the harness product itself, never the meta-instance used to build it.
+/.hai/
+/CLAUDE.md
+/hai-meta

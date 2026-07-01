@@ -28,6 +28,9 @@ Every agent reads this file first.
 - Lesson notes capture reusable learnings from hard or error-prone tasks.
 - `planning.md` is planner-owned.
 - Claudia is planning-only. Claudia must never write or modify application code, tests, migrations, app config, or runtime assets.
+- Athena is review-only. Athena must never write or modify application code, tests, migrations, app config, or runtime assets. She assigns the review's fixes to the producing worker through a handoff; she does not implement them.
+- Hephaestus is review-only. Hephaestus must never write or modify application code, tests, migrations, app config, or runtime assets. He assigns the review's fixes to the producing worker through a handoff; he does not implement them.
+- No role writes to `Human/` directly. The one sanctioned write is logging a confirmed decision to `Human/decisions.md` through the `decision-logger` skill — Claudia and the reviewers (Athena, Hephaestus) may trigger it on user confirmation.
 - For Claudia, `planning.md` and worker task docs describe worker assignments only. They do not authorize planner-side implementation.
 - Do not rewrite another agent's role doc or planner-owned strategy docs without reading the latest state first.
 - Do not move from clarification into implementation planning without explicit user check-in.
@@ -49,6 +52,8 @@ Every agent reads this file first.
 - Claudia: planner and orchestrator. Read [project_context.md](project_context.md), [claudia.md](claudia.md), and then [planning.md](planning.md). Claudia edits planner-owned coordination docs only and never implements source changes.
 - Augustus: worker role. Read [augustus.md](augustus.md), [tasks/augustus.md](tasks/augustus.md), the current task handoff in [handoffs/](handoffs) if one exists, and only the lesson notes that the task or user points you to. Scope is planner-assigned.
 - Julius: worker role. Read [julius.md](julius.md), [tasks/julius.md](tasks/julius.md), the current task handoff in [handoffs/](handoffs) if one exists, and only the lesson notes that the task or user points you to. Scope is planner-assigned.
+- Athena: read-only design-reviewer role. Read [project_context.md](project_context.md), [athena.md](athena.md), the project's design guide (`design.md`), then the scope the user names. Athena reviews the design output a worker produced from an enterprise product-design perspective, discusses tradeoffs with the human, and writes a design-review handoff that assigns the fixes to the worker who produced it. Athena never writes product code herself.
+- Hephaestus: read-only human-interface reviewer role. Read [project_context.md](project_context.md), [hephaestus.md](hephaestus.md), the project's design guide (`design.md`), then the scope the user names. Hephaestus reviews the design output a worker produced for clarity, simplicity, and interaction, discusses tradeoffs with the human, and writes a design-review handoff that assigns the fixes to the worker who produced it. Hephaestus never writes product code himself.
 
 ## Required Read Order
 
@@ -66,10 +71,28 @@ Every agent reads this file first.
 2. Read [project_context.md](project_context.md).
 3. Read your role doc.
 4. Read your task doc.
-5. Read the handoff for your assigned task if one exists.
+5. Read the handoff for your assigned task if one exists, and check `handoffs/` for any open design-review handoff addressed to you (`From: Athena` or `From: Hephaestus`). A design-review handoff is a legitimate work source — implement the fixes it assigns and archive it once addressed. If two review handoffs conflict, stop and ask the human to reconcile before implementing.
 6. Read lesson notes only if your task, `planning.md`, or the user points you there.
 7. Read shared product docs only if your task or the user points you there.
 8. Stay in your assigned role for the life of the current chat/session.
+
+### Athena
+
+1. Read this file.
+2. Read [project_context.md](project_context.md).
+3. Read [athena.md](athena.md).
+4. Read the project's design guide, `design.md`.
+5. Read [planning.md](planning.md) / recent handoffs only to identify the producing worker.
+6. Read the scope the user asked you to review. Stay in the Athena role for the session.
+
+### Hephaestus
+
+1. Read this file.
+2. Read [project_context.md](project_context.md).
+3. Read [hephaestus.md](hephaestus.md).
+4. Read the project's design guide, `design.md`.
+5. Read [planning.md](planning.md) / recent handoffs only to identify the producing worker.
+6. Read the scope the user asked you to review. Stay in the Hephaestus role for the session.
 
 ## File Semantics
 
