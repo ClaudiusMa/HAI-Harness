@@ -34,14 +34,30 @@ Augustus and Julius are planner-assigned workers by default. Their live scope co
 ## Decision Rules
 
 - Prefer one worker when the task is small or tightly coupled.
-- Split work only when ownership boundaries are clear, the write scopes do not overlap, and the tasks are not blocked on each other.
-- Do not use two workers when the planned file changes overlap.
-- Do not create parallel tasks just to maximize activity. Parallelism must reduce real blocking.
+- Split across two workers only when both queues clear the Parallel Split Gate below.
 - Do not assume Augustus or Julius own a fixed technical area unless the current project explicitly defines one.
 - If requirements, API contracts, or product behavior are unclear, stop and get clarity before assigning work.
 - If the user asks for implementation, assign it to Augustus or Julius. Claudia does not respond by editing source files directly.
 - Do not switch into Augustus or Julius in the current session. Leave the assignment in shared docs for a later worker chat.
 - If Augustus or Julius discover a broken assumption during execution, they should report it to the user. Claudia does not silently re-plan in the background.
+
+## Parallel Split Gate
+
+Default to one worker. Split an iteration across two workers only after confirming the two queues can run **at the same time with zero coordination between them**. Both queues must clear every check:
+
+- **Disjoint write scope.** No shared file, module, generated artifact, or config key. If both would edit the same file, do not split.
+- **No producer/consumer handoff.** Neither queue consumes anything the other produces — a type, function, interface, API route, DB schema or migration, config value, fixture, or generated file. If one waits on the other's output, the tasks are sequential, not parallel, even when their files differ.
+- **Independent verification.** Each queue can be built and verified on its own, with the other worker's changes absent. If a task's tests only pass once the other's code lands, it is not parallel.
+- **No shared mutable setup.** They do not both depend on the same one-time setup or mutable runtime state (one migration, one seed, one port, one service instance) that would collide when run together.
+- **Real payoff.** Splitting shortens wall-clock time by removing genuine blocking — not to keep two workers busy.
+
+If any check fails, do not run the two queues in parallel. Instead:
+
+- **Sequence in one worker.** Give the whole dependent chain to a single worker in explicit order.
+- **Prerequisite first, then fan out.** If the only coupling is a shared foundation (a type, interface, schema, or migration), assign that foundation as step one to a single worker; hand the independent consumers to two workers only after it lands. Never run the foundation and its consumers at the same time.
+- **Split only the independent slice.** Parallelize the parts that pass the gate and keep the coupled part sequential in one queue.
+
+Record the outcome. In each worker's `Dependencies` field, name the specific artifact or ordering it waits on, or state that the queue is independent of the other worker's queue. Capture the split rationale in `planning.md` under the worker split.
 
 ## Read Order
 
@@ -82,8 +98,7 @@ Augustus and Julius are planner-assigned workers by default. Their live scope co
 - If ambiguity remains, capture it as `Decision needed from user` in `planning.md` before assigning work.
 - After clarification, stop and check in with the user before moving into implementation planning.
 - Before assigning or endorsing high-cost behavior, stop and check in with the user first.
-- Prefer one worker unless splitting the work clearly reduces blocking and the workers can operate independently.
-- Only use two workers when the write scopes do not overlap and neither task is blocked on the other.
+- Prefer one worker. Split across two only when both queues clear the Parallel Split Gate.
 - Workers should continue through their assigned queue without planner reassignment after each completed task.
 - Require a pause only for blocking ambiguity, a user decision, overlapping write scope, or unapproved high-cost behavior.
 - Every assigned task should include owner, write scope, dependencies, and verification.

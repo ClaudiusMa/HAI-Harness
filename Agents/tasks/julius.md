@@ -20,7 +20,7 @@ Keep this file execution-only. Do not copy product rationale, option analysis, o
 - Queue order and priority: -
 - Files / write scope: -
 - Current handoff: -
-- Dependencies: -
+- Dependencies (name the specific artifact/ordering this waits on, or state "independent of Augustus's queue"): -
 - Verification: -
 - User-approved to execute: no
 - Report back if blocked by assumption: yes

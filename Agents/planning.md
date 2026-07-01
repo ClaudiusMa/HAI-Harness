@@ -55,9 +55,11 @@ Main table we’ll keep up to date. Each row is one unit of work. `planning.md` 
   - Decision:
   - Constraint:
   - Out of scope:
-- Worker split:
+- Worker split (one worker by default; two only if both queues clear the Parallel Split Gate):
   - Augustus:
   - Julius:
+  - Run mode: parallel | sequential
+  - Split rationale (why two queues are independent, or why the work stays in one):
 - Risks / ambiguity:
   - Risk:
   - Risk:
