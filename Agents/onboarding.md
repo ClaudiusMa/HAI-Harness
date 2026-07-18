@@ -45,7 +45,7 @@ Every agent reads this file first.
 When the user has not named a role:
 
 1. Read this file, then [project_context.md](project_context.md).
-2. Read the top-level status, active focus, and latest-decision summary in [planning.md](planning.md), read-only, when present.
+2. Read the **Current Product Truth** and **Active Queue** sections of [planning.md](planning.md), read-only.
 3. Route further reading by the task:
    - Product UI or source work: the relevant source plus the project design guide, [design.md](design.md).
    - Existing design intent: the current design handoff or artifact named by the task.
