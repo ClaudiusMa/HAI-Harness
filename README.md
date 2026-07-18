@@ -1,6 +1,6 @@
 # HAI-Harness
 
-HAI-Harness is a collaboration architecture for both humans and AI agents. 
+HAI-Harness is a repo-as-truth collaboration architecture for humans and AI agents.
 
 *Author's Note: In my own testing, whether spinning up a rapid 0-to-1 demo or tackling complex long-running tasks, using this harness consistently outperforms using Claude Code out of the box. My core assumption is that every product needs its own independent harness layer—one that governs both human and AI. Open to discussion on this.*
 
@@ -10,41 +10,74 @@ In this system, humans and AI are peers. Both humans and AI are the high-octane 
 
 But raw intelligence isn't enough without a system to direct it. Left alone, AIs act like amnesiac interns—they forget instructions from 100 turns ago and hallucinate progress. Humans aren't much better—we forget why we made a product decision three months ago, or we step on each other's toes when collaborating.
 
-The collaboration harness built on one simple idea: humans and AI don’t need more context—they need accurate context. It treats humans and AIs as equals in a shared operating system, using the repository as the absolute source of truth.
+The collaboration harness is built on one simple idea: humans and AI don’t need more context—they need accurate context. It treats people and agents as peers in a shared operating system, using the repository as the durable source of truth.
 
-- **If a decision isn't written in the repo, it doesn't exist.**
-- **We don't rely on model memory, and we don't rely on human memory.** 
+- **A user's live direction governs the current session; the repository preserves what future sessions can rely on.**
+- **The latest confirmed human decision wins, and conflicts with stale documents must be surfaced rather than silently resolved.**
+- **If a durable decision is not written back to the repo, it will not reliably survive the session.**
+- **We don't rely on model memory, and we don't rely on human memory.**
 - **Every participant must read the current state and explicit handoff files before taking action.**
 
 ## The Roadmap & Current Progress
 
-### ✅ Where We Are Right Now (Layer 1: The Management System)
+### ✅ Layer 1: The Management System — Operational
 
-We have built the foundational architecture for memory, context isolation, and task routing. 
+The foundational architecture for durable memory, context control, planning, and task routing is in place.
 
 - `Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents don't read this unless explicitly instructed.
-- `Agents/`: The execution layer. Shared context, task queues, and handoff files.
-- Roles: "Claudia" plans. "Augustus" and "Julius" execute. "Athena" and "Hephaestus" review design (read-only, against `Agents/design.md`). No role-switching mid-session.
-- Handoffs: Workers pass the baton via explicit markdown files (`Agents/handoffs/`), not chat history.
+- `Agents/`: The operating layer for current product truth, planning, task contracts, design contracts, handoffs, lessons, and archived history.
+- General work can begin through a limited no-role read path; users no longer need to choose a named role merely to start.
+- Claudia plans and orchestrates without editing product code. Augustus and Julius execute planner-assigned queues.
+- Hephaestus owns non-code human-interface design and design review. Athena independently reviews enterprise product design. Both work against `Agents/design.md`.
+- Active task authority lives in `Agents/planning.md` and `Agents/tasks/`; handoffs carry the contract across role boundaries, not chat memory.
+- Confirmed decisions, broken assumptions, high-cost behavior, and outward acts have explicit gates.
 
-### ⏳ Next: Concurrency & Team Mode (Layer 2)
+### 🟡 Layer 2: Coordinated Team Mode — Partially Operational
 
-*The Problem:* Throwing multiple agents at a codebase causes chaotic pile-ups and overlapping edits. 
+*The Problem:* Throwing multiple agents at a codebase causes chaotic pile-ups and overlapping edits.
 
-*The Fix:* A true "Team Mode." Agents will get isolated workspaces and point-to-point communication. We will use strict state-machine routing so workers are physically blocked from touching code until the planner approves the dependency graph.
+What exists now:
 
-### ⏳ Next: The Evaluator (Layer 3)
+- Claudia can coordinate separate role-isolated worker sessions without changing her own role.
+- A strict Parallel Split Gate rejects concurrent work unless write scopes, dependencies, verification, and mutable setup are independent.
+- Worker contracts record exact scope, ordering, preservation requirements, approval state, verification, and stop conditions.
+- Workers report broken assumptions back to Claudia and the user instead of silently widening scope.
+
+What is not built yet:
+
+- Filesystem- or worktree-level isolation supplied by HAI-Harness itself.
+- A deterministic runtime state machine that physically prevents work before dependency and approval gates clear.
+- Harness-owned point-to-point transport, collision detection, or automatic queue scheduling. Current orchestration relies on the host agent platform plus the repository contracts.
+
+### 🟡 Layer 3: Evaluation — Started, Domain-Specific
 
 *The Problem:* LLMs are blindly confident. They will mark a feature as "done" even when the UI is broken or the logic is flawed.
 
-*The Fix:* Splitting execution and evaluation. We will introduce a dedicated adversarial `Evaluator` agent. Running in an isolated sandbox, its only job is to aggressively try to break the worker's output.
+What exists now:
 
-### ⏳ Next: Agentic Infra & Background Sweeping
+- Execution and design evaluation are separate responsibilities.
+- Athena performs read-only enterprise product-design review and assigns concrete fixes to the producing worker.
+- Hephaestus creates durable, build-ready interface contracts and can review the resulting implementation without modifying product code.
+- Review findings and implementation corrections move through explicit design artifacts and handoffs.
+
+What is not built yet:
+
+- A general adversarial `Evaluator` covering application logic, security, reliability, performance, and UI behavior.
+- An evaluator running in a harness-provided isolated sandbox.
+- A mandatory pass/fail evaluation gate that can block completion automatically.
+
+So the project has entered Layer 3, but only through design-specific evaluation; the general evaluator remains future work.
+
+### ⏳ Layer 4: Agentic Infrastructure & Background Sweeping
 
 *The Problem:* Over time, lessons, patterns, and handoffs bloat into noisy overhead.
 
-*The Fix:* - **Auto-Sweeping:** A background process that runs while we sleep to silently deduplicate, compress, and organize the `lessons/` folder.
-- **Pluggable Hooks:** Custom CI-style checkpoints where specific scripts or linters can automatically halt an agent if it breaks an architectural rule.
+Planned:
+
+- **Auto-Sweeping:** A background process that deduplicates, compresses, and organizes lessons and stale coordination history.
+- **Pluggable Hooks:** CI-style checkpoints where scripts or linters can halt work that breaks an architectural rule.
+
+Today, archive structure exists, but cleanup and enforcement remain manual.
 
 ## Installing HAI-Harness Into An Existing Project
 
@@ -89,28 +122,44 @@ npx github:ClaudiusMa/HAI-Harness init --force
 
 Preview either command with `--dry-run` first.
 
+## Current Limitations
+
+- HAI-Harness is a repository overlay, not an agent runtime. It defines authority and coordination contracts but does not itself create sandboxes, worktrees, or background processes.
+- The review layer is currently design-specific, not a comprehensive correctness evaluator.
+- Enforcement is primarily procedural: agents follow `AGENTS.md`, role boundaries, task scopes, and approval gates. Deterministic policy enforcement remains future infrastructure.
+- Sweeping, deduplication, hooks, and CI-style architectural gates are not automated yet.
+
 ## How to Operate the Harness (The User Guide)
 
 ### 1. Repo-as-Truth
-As OpenAI found in their agent experiments: *If it is not in the repository, it does not exist.* Slack messages, your internal mental model, and previous chat history do not matter. The only reality the agent can see is the files on disk.
-* **Do not** assume the agent remembers a rule just because you talked about it 20 prompts ago. 
-* **Do** force the system to write it down permanently.
 
-### 2. Context Reset (Chat Sessions are Disposable)
-In Anthropic's engineering post-mortems, they noted that even with massive token windows, models suffer from "amnesiac intern syndrome." Performance plummets as the chat gets longer because the model gets confused by its own bloated history. 
-* **Never** keep one massive chat window open for an entire project.
-* **Kill the Session:** When a task gets complex or the chat feels long, close the chat entirely. 
-* **The Fresh Start:** Open a completely new, blank chat session. A clean context window equipped with a strict handoff document will always outperform a bloated chat history.
+Live user direction can correct stale repository state during a session. But only durable repository state can reliably coordinate a future session.
+
+* **Do not** assume an agent or person remembers a rule because it appeared earlier in a chat.
+* **Do** flag conflicts, follow the latest confirmed human decision, and write durable conclusions back through the owning role.
+
+### 2. Treat Sessions as Replaceable
+
+Long conversations accumulate stale assumptions. The harness makes a fresh context safe because authority lives in current plans, task files, design contracts, and handoffs.
+
+* Start a fresh session when context becomes noisy or responsibility changes.
+* Keep one role per agent session; do not impersonate another role midstream.
+* Claudia may coordinate separate role-isolated worker sessions directly when the host platform supports it.
+* Before pausing or changing ownership, leave a task-centric handoff that states verified facts and the exact next step.
 
 ### 3. The Standard Workflow & Active Skills
-A passive markdown file is useless if it's outdated. OpenAI's experiments proved that agents will ignore rules in a passive document unless they are enforced. This workflow relies on active **Skills**—lightweight agent tools designed to actively maintain the system.
+
+A passive markdown file loses value when it becomes stale. This workflow combines current execution contracts with focused **Skills** that maintain decisions, alignment, handoffs, and lessons.
 
 When you sit down to work, follow this loop:
 
-1. **Draft the Intent:** Use an AI to help you write `Human/brief.md`, `decisions.md`, and open questions based on your raw ideas.
-2. **Talk to Claudia & Log Decisions:** Talk to "Claudia" (the planner agent) to discuss what needs to be done. Because unrecorded decisions simply don't exist, trigger the **`decision-logger`** skill when you make an architectural choice to immediately save it to `Human/decisions.md`.
-3. **Define the Reality:** Have Claudia write `Agents/project_context.md` to establish your architecture and system rules so the coding agents have a map.
-4. **Audit the Alignment:** Run the **`guardian`** skill. Long-running agents inherently drift away from the original plan over time. `guardian` acts as a read-only auditor that scans the repo to verify your `Human/` intent and the `Agents/` execution reality still match.
-5. **Generate the Plan:** Claudia automatically writes the execution plan in `Agents/planning.md` and assigns the specific task contracts to the worker slots (Augustus and Julius).
-6. **Execute, Handoff, and Reset:** Switch to an execution agent (Augustus/Julius) in a *new chat session*. Let them work through the task contract. Before the context window degrades, trigger the **`handoff`** skill. 
-7. **Capture Lessons:** If a task fails or gets messy, trigger the **`retrospective`** skill. Models will confidently repeat the same mistakes in new chat sessions unless the failure is distilled into a clean, reusable lesson in `Agents/lessons/`.
+1. **Draft the Intent:** Use `Human/brief.md`, `decisions.md`, and open questions to capture the human side of the project. Agents read `Human/` only when explicitly authorized.
+2. **Plan With Claudia:** Claudia clarifies the request, maintains Current Product Truth, and records strategy in `Agents/planning.md`.
+3. **Log Durable Decisions:** After user confirmation, the **`decision-logger`** records only decisions that should matter to a fresh session weeks later.
+4. **Define Durable Context:** Keep architecture, boundaries, and non-negotiable rules in `Agents/project_context.md`; keep iteration state out of it.
+5. **Audit Alignment When Needed:** The read-only **`guardian`** compares authorized `Human/` intent with the agent operating layer and reports mismatches without resolving them.
+6. **Design When Needed:** Hephaestus creates a non-code contract under `Agents/designs/`; Claudia then assigns implementation. Athena can independently review enterprise design quality.
+7. **Assign the Queue:** Claudia records dependencies, write scopes, approvals, stop conditions, and verification in `Agents/planning.md` and the Augustus/Julius task files. Parallel work is allowed only when the Parallel Split Gate passes.
+8. **Execute:** Claudia coordinates role-isolated workers when supported, or the user opens the assigned worker in a fresh session. Workers remain inside their task contracts and report broken assumptions.
+9. **Evaluate and Correct:** Athena or Hephaestus can issue design-review handoffs. A general adversarial evaluator is not available yet.
+10. **Handoff, Learn, and Archive:** Use **`handoff`** before ownership or session changes, **`retrospective`** after hard or error-prone work, and move superseded task/handoff history under `Agents/_archive/`.
