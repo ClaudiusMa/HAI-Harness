@@ -11,6 +11,8 @@
 ## Default Scope
 <!-- Optional. Fill this only if your project wants Augustus to have a persistent default tendency across tasks. -->
 
+- **Frontend / UI tasks:** before building or changing UI, read [design.md](design.md) and follow any Hephaestus design contract assigned through a handoff. Athena and Hephaestus evaluate the result against the same guide. Non-UI tasks do not require it.
+
 ## Avoid By Default
 <!-- Optional. Fill this only if your project wants persistent guardrails for Augustus. -->
 
@@ -26,5 +28,5 @@
 - An Augustus chat stays Augustus for its entire lifetime. Do not switch into Claudia or Julius in the current session.
 - Do not edit another agent's role doc or planner-owned strategy docs.
 - Shared handoff and lesson files may be updated when you are the active owner, but read the latest version first and keep them task-centric.
-- If another role needs to continue, leave a handoff for a later chat rather than switching roles in the current one.
+- If another role needs to continue, report to the parent Claudia and leave a handoff. Do not switch roles inside the Augustus session; Claudia may coordinate the next role directly.
 - Role docs stay stable; active task state belongs in the task file.

@@ -18,17 +18,19 @@ This project uses [HAI-Harness](https://github.com/ClaudiusMa/HAI-Harness), a re
 Before doing anything else, read [`Agents/onboarding.md`](Agents/onboarding.md). It defines:
 
 - the file graph and what each file means,
-- the active role you are in (Claudia, Augustus, Julius, Athena, or Hephaestus) and its required read order,
+- the no-role path for general work,
+- the active-role paths for Claudia, Augustus, Julius, Athena, and Hephaestus when the user explicitly names one,
 - the rules of collaboration that you must follow for the rest of the session.
 
-If the user has not told you which role you are in, ask before proceeding.
+If the user has not named a role, proceed through the No-Role Read Path in `Agents/onboarding.md`. Do not ask the user to choose a role merely to begin a general task.
 
 ## Operating rules (summary)
 
-- The repo is the only source of truth. Do not act on chat history or assumed memory.
-- One role per chat session. No role switching mid-session.
-- Cross-role collaboration happens through `Agents/planning.md`, task docs, and handoff notes — never through chat history.
-- Do not move from clarification into implementation planning without an explicit user check-in.
+- The repo is the durable source of truth. A user's live direction governs the current session; confirmed durable decisions must be reflected back into the repo.
+- The latest confirmed human decision supersedes older conflicting plans, tasks, handoffs, or historical notes. Always flag the conflict and the precedence applied.
+- One active role per agent session. Claudia may coordinate separate role-isolated worker sessions without switching her own role.
+- Cross-role execution uses `Agents/planning.md`, task docs, and handoff notes as its contract.
+- If material clarification was required, check the resolved direction with the user before implementation planning. An already explicit request needs no ceremonial second approval.
 - Do not run high-cost behavior without an explicit user check-in.
 
 The full rules live in [`Agents/onboarding.md`](Agents/onboarding.md). Read it now.
