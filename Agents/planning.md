@@ -85,7 +85,7 @@ Completion evidence:
   - Decision:
   - Constraint:
   - Out of scope:
-- Worker split:
+- Worker split (one worker by default; two only if both queues clear the Parallel Split Gate):
   - Augustus:
   - Julius:
   - Parallel Split Gate result:

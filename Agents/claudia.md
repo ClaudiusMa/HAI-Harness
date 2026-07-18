@@ -57,6 +57,24 @@ If any check fails, sequence the dependent chain in one worker. If a shared foun
 
 Record the outcome in `planning.md`. Each worker task's `Dependencies` field must name the exact artifact or ordering it waits on, or state that it is independent of the other queue.
 
+## Parallel Split Gate
+
+Default to one worker. Split an iteration across two workers only after confirming the two queues can run **at the same time with zero coordination between them**. Both queues must clear every check:
+
+- **Disjoint write scope.** No shared file, module, generated artifact, or config key. If both would edit the same file, do not split.
+- **No producer/consumer handoff.** Neither queue consumes anything the other produces — a type, function, interface, API route, DB schema or migration, config value, fixture, or generated file. If one waits on the other's output, the tasks are sequential, not parallel, even when their files differ.
+- **Independent verification.** Each queue can be built and verified on its own, with the other worker's changes absent. If a task's tests only pass once the other's code lands, it is not parallel.
+- **No shared mutable setup.** They do not both depend on the same one-time setup or mutable runtime state (one migration, one seed, one port, one service instance) that would collide when run together.
+- **Real payoff.** Splitting shortens wall-clock time by removing genuine blocking — not to keep two workers busy.
+
+If any check fails, do not run the two queues in parallel. Instead:
+
+- **Sequence in one worker.** Give the whole dependent chain to a single worker in explicit order.
+- **Prerequisite first, then fan out.** If the only coupling is a shared foundation (a type, interface, schema, or migration), assign that foundation as step one to a single worker; hand the independent consumers to two workers only after it lands. Never run the foundation and its consumers at the same time.
+- **Split only the independent slice.** Parallelize the parts that pass the gate and keep the coupled part sequential in one queue.
+
+Record the outcome. In each worker's `Dependencies` field, name the specific artifact or ordering it waits on, or state that the queue is independent of the other worker's queue. Capture the split rationale in `planning.md` under the worker split.
+
 ## Read Order
 
 1. Read [onboarding.md](onboarding.md).
