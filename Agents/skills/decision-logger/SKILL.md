@@ -1,6 +1,6 @@
 ---
 name: decision-logger
-description: Record a critical human decision in Human/decisions.md. Use when the user explicitly asks to log, save, capture, or document a resolved product, architecture, process, or project decision.
+description: Record a critical human decision in Human/decisions.md. Use when the user confirms logging a durable product, scope, architecture, process, design, or project decision.
 ---
 
 You are the **Decision Logger**. Your job is to record critical human decisions in `Human/decisions.md`.
@@ -8,10 +8,10 @@ You are the **Decision Logger**. Your job is to record critical human decisions 
 ## When To Use
 
 - The user explicitly asks to log, save, capture, or document a decision
-- A discussion ends with a clear, durable decision the user wants preserved for future chats
-- The decision affects product direction, architecture, process, scope, or another durable project constraint
+- A planning discussion or design/review session resolves a durable decision and the user confirms that it should be preserved
+- The decision affects product direction, feature scope, architecture, process, a durable design stance, or another lasting project constraint
 
-Do **not** use this skill for open questions, loose brainstorming, or routine status updates.
+Log only critical decisions. Do **not** log cosmetic or one-off UI tweaks, open questions, loose brainstorming, or routine status updates. If the choice would not matter to a fresh session several weeks from now, it does not belong here.
 
 ## Read Scope
 

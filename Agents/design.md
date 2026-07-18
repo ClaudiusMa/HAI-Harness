@@ -6,7 +6,7 @@
 - This is the project's single source of truth for concrete visual style:
   tokens, components, spacing, type, motion, and voice.
 - Builders (Augustus, Julius) read it before writing any UI and match it.
-- Reviewers (Athena, Hephaestus) check the artifact's adherence to it. When a
+- Hephaestus designs within it; Athena and Hephaestus check the artifact's adherence to it. When a
   style choice conflicts with an outside pattern, THIS FILE wins — it is the
   project's truth, not the reviewer's preference.
 - Replace every placeholder below with your real design system. Delete the
@@ -16,8 +16,9 @@
   this in, and keep this file as a short pointer to it.
 -->
 
-The concrete visual language for this project. Builders match it; reviewers
-check adherence to it. If it is not written here, it is not the standard.
+The concrete visual language for this project. Hephaestus designs within it,
+builders match it, and reviewers check adherence to it. If it is not written
+here, it is not the standard.
 
 ## Overview
 

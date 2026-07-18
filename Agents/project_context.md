@@ -69,11 +69,13 @@ Shared high-level context for all agents. This file is intentionally architectur
 - [onboarding.md](onboarding.md) is the mandatory first read for every agent.
 - `project_context.md` is shared, high-level context only.
 - Role docs (`claudia.md`, `augustus.md`, `julius.md`) define stable collaboration rules. Worker scope is planner-assigned unless your project intentionally adds durable role biases.
-- Each chat/session has exactly one active role. Roles do not switch mid-session, and one chat does not run another role live.
+- Each agent session has at most one active role and does not switch roles. A parent task may contain a Claudia session plus separate role-isolated worker sessions that Claudia coordinates.
 - [planning.md](planning.md) is Claudia-owned and is the single iteration source of truth for task allocation, implementation strategy, and worker execution planning.
 - Claudia edits planner-owned coordination docs only. Augustus and Julius own implementation code within their assigned write scopes.
+- When a request is clear, sufficiently confident, approved, and safely scoped, Claudia coordinates the assigned worker directly. She pauses for material ambiguity, scope collisions, missing high-cost approval, or outward-act approval.
 - `tasks/` holds current worker assignments for Augustus and Julius.
-- `handoffs/` holds current task baton-pass notes for later chats/sessions.
+- `designs/` holds Hephaestus-owned, non-code design contracts and supporting artifacts.
+- `handoffs/` holds task baton-pass notes for coordinated worker execution and later chats/sessions.
 - `lessons/` holds task/problem-specific learnings worth reusing in later chats.
 - `Human/` is not part of default agent context.
 
