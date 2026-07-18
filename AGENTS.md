@@ -10,7 +10,7 @@ This project uses [HAI-Harness](https://github.com/ClaudiusMa/HAI-Harness), a re
 ## Design guide
 
 - `Agents/design.md` is the project's design guide — the single source of truth for concrete visual style (tokens, components, spacing, type, states, voice).
-- **Before building or editing any UI, read `Agents/design.md` and match it.** The design reviewers (Athena, Hephaestus) check the artifact's adherence to it.
+- **Before building or editing any UI, read `Agents/design.md` and match it.** Hephaestus designs within it; Athena and Hephaestus review the artifact against it.
 - Fill it in for your project. If you already have a design system elsewhere (a shared brand repo, a component library, or a Figma spec), repoint this section at that source and keep `Agents/design.md` as a short pointer to it.
 
 ## Start here

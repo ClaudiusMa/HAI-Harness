@@ -74,6 +74,7 @@ Shared high-level context for all agents. This file is intentionally architectur
 - Claudia edits planner-owned coordination docs only. Augustus and Julius own implementation code within their assigned write scopes.
 - When a request is clear, sufficiently confident, approved, and safely scoped, Claudia coordinates the assigned worker directly. She pauses for material ambiguity, scope collisions, missing high-cost approval, or outward-act approval.
 - `tasks/` holds current worker assignments for Augustus and Julius.
+- `designs/` holds Hephaestus-owned, non-code design contracts and supporting artifacts.
 - `handoffs/` holds task baton-pass notes for coordinated worker execution and later chats/sessions.
 - `lessons/` holds task/problem-specific learnings worth reusing in later chats.
 - `Human/` is not part of default agent context.
