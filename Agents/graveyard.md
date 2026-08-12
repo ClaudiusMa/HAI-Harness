@@ -1,16 +1,5 @@
-# Graveyard
+# Graveyard (retired)
 
-<!--
-## How To Use This File
+This file remains only so older links resolve. Do not add entries.
 
-- Use this file for only the most reusable failures.
-- Keep entries compact and high value.
-- If a failure is still task-specific, keep it in `Agents/lessons/` instead.
--->
-
-Use this file for only the most reusable failures:
-
-- failure:
-- failure:
-
-Keep it compact. If a lesson is still task-specific, it belongs in `Agents/lessons/` instead.
+Failure stories stay in task reports and handoffs. Reusable prevention routes through [skills/lesson-logger/SKILL.md](skills/lesson-logger/SKILL.md) into a check, Standing Gate, or capped conditional lesson.

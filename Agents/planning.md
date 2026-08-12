@@ -3,11 +3,12 @@
 <!--
 ## How To Use This File
 
-- Claudia owns this file.
+- Claudia owns this file in an installed product harness.
 - Keep current product truth, backlog, active strategy, worker assignments, approvals, and user decisions here.
-- Replace placeholders with real project state.
+- Replace placeholders with real project state after installation.
 - Keep completed evidence concise and move bulk history to `_archive/`.
 - Do not use this file as a worker journal.
+- The upstream HAI-Harness repository keeps this file blank; real project work belongs only in installed field instances.
 -->
 
 Planner-owned single source of truth for the current iteration.
@@ -29,8 +30,6 @@ Priority options: `P0` (must now), `P1` (soon), `P2` (nice), `P3` (maybe).
 - Archived material is evidence only. It is never executable unless this plan or the current worker task explicitly restates it.
 
 ## Current Product Truth
-
-Keep this short. Record only the latest durable facts needed to interpret the active queue.
 
 - Product direction:
 - Current scope boundary:

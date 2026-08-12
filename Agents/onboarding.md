@@ -19,26 +19,35 @@ Every agent reads this file first.
 ## Core Rules
 
 - Read only the context you need for the current task and, when one is explicitly named, the active role.
+- **Worktree first for implementation lanes.** Before changing application/source, tests, generated output, runtime assets, app config, dependencies, builds, or server lifecycle, create a sibling `codex/<task-slug>` lane with `hai-harness worktree create <task-slug> --integration <branch>`. Run creation only from the primary checkout. The named local integration branch must be checked out, clean, and not `main` or `master`.
+- One clean committed integration branch is the source of truth. Never copy uncommitted product files, reset, stash, or clean another lane to create a task baseline.
+- Run the project's own preview/dev command from the task worktree and have the user review that exact lane. HAI-Harness owns no static server, route, framework, or reserved port.
+- After focused verification and review, ask for explicit local integration approval. `hai-harness worktree approve --approved "<message>"` runs `git diff --check`, stages and commits with hooks, adds the Codex co-author trailer once, and makes a local `--no-ff` merge into the recorded integration worktree. It does not push, open a PR, deploy, or publish. Preserve the task worktree when the integration target is dirty or a merge fails.
 - **Latest decision wins.** A user's live direction governs the current session. When documents conflict, the latest confirmed human decision supersedes every older decision, plan, task, handoff, or historical note. Archived material is evidence only; never execute it unless the current plan or task restates it.
 - **Flag conflicts; never resolve them silently.** When a document conflicts with another document, the implementation, or the user's live direction, apply the precedence rule when it clearly settles the conflict and tell the user what conflicted. If precedence is unclear, stop and ask. The owning role must then update the stale durable source of truth.
 - Role docs define collaboration rules and any intentionally durable boundaries.
 - If the user has not explicitly named a role, operate without one and follow the No-Role Read Path below. Do not ask for a role merely to begin a general task.
-- When the user explicitly names a role, that role stays active for that agent's session. Claudia may spawn separate Augustus or Julius worker sessions to execute clear, approved queues; this is delegation, not role switching. Each worker remains in its assigned role.
-- Cross-role collaboration uses `planning.md`, task docs, and handoff notes as the execution contract. It may happen through Claudia-coordinated worker sessions or a later user-created session.
+- When the user explicitly names a role, that role stays active for that agent's session. Claudia may spawn fresh role-isolated Augustus or Julius child sessions inside the current parent task; this is delegation, not role switching. Each child remains in its assigned role.
+- Cross-role collaboration uses `planning.md`, task docs, and handoff notes as the execution contract. Normal execution happens through Claudia's child workers. A separately created top-level task is an independent peer controller unless the user explicitly approves a queue transfer.
 - `planning.md` is the active queue and iteration source of truth.
 - Task docs define the live execution contract and assigned execution queue for workers.
 - Handoff notes are task-centric baton passes.
-- Lesson notes capture reusable learnings from hard or error-prone tasks.
+- Confirmed process failures route through Claudia's `lesson-logger` into a deterministic check, a Standing Gate, a capped conditional lesson, or discard. Workers and reviewers provide evidence but do not write lesson state.
 - `planning.md` is planner-owned.
 - Claudia is planning-only. Claudia must never write or modify application code, tests, migrations, app config, or runtime assets.
-- Claudia is also the live orchestrator. Once work is clear, sufficiently confident, authorized, and assigned with non-conflicting write scopes, she coordinates the worker session(s), monitors their results, and keeps the user informed. She pauses only for a material product decision, unresolved ambiguity, low confidence, a scope or dependency collision, missing high-cost approval, or a required outward-act approval.
+- Claudia is also the root controller and live orchestrator. Once work is clear, sufficiently confident, authorized, and assigned with non-conflicting write scopes, she spawns fresh child workers, monitors their results, and keeps the user informed. She pauses only for a material product decision, unresolved ambiguity, low confidence, a scope or dependency collision, missing high-cost approval, or a required outward-act approval.
+- Capability and effort are separate. Claudia uses the portable `reasoning-controller` profile; implementation children use `fast-worker`; effort is selected independently from low to high according to the task. Harness files never name a provider, model, or version.
+- When multiple controllers, plans, workers, or unexplained shared-tree changes may overlap, Claudia runs `traffic-control` before adding delegation, shared mutable verification, generated-output rewrites, server-lifecycle changes, or outward acts. Traffic control may sequence or block peer-owned work but never converts a peer controller into a worker.
 - Athena is review-only. Athena must never write or modify application code, tests, migrations, app config, or runtime assets. She assigns the review's fixes to the producing worker through a handoff; she does not implement them.
 - Hephaestus is a human-interface designer and design director. He may create flows, specifications, copy, state models, wireframes, diagrams, motion direction, design contracts, and design/review handoffs. He must never create or modify application code, styles, tests, migrations, app config, runtime assets, or build output. Workers implement his non-code design answer.
 - No role writes to `Human/` directly. The one sanctioned write is logging a confirmed decision to `Human/decisions.md` through the `decision-logger` skill — Claudia and the reviewers (Athena, Hephaestus) may trigger it on user confirmation.
 - For Claudia, `planning.md` and worker task docs describe worker assignments only. They do not authorize planner-side implementation.
 - Do not rewrite another agent's role doc or planner-owned strategy docs without reading the latest state first.
-- If material clarification was required, check the resolved direction with the user before implementation planning or worker execution. When the request is already explicit and clear, Claudia may plan, assign, and coordinate the worker without an additional ceremonial check-in.
+- If material clarification was required, check the resolved direction with the user before implementation planning or worker execution. When the request is already explicit and clear, Claudia may plan, assign, and spawn the worker without an additional ceremonial check-in.
 - Do not run high-cost behavior without explicit user check-in.
+- **Storybook is explicit-user-triggered.** Ordinary visual changes must not touch, build, or update Storybook. Log visual explorations there only when the user explicitly asks the agent to do so.
+- **Keep source and field instances distinct.** Treat the published HAI-Harness package/repository as canonical upstream; treat this project-local installed copy as a field instance. Never bulk-copy a field instance's `Agents/` tree back into the scaffold. Promote reusable method changes path-by-path.
+- **Protect prompt hygiene.** Keep live planning and worker task files current-only. Move completed queues and historical evidence to handoffs or `_archive/`; `doctor` enforces generous line budgets on mandatory planning/task startup context.
 
 ## No-Role Read Path (General Tasks)
 
@@ -50,7 +59,7 @@ When the user has not named a role:
    - Product UI or source work: the relevant source plus the project design guide, [design.md](design.md).
    - Existing design intent: the current design handoff or artifact named by the task.
    - History or rationale: [handoffs/](handoffs) and [_archive/](_archive), as evidence only.
-   - Hard or previously failed work: [lessons/](lessons), [patterns.md](patterns.md), or [graveyard.md](graveyard.md), only when the task or user points there.
+   - Hard or previously failed work: only the lesson files explicitly routed by [lessons/INDEX.md](lessons/INDEX.md) through the task contract.
 4. Do not edit planner-owned docs (`planning.md`, `tasks/`), role docs, or `Human/` without an explicit user override.
 5. Before editing work covered by an active queue item, state that the queue contract and its approval gates apply.
 6. If the work becomes role-shaped—planning, design direction, or review—name that to the user rather than silently taking over that role.
@@ -63,8 +72,6 @@ When the user has not named a role:
   [designs/](designs),
   [handoffs/](handoffs),
   [lessons/](lessons),
-  [patterns.md](patterns.md),
-  [graveyard.md](graveyard.md),
   archived docs under [_archive/README.md](_archive/README.md)
 
 ## Role Index
@@ -83,7 +90,9 @@ When the user has not named a role:
 2. Read [project_context.md](project_context.md).
 3. Read [claudia.md](claudia.md).
 4. Read [planning.md](planning.md).
-5. Read worker role docs or task files as needed for coordination. When the queue is clear and approved, coordinate the assigned worker session directly; Claudia's own session remains Claudia.
+5. Read [lessons/INDEX.md](lessons/INDEX.md), pre-check its sweep cursor, and load `lesson-logger` only on a hit.
+6. If concurrent work or unexplained shared-tree drift may overlap, run [traffic-control](skills/traffic-control/SKILL.md) before adding motion.
+7. Read worker role docs or task files as needed for coordination. When the queue is clear and approved, spawn a fresh role-isolated child worker; Claudia's own session remains the root controller.
 
 ### Worker Agents
 
@@ -124,10 +133,9 @@ When the user has not named a role:
 - Worker task docs are execution-only. Strategy and unresolved product questions stay in `planning.md`.
 - Planner-owned coordination docs are the only files Claudia edits. Product/source code, tests, migrations, and app config belong to workers.
 - Handoffs are task-specific baton passes. Keep them short, current, and easy for another worker to act on.
-- Task docs and handoffs are execution contracts for both Claudia-coordinated worker sessions and later cross-session baton passes. A delegated worker session is role-isolated; Claudia does not switch roles.
-- Lessons are task/problem-specific memory for retries, new chats, and hard questions.
-- [patterns.md](patterns.md) is for active cross-task patterns only.
-- [graveyard.md](graveyard.md) is for only the most reusable cross-task failures.
+- Task docs and handoffs are execution contracts for Claudia's role-isolated child workers. A peer controller remains independently owned unless the user explicitly approves a queue transfer; Claudia never treats it as worker capacity.
+- [lessons/INDEX.md](lessons/INDEX.md) is the only always-loaded lesson memory. Claudia owns capture, promotion, and retirement through `lesson-logger`; workers read only task-routed lesson files.
+- `patterns.md`, `graveyard.md`, and the `retrospective` skill are compatibility tombstones, not active write paths.
 - Older bulk history lives under [_archive/README.md](_archive/README.md).
 - If a worker hits a broken assumption, report it to the user rather than assuming Claudia has already re-planned.
 - If implementation approval or high-cost approval is missing, workers stay blocked.

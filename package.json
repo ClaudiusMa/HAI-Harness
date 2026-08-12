@@ -1,7 +1,7 @@
 {
   "name": "hai-harness",
   "version": "0.1.0",
-  "description": "Install the HAI-Harness collaboration layer into an existing project.",
+  "description": "Install and operate the HAI-Harness collaboration layer in an existing project.",
   "type": "module",
   "repository": {
     "type": "git",
@@ -23,7 +23,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --check bin/hai-harness.mjs"
+    "test": "node --test test/hai-harness.test.mjs"
   },
   "license": "MIT"
 }

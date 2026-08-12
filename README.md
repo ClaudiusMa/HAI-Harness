@@ -42,12 +42,13 @@ What exists now:
 - A strict Parallel Split Gate rejects concurrent work unless write scopes, dependencies, verification, and mutable setup are independent.
 - Worker contracts record exact scope, ordering, preservation requirements, approval state, verification, and stop conditions.
 - Workers report broken assumptions back to Claudia and the user instead of silently widening scope.
+- Native CLI worktree lanes isolate implementation on `codex/<task-slug>` branches and gate hook-preserving local integration on explicit approval.
+- The `traffic-control` skill reconciles overlapping sessions, workers, mutable verification, generated output, and outward targets before more work starts.
 
 What is not built yet:
 
-- Filesystem- or worktree-level isolation supplied by HAI-Harness itself.
 - A deterministic runtime state machine that physically prevents work before dependency and approval gates clear.
-- Harness-owned point-to-point transport, collision detection, or automatic queue scheduling. Current orchestration relies on the host agent platform plus the repository contracts.
+- Harness-owned point-to-point transport or automatic queue scheduling. Traffic detection uses the host agent platform, repository contracts, and Git evidence.
 
 ### 🟡 Layer 3: Evaluation — Started, Domain-Specific
 
@@ -68,16 +69,22 @@ What is not built yet:
 
 So the project has entered Layer 3, but only through design-specific evaluation; the general evaluator remains future work.
 
-### ⏳ Layer 4: Agentic Infrastructure & Background Sweeping
+### 🟡 Layer 4: Agentic Infrastructure & Background Sweeping — Started
 
 *The Problem:* Over time, lessons, patterns, and handoffs bloat into noisy overhead.
 
-Planned:
+What exists now:
+
+- `lesson-logger` promotes confirmed failures toward deterministic checks or capped Standing Gates before retaining conditional lesson files.
+- `Agents/lessons/INDEX.md` is the capped always-loaded routing layer and intake-sweep cursor.
+- The retired retrospective, patterns, and graveyard paths remain as compatibility tombstones.
+
+Still planned:
 
 - **Auto-Sweeping:** A background process that deduplicates, compresses, and organizes lessons and stale coordination history.
 - **Pluggable Hooks:** CI-style checkpoints where scripts or linters can halt work that breaks an architectural rule.
 
-Today, archive structure exists, but cleanup and enforcement remain manual.
+Today, archive structure and compact promotion exist, but background cleanup and automatic execution of project-specific checks remain future work.
 
 ## Installing HAI-Harness Into An Existing Project
 
@@ -104,7 +111,7 @@ Verify the install at any time:
 npx github:ClaudiusMa/HAI-Harness doctor
 ```
 
-### Pulling the latest harness changes
+### Safe scaffold updates
 
 HAI-Harness evolves. To pull the latest role definitions and onboarding files without touching your project-specific content:
 
@@ -112,22 +119,36 @@ HAI-Harness evolves. To pull the latest role definitions and onboarding files wi
 npx github:ClaudiusMa/HAI-Harness update
 ```
 
-`update` only refreshes the stable scaffold (role docs, onboarding files, `AGENTS.md`). It **never** overwrites your project-specific files: `brief.md`, `decisions.md`, `open_questions.md`, `reflections.md`, `project_context.md`, `planning.md`, `design.md`, `tasks/`, `handoffs/`, `lessons/`, `patterns.md`, `graveyard.md`, `_archive/`, `skills/`.
+`update` refreshes stable method files and creates missing generic infrastructure. It does not overwrite project-owned planning, context, design, tasks, handoffs, lesson index/content, archives, or `Human/` files. Preview it with `--dry-run`; reserve `init --force` for an intentional full reset.
 
-If you want a full reset (overwrite everything from the latest version), use:
+### Source task template and installed task state
+
+The published upstream contains only `Agents/tasks/TEMPLATE.md`. During `init`, HAI-Harness renders project-local `Agents/tasks/augustus.md` and `Agents/tasks/julius.md` from that template. Those generated files become project-owned queue state: `update` creates either one if missing, but never overwrites a populated installed task file. This prevents live or historical assignments from a field instance from leaking back into the distributable scaffold.
+
+### Native task worktrees
 
 ```sh
-npx github:ClaudiusMa/HAI-Harness init --force
+npx github:ClaudiusMa/HAI-Harness worktree create my-task --integration develop
+npx github:ClaudiusMa/HAI-Harness worktree status
+npx github:ClaudiusMa/HAI-Harness worktree approve --approved "Complete my task"
 ```
 
-Preview either command with `--dry-run` first.
+Create runs from the primary checkout against one clean, checked-out, named non-`main`/non-`master` integration branch. Approval runs from the task lane, preserves Git hooks, commits and merges locally, and performs no push, PR, deployment, or publication.
+
+### Prompt-hygiene diagnostics
+
+`doctor` checks required scaffold files and flags live startup context above generous limits: 1,200 lines for `Agents/planning.md` and 400 lines for each worker task file. Move completed queues and historical evidence to `Agents/handoffs/` or `Agents/_archive/`.
+
+### Source and visual-work boundaries
+
+This repository is the canonical published HAI-Harness upstream. Installed copies are field-instance evidence, not trees to bulk-copy back; promote reusable method changes path-by-path. Storybook exploration logging is opt-in: ordinary visual changes must not touch, build, or update Storybook unless the user explicitly asks the agent to log visual explorations there.
 
 ## Current Limitations
 
-- HAI-Harness is a repository overlay, not an agent runtime. It defines authority and coordination contracts but does not itself create sandboxes, worktrees, or background processes.
+- HAI-Harness is a repository overlay with native Git task-lane helpers, not a general agent runtime or sandbox.
 - The review layer is currently design-specific, not a comprehensive correctness evaluator.
 - Enforcement is primarily procedural: agents follow `AGENTS.md`, role boundaries, task scopes, and approval gates. Deterministic policy enforcement remains future infrastructure.
-- Sweeping, deduplication, hooks, and CI-style architectural gates are not automated yet.
+- Background sweeping and execution of project-specific Tier 0 checks are not automated yet; the compact index, promotion ladder, and hook-preserving local Git workflow are available now.
 
 ## How to Operate the Harness (The User Guide)
 
@@ -160,6 +181,7 @@ When you sit down to work, follow this loop:
 5. **Audit Alignment When Needed:** The read-only **`guardian`** compares authorized `Human/` intent with the agent operating layer and reports mismatches without resolving them.
 6. **Design When Needed:** Hephaestus creates a non-code contract under `Agents/designs/`; Claudia then assigns implementation. Athena can independently review enterprise design quality.
 7. **Assign the Queue:** Claudia records dependencies, write scopes, approvals, stop conditions, and verification in `Agents/planning.md` and the Augustus/Julius task files. Parallel work is allowed only when the Parallel Split Gate passes.
-8. **Execute:** Claudia coordinates role-isolated workers when supported, or the user opens the assigned worker in a fresh session. Workers remain inside their task contracts and report broken assumptions.
-9. **Evaluate and Correct:** Athena or Hephaestus can issue design-review handoffs. A general adversarial evaluator is not available yet.
-10. **Handoff, Learn, and Archive:** Use **`handoff`** before ownership or session changes, **`retrospective`** after hard or error-prone work, and move superseded task/handoff history under `Agents/_archive/`.
+8. **Isolate and Execute:** Create a native task worktree from the clean named integration branch, then run implementation and the project's own preview/dev command in that exact lane.
+9. **Control Traffic:** When sessions or mutable scopes may overlap, use **`traffic-control`** to establish authoritative lanes before adding work.
+10. **Evaluate and Approve:** Athena or Hephaestus can issue design-review handoffs. After focused checks and review, explicit `worktree approve` commits and merges locally; remote acts remain separate.
+11. **Learn and Archive:** Claudia uses **`lesson-logger`** only for confirmed preventable failures, routing them to checks, Standing Gates, or capped conditional lessons. Move superseded task/handoff history under `Agents/_archive/`.

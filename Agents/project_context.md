@@ -22,7 +22,7 @@ Shared high-level context for all agents. This file is intentionally architectur
 - Do not update this file for task progress, bug triage, one-off fixes, completed phases, or temporary work-in-progress notes.
 - The agent who changes architecture or introduces a new durable constraint is responsible for updating this file in the same task.
 - If a subsystem is in transition, document the boundary or ambiguity at a high level instead of narrating the full history.
-- Put task baton-pass notes in [handoffs/](handoffs). Put hard-question learnings in [lessons/](lessons). Put stable cross-task patterns in [patterns.md](patterns.md). Put only high-value cross-task failures in [graveyard.md](graveyard.md).
+- Put task baton-pass notes in [handoffs/](handoffs). Confirmed process failures go through `lesson-logger` into [lessons/](lessons), the Standing Gates block below, or a queued deterministic check.
 - If a section does not matter yet, leave it short or blank rather than inventing detail.
 
 ## 3. What This Project Is
@@ -93,3 +93,11 @@ Shared high-level context for all agents. This file is intentionally architectur
 - Add project-specific rules below:
   - Rule:
   - Rule:
+
+### Standing Gates (lesson-promoted)
+
+Always-on completion rules promoted from confirmed failures. Claudia edits only between these markers through the `lesson-logger` skill. Keep at most 7 gates.
+
+<!-- standing-gates:start -->
+<!-- No standing gates yet. -->
+<!-- standing-gates:end -->

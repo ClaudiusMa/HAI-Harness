@@ -1,17 +1,5 @@
-# Patterns
+# Patterns (retired)
 
-<!--
-## How To Use This File
+This file remains only so older links resolve. Do not add entries.
 
-- Use this file for active cross-task patterns that are durable enough to reuse.
-- Keep entries short and practical.
-- If a pattern is no longer active, archive or remove it.
--->
-
-Use this file for active cross-task patterns that are durable enough to reuse across multiple tasks, but still current enough to belong in the active harness.
-
-Examples:
-- pattern:
-- pattern:
-
-Do not use this file for one-off handoffs or broad project history.
+Active conditional rules are routed through [lessons/INDEX.md](lessons/INDEX.md). Unconditional rules live between the Standing Gates markers in [project_context.md](project_context.md); mechanizable rules become queued checks. Claudia manages all three through the `lesson-logger` skill.

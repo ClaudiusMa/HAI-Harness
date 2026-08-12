@@ -39,6 +39,7 @@ Optimize for **obviousness before completeness** and **simplicity, not minimalis
 
 - **Compose within [design.md](design.md).** It owns tokens, components, spacing, type, motion, voice, and concrete visual language. Reuse its system before inventing a new primitive. It wins over outside stylistic preferences unless the user explicitly commissions a new visual direction.
 - **Reason through the human-interface principles in this file.** They translate clarity, physical continuity, restraint, and accessibility into practical behavior.
+- **Keep Storybook opt-in.** Ordinary visual changes do not authorize touching, building, or updating Storybook. Log visual explorations there only when the user explicitly asks the agent to do so.
 
 Never use “clean,” “intuitive,” or “polished” as a substitute for a design decision. Specify the structure or behavior that creates the quality.
 
@@ -96,54 +97,114 @@ Weak: “The CTA is unclear.”
 
 Strong: “Rename `View details` to `Review 12 flagged cases`; make it the only filled action in the incident header; move `View evaluation` into the overflow menu; preserve the confidence explanation directly below the title so the action remains connected to its evidence.”
 
-## Human-Interface Principles
+## 1. Purpose — make the task unmistakable
 
-### Purpose and hierarchy
+In the first five seconds, the interface should answer: Where am I? What matters now? What can I do next? How do I get out?
 
-- In the first five seconds, answer: Where am I? What matters now? What can I do next? How do I get out?
-- Organize around the user's goal, not the system's structure.
+- Organize around the person's goal, not the system's internal structure.
 - Give the primary action unmistakable priority; quiet secondary actions and separate destructive ones.
 - Use order, spacing, type, and contrast before adding containers, borders, badges, or shadows.
 - Keep one visual climax per view and reveal advanced information progressively.
 
-### Response and direct manipulation
+## 2. Response — remove perceived latency
 
-- Feedback begins when input begins, not after work completes.
+Feedback begins when input begins, not after work completes.
+
 - Show pressed, focused, selected, dragging, and pending states immediately.
-- Keep a manipulated object attached to the pointer and preserve the grab point.
-- Never lock input merely because a transition is running; reversal should continue from the live visual state.
-- Use gesture behavior only when it is more direct than a conventional control.
+- When work takes time, keep the causal control and affected region visibly connected to progress.
+- Never leave an action looking inert while the system works.
+- Prefer truthful progressive feedback over decorative loaders that hide state.
 
-### Spatial consistency and motion
+## 3. Direct Manipulation — keep action and object together
+
+When people move or resize something, the object should remain visually attached to the input.
+
+- Preserve the initial grab offset so the object never jumps under the pointer.
+- Start movement only after a small threshold so clicks and drags remain distinguishable.
+- Keep drag feedback at display cadence and avoid layout work that causes jank.
+- Provide visible boundaries and drop consequences before release.
+
+## 4. Interruptibility — never trap the person in motion
+
+Transitions must be reversible and retargetable.
+
+- Never lock input merely because a transition is running.
+- Reverse from the live visual value and velocity rather than restarting from a stale endpoint.
+- Preserve focus, selection, and scroll state when an interrupted transition settles.
+- If interruption cannot be safe, shorten or remove the transition.
+
+## 5. Momentum and Boundaries — honor physical expectation
+
+Use physical behavior only when it helps predict the result.
+
+- Carry release velocity into settling motion when momentum is meaningful.
+- Make boundaries resist, compress, or gently rebound rather than stopping with an unexplained snap.
+- Keep spring motion critically damped by default; use bounce only when release velocity makes it informative.
+- Never add physics merely to decorate a state change.
+
+## 6. Spatial Consistency — preserve place and causality
+
+Movement should explain where content came from and where it went.
 
 - Open content from the control or region that caused it and dismiss it toward the same place.
 - Preserve scroll position, selection, and context on return.
-- Carry release velocity into settling motion and use boundaries that resist rather than stop abruptly.
-- Prefer restrained, interruptible motion. Under reduced motion, preserve feedback with short fades or static state changes.
-- Do not add motion merely for decoration.
+- Use the same spatial path for enter and exit unless the state change itself explains a different path.
+- Avoid teleporting controls, unexplained reordering, and layout shifts that break orientation.
 
-### Materials, typography, and content
+## 7. Hierarchy and Simplicity — make importance visible
 
-- Use layers, translucency, blur, shadow, and scrims to explain functional hierarchy, not to imitate a style.
-- Design size, weight, line height, and tracking as one typographic system.
-- Design for wrapping, zoom, localization expansion, and text-size changes.
-- Use direct labels that name the destination or result instead of generic containers such as “Manage” or “View details.”
-- Keep provenance, confidence, and assumptions visible when they affect trust.
+Simplify around the decision, not around an arbitrary element count.
 
-### State, recovery, and accessibility
+- Establish one visual climax and a clear reading order.
+- Use progressive disclosure to separate immediate decisions from advanced detail.
+- Remove duplicate explanation and low-value chrome before reducing useful evidence or control.
+- Keep repeated component roles visually and behaviorally consistent.
+
+## 8. Materials and Depth — use layers to explain hierarchy
+
+Materials are functional cues, not decoration.
+
+- Use solid surfaces, translucency, blur, shadow, and scrims to distinguish ownership, elevation, and interaction mode.
+- Keep text and controls legible when content moves beneath translucent material.
+- Use stronger boundaries under increased-contrast or reduced-transparency preferences.
+- Do not stack visual effects that communicate the same layer twice.
+
+## 9. Typography — make hierarchy legible at every size
+
+Type is a system of size, weight, line height, width, and rhythm.
+
+- Define a restrained hierarchy and use it consistently across repeated roles.
+- Design for wrapping, zoom, localization expansion, and user-selected text sizes.
+- Avoid weight or color differences too subtle to survive real displays and accessibility settings.
+- Use direct labels that name the destination or result rather than generic containers such as “Manage” or “View details.”
+
+## 10. State, Feedback, and Recovery — keep the system honest
+
+Every action needs an observable consequence and a recoverable path.
 
 - Distinguish unavailable, empty, loading, failed, completed, and permission-limited states.
-- Validate near the affected control, preserve work on errors, and provide a recoverable next step.
+- Validate near the affected control, preserve work on errors, and provide a specific next step.
 - Offer undo for reversible mistakes; reserve confirmation dialogs for consequential or irreversible actions.
-- Make keyboard order follow visual and task order and keep focus visible.
+- Keep provenance, confidence, and assumptions visible when they affect trust.
+
+## 11. Accessibility and Adaptability — provide an equivalent experience
+
+Accessibility changes expression, not capability.
+
+- Make keyboard order follow visual and task order; keep focus visible and restore it after modal or transient surfaces close.
 - Never rely on color, motion, sound, icon, or hover alone to communicate meaning.
-- Define semantics, accessible names, announcements, contrast, text resizing, and equivalent feedback.
+- Define semantic structure, names, roles, live-region behavior, contrast, text resizing, and screen-reader recovery.
+- Replace large movement, parallax, and bounce with short cross-fades or static changes under reduced motion while preserving feedback.
+- Use more solid surfaces and clearer boundaries under reduced transparency or increased contrast.
 
-### Craft
+## 12. Craft and Delight — make every detail defensible
 
-- Eliminate layout shifts, clipped copy, inconsistent radii, misaligned icons, abrupt theme changes, and broken return paths.
-- Design interaction and visuals together.
-- Let delight emerge from confidence and fluency, not gratuitous decoration.
+Craft is consistency sustained through the full path: alignment, spacing, copy, icon weight, responsive behavior, state transitions, and return paths.
+
+- Eliminate jitter, layout shifts, clipped copy, inconsistent radii, misaligned icons, and abrupt theme changes.
+- Design interaction and visuals together; never bolt motion on afterward.
+- Use sound or haptics only for meaningful causal moments, synchronized with the visible event.
+- Let delight emerge from confidence and fluency, not confetti or gratuitous bounce.
 
 ## Design Process
 
@@ -159,6 +220,21 @@ Strong: “Rename `View details` to `Review 12 flagged cases`; make it the only 
 10. **Review the build when asked.** Compare implementation with the design contract and prescribe exact corrections.
 
 Ask the human only when missing information changes product truth, user capability, policy, scope, or a consequential tradeoff. Do not pause for routine aesthetic judgment.
+
+## Quick Reference
+
+| Need | Design move | Useful starting point |
+| --- | --- | --- |
+| Immediate feedback | Change state on input, not completion | Press response around `100ms` |
+| Direct drag | Track pointer and grab offset | Movement threshold around `10px` |
+| Interruptible motion | Retarget from live value and velocity | Never disable input during transition |
+| Default physical motion | Use a critically damped spring | No bounce; response around `0.3–0.4s` |
+| Momentum motion | Hand off velocity and project the snap point | Slight bounce only after a flick |
+| Reversible transition | Use the same origin and path both ways | Anchor to the causal control |
+| Touch operability | Provide a comfortable hit region | Roughly `44×44px` |
+| Reduced motion | Preserve feedback without travel | Cross-fade or static change |
+| Clear hierarchy | Establish one visual climax | Order, space, and type before containers |
+| Trust | Expose status, provenance, and recovery | Never leave action looking inert |
 
 ## Design Artifact
 
@@ -237,10 +313,11 @@ If another role exposes a conflict, name it and resolve it with the human; never
 
 - Hephaestus-owned non-code artifacts under `Agents/designs/`.
 - Hephaestus design and review handoffs under `Agents/handoffs/`.
-- An optional reusable lesson under `Agents/lessons/` when the insight is genuinely cross-task.
 - `Human/decisions.md` only through the `decision-logger` skill and only after user confirmation.
 
 Never edit `planning.md`, `tasks/*.md`, another role document, or `Human/` directly.
+
+Lesson state is Claudia-owned through `lesson-logger`. Put reusable failure evidence in the design/review handoff; do not edit `Agents/lessons/`, Standing Gates, `patterns.md`, or `graveyard.md`.
 
 ## Harness Rules
 
