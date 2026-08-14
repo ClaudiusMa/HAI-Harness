@@ -32,23 +32,23 @@ The foundational architecture for durable memory, context control, planning, and
 - Active task authority lives in `Agents/planning.md` and `Agents/tasks/`; handoffs carry the contract across role boundaries, not chat memory.
 - Confirmed decisions, broken assumptions, high-cost behavior, and outward acts have explicit gates.
 
-### 🟡 Layer 2: Coordinated Team Mode — Partially Operational
+### ✅ Layer 2: Coordinated Team Mode — Operational
 
 *The Problem:* Throwing multiple agents at a codebase causes chaotic pile-ups and overlapping edits.
 
-What exists now:
+The repository-level coordination system is operational:
 
-- Claudia can coordinate separate role-isolated worker sessions without changing her own role.
+- Claudia is the root controller for the user task and spawns fresh role-isolated Augustus or Julius child workers without changing her own role.
+- A separately created top-level task is a peer controller, not spare worker capacity. Moving ownership between controllers requires explicit user approval and an accepted handoff.
+- Capability profile and reasoning effort are separate: Claudia uses the portable `reasoning-controller` profile, implementation children use `fast-worker`, and effort is selected independently for the task. Harness files do not pin providers, model names, or versions.
 - A strict Parallel Split Gate rejects concurrent work unless write scopes, dependencies, verification, and mutable setup are independent.
 - Worker contracts record exact scope, ordering, preservation requirements, approval state, verification, and stop conditions.
 - Workers report broken assumptions back to Claudia and the user instead of silently widening scope.
 - Native CLI worktree lanes isolate implementation on `codex/<task-slug>` branches and gate hook-preserving local integration on explicit approval.
-- The `traffic-control` skill reconciles overlapping sessions, workers, mutable verification, generated output, and outward targets before more work starts.
+- The `traffic-control` skill performs a read-only census across peer-controller tasks and the current task's child workers, then returns exactly one state: `CLEAR`, `SEQUENCE`, `TRANSFER_REQUIRED`, or `BLOCKED`.
+- Fast Resume avoids a full repeat census only when the same root controller resumes the same child worker in the same worktree with unchanged or narrower scope and no relevant drift.
 
-What is not built yet:
-
-- A deterministic runtime state machine that physically prevents work before dependency and approval gates clear.
-- Harness-owned point-to-point transport or automatic queue scheduling. Traffic detection uses the host agent platform, repository contracts, and Git evidence.
+HAI-Harness supplies the durable contracts, Git isolation, and coordination method; it deliberately uses the host agent platform for task transport and child-worker execution rather than implementing its own agent runtime or scheduler.
 
 ### 🟡 Layer 3: Evaluation — Started, Domain-Specific
 
@@ -119,7 +119,9 @@ HAI-Harness evolves. To pull the latest role definitions and onboarding files wi
 npx github:ClaudiusMa/HAI-Harness update
 ```
 
-`update` refreshes stable method files and creates missing generic infrastructure. It does not overwrite project-owned planning, context, design, tasks, handoffs, lesson index/content, archives, or `Human/` files. Preview it with `--dry-run`; reserve `init --force` for an intentional full reset.
+`update` refreshes stable method files and generic infrastructure: the root entry point, onboarding and role methods, task/handoff/lesson/archive templates and README files, reusable skills, and `Human/onboarding.md`. It creates a missing lesson index or generated worker task file but never replaces populated project state.
+
+Project-authored planning, context, design, worker queues, handoff entries, lesson index/content, archive entries, and Human workspace content remain untouched. Preview the refresh with `--dry-run`; reserve `init --force` for an intentional full reset.
 
 ### Source task template and installed task state
 
@@ -165,7 +167,8 @@ Long conversations accumulate stale assumptions. The harness makes a fresh conte
 
 * Start a fresh session when context becomes noisy or responsibility changes.
 * Keep one role per agent session; do not impersonate another role midstream.
-* Claudia may coordinate separate role-isolated worker sessions directly when the host platform supports it.
+* Claudia remains the root controller and spawns fresh role-isolated child workers when the host platform supports it.
+* Treat separately created top-level tasks as peer controllers. Sequence around them or request an explicit ownership transfer; never repurpose them as workers.
 * Before pausing or changing ownership, leave a task-centric handoff that states verified facts and the exact next step.
 
 ### 3. The Standard Workflow & Active Skills
@@ -175,13 +178,13 @@ A passive markdown file loses value when it becomes stale. This workflow combine
 When you sit down to work, follow this loop:
 
 1. **Draft the Intent:** Use `Human/brief.md`, `decisions.md`, and open questions to capture the human side of the project. Agents read `Human/` only when explicitly authorized.
-2. **Plan With Claudia:** Claudia clarifies the request, maintains Current Product Truth, and records strategy in `Agents/planning.md`.
+2. **Plan With Claudia:** Claudia acts as the root controller, clarifies the request, maintains Current Product Truth, and records strategy in `Agents/planning.md`.
 3. **Log Durable Decisions:** After user confirmation, the **`decision-logger`** records only decisions that should matter to a fresh session weeks later.
 4. **Define Durable Context:** Keep architecture, boundaries, and non-negotiable rules in `Agents/project_context.md`; keep iteration state out of it.
 5. **Audit Alignment When Needed:** The read-only **`guardian`** compares authorized `Human/` intent with the agent operating layer and reports mismatches without resolving them.
 6. **Design When Needed:** Hephaestus creates a non-code contract under `Agents/designs/`; Claudia then assigns implementation. Athena can independently review enterprise design quality.
-7. **Assign the Queue:** Claudia records dependencies, write scopes, approvals, stop conditions, and verification in `Agents/planning.md` and the Augustus/Julius task files. Parallel work is allowed only when the Parallel Split Gate passes.
-8. **Isolate and Execute:** Create a native task worktree from the clean named integration branch, then run implementation and the project's own preview/dev command in that exact lane.
-9. **Control Traffic:** When sessions or mutable scopes may overlap, use **`traffic-control`** to establish authoritative lanes before adding work.
+7. **Assign the Queue:** Claudia records dependencies, write scopes, approvals, stop conditions, verification, capability profile, and effort in `Agents/planning.md` and the Augustus/Julius task files. Parallel work is allowed only when the Parallel Split Gate passes.
+8. **Isolate and Execute:** Claudia spawns a fresh role-isolated child worker and creates a native task worktree from the clean named integration branch. Run implementation and the project's own preview/dev command in that exact lane.
+9. **Control Traffic:** When controllers, child workers, or mutable scopes may overlap, use **`traffic-control`** to return `CLEAR`, `SEQUENCE`, `TRANSFER_REQUIRED`, or `BLOCKED` before adding motion. Use Fast Resume only for the same settled controller/child/worktree lane without scope growth or drift.
 10. **Evaluate and Approve:** Athena or Hephaestus can issue design-review handoffs. After focused checks and review, explicit `worktree approve` commits and merges locally; remote acts remain separate.
 11. **Learn and Archive:** Claudia uses **`lesson-logger`** only for confirmed preventable failures, routing them to checks, Standing Gates, or capped conditional lessons. Move superseded task/handoff history under `Agents/_archive/`.
