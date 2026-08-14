@@ -602,7 +602,8 @@ function printUpdateSummary(target, options, results) {
   printCount("Created", results.created);
   printCount("Preserved project state", results.preserved);
   if (results.missingSource.length > 0) printCount("Missing in package (skipped)", results.missingSource);
-  console.log("\nProject-owned planning, context, design, task, handoff, lesson index/content, archive, and Human files were left untouched.");
+  console.log("\nProject-authored planning, context, design, task queues, handoff entries, lesson state, archive entries, and Human workspace content were left untouched.");
+  console.log("Stable scaffold methods, templates, README files, and Human/onboarding.md were refreshed.");
   console.log("Run `hai-harness init --force` only when you intentionally want to overwrite everything.");
 }
 
