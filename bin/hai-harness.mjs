@@ -21,6 +21,7 @@ const generatedTaskRoles = [
 // overwritten by `update`.
 const scaffoldPaths = [
   "AGENTS.md",
+  "Agents/check-for-update.mjs",
   "Agents/onboarding.md",
   "Agents/claudia.md",
   "Agents/augustus.md",
@@ -175,6 +176,7 @@ async function init(options) {
   for (const role of generatedTaskRoles) {
     await generateTaskFile(role, options, results, options.force);
   }
+  await refreshInstalledState(options);
   printInitSummary(options.target, options, results);
 }
 
@@ -191,7 +193,28 @@ async function update(options) {
   for (const role of generatedTaskRoles) {
     await generateTaskFile(role, options, results, false);
   }
+  await refreshInstalledState(options);
   printUpdateSummary(options.target, options, results);
+}
+
+async function refreshInstalledState(options) {
+  if (options.dryRun) return;
+  const statePath = path.join(options.target, ".hai-harness.json");
+  const current = await readJson(statePath).catch(() => ({}));
+  const packageMetadata = await readJson(path.join(packageRoot, "package.json"));
+  const state = {
+    schemaVersion: 1,
+    installedVersion: packageMetadata.version,
+    channel: typeof current.channel === "string" ? current.channel : "stable",
+    checkEnabled: current.checkEnabled !== false
+  };
+  const temporaryPath = `${statePath}.${process.pid}.tmp`;
+  await fs.writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
+  await fs.rename(temporaryPath, statePath);
+}
+
+async function readJson(filePath) {
+  return JSON.parse(await fs.readFile(filePath, "utf8"));
 }
 
 async function generateTaskFile(role, options, results, overwrite) {
@@ -244,6 +267,8 @@ async function doctor(options) {
   await assertDirectory(options.target);
   const requiredPaths = [
     "AGENTS.md",
+    ".hai-harness.json",
+    "Agents/check-for-update.mjs",
     "Agents/onboarding.md",
     "Agents/project_context.md",
     "Agents/planning.md",
@@ -275,8 +300,20 @@ async function doctor(options) {
     const lineCount = countLines(await fs.readFile(targetPath, "utf8"));
     if (lineCount > maxLines) oversized.push({ relativePath, lineCount, maxLines });
   }
+  let updateStatus = "Update status: unknown/offline";
+  if (missing.includes(".hai-harness.json") === false && missing.includes("Agents/check-for-update.mjs") === false) {
+    try {
+      const { stdout } = await runFile(process.execPath, [path.join(options.target, "Agents/check-for-update.mjs"), "--status", "--target", options.target], {
+        cwd: options.target,
+        timeout: 6_000,
+        maxBuffer: 32 * 1024
+      });
+      if (stdout.trim()) updateStatus = stdout.trim();
+    } catch {}
+  }
   if (missing.length === 0 && oversized.length === 0) {
     console.log(`HAI-Harness looks installed in ${options.target}`);
+    console.log(updateStatus);
     return;
   }
   console.log(`HAI-Harness needs attention in ${options.target}`);
@@ -291,6 +328,7 @@ async function doctor(options) {
     }
     console.log("Move completed queues and historical evidence to Agents/handoffs/ or Agents/_archive/; keep live planning and task files current-only.");
   }
+  console.log(`\n${updateStatus}`);
   process.exitCode = 1;
 }
 

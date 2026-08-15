@@ -1,6 +1,6 @@
 {
   "name": "hai-harness",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Install and operate the HAI-Harness collaboration layer in an existing project.",
   "type": "module",
   "repository": {
@@ -19,6 +19,7 @@
     "Human",
     "bin",
     "AGENTS.md",
+    "release.json",
     "README.md",
     "LICENSE"
   ],
