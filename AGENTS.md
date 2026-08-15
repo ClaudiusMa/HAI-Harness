@@ -16,7 +16,9 @@ This project uses [HAI-Harness](https://github.com/ClaudiusMa/HAI-Harness), a re
 
 ## Start here
 
-Before doing anything else, read [`Agents/onboarding.md`](Agents/onboarding.md). It defines:
+At the start of each HAI-Harness-backed session, run `node Agents/check-for-update.mjs` from the project root. The dependency-free check runs at most weekly, is silent when current or offline, and only reports a newer release once. It never applies an update. Continue normally if the check cannot run.
+
+Then read [`Agents/onboarding.md`](Agents/onboarding.md). It defines:
 
 - the file graph and what each file means,
 - the no-role path for general work,

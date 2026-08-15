@@ -10,6 +10,8 @@
 
 Every agent reads this file first.
 
+If the root entry point did not already do so, run `node Agents/check-for-update.mjs` from the project root. This private, best-effort check is silent when current or offline and must never block the user's work. Never apply an update without the user's explicit approval.
+
 ## Purpose
 
 `Agents/` is the agent operating layer. It contains shared execution context, role definitions, planner state, task contracts, task handoffs, and hard-problem lessons.
@@ -18,6 +20,7 @@ Every agent reads this file first.
 
 ## Core Rules
 
+- An update notice is advisory. Show the release and dry-run command, then let the user decide whether to update; never update automatically.
 - Read only the context you need for the current task and, when one is explicitly named, the active role.
 - **Worktree first for implementation lanes.** Before changing application/source, tests, generated output, runtime assets, app config, dependencies, builds, or server lifecycle, create a sibling `codex/<task-slug>` lane with `hai-harness worktree create <task-slug> --integration <branch>`. Run creation only from the primary checkout. The named local integration branch must be checked out, clean, and not `main` or `master`.
 - One clean committed integration branch is the source of truth. Never copy uncommitted product files, reset, stash, or clean another lane to create a task baseline.

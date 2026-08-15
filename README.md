@@ -104,6 +104,7 @@ After install you'll have:
 - `AGENTS.md` at the project root — the entry point any AI agent reads first. It points the agent at `Agents/onboarding.md` and explicitly tells it not to read `Human/`.
 - `Agents/` — the agent operating layer.
 - `Human/` — your private workspace for product thinking.
+- `.hai-harness.json` — the installed-version receipt and update-check preference.
 
 Verify the install at any time:
 
@@ -122,6 +123,23 @@ npx github:ClaudiusMa/HAI-Harness update
 `update` refreshes stable method files and generic infrastructure: the root entry point, onboarding and role methods, task/handoff/lesson/archive templates and README files, reusable skills, and `Human/onboarding.md`. It creates a missing lesson index or generated worker task file but never replaces populated project state.
 
 Project-authored planning, context, design, worker queues, handoff entries, lesson index/content, archive entries, and Human workspace content remain untouched. Preview the refresh with `--dry-run`; reserve `init --force` for an intentional full reset.
+
+### Update Beacon
+
+Installed projects run `node Agents/check-for-update.mjs` at session startup. The dependency-free checker makes at most one weekly HTTPS `GET` to GitHub's latest published Release endpoint. It sends no project content, identifiers, file paths, telemetry, or account data. Drafts, prereleases, and version metadata merged to `main` cannot trigger a notice; only a published stable GitHub Release can. Current and offline checks are silent; when a newer stable release exists, the checker shows one notice for that release and offers:
+
+```sh
+npx github:ClaudiusMa/HAI-Harness update --dry-run
+```
+
+The beacon never downloads or applies an update. Disable or re-enable it for a project with:
+
+```sh
+node Agents/check-for-update.mjs --disable
+node Agents/check-for-update.mjs --enable
+```
+
+`doctor` reports the cached or newly checked state as `current`, `update available`, `disabled`, or `unknown/offline`. The `.hai-harness.json` receipt records only the installed version, stable channel, and project preference; `init` and `update` refresh its installed version while preserving an opt-out. Cadence, cached results, and last-notified state stay in Git-local metadata (or the user's local cache outside Git), so routine checks do not dirty the project worktree. Teams that commit installed harness files should decide explicitly whether the stable receipt belongs in version control.
 
 ### Source task template and installed task state
 
@@ -144,6 +162,10 @@ Create runs from the primary checkout against one clean, checked-out, named non-
 ### Source and visual-work boundaries
 
 This repository is the canonical published HAI-Harness upstream. Installed copies are field-instance evidence, not trees to bulk-copy back; promote reusable method changes path-by-path. Storybook exploration logging is opt-in: ordinary visual changes must not touch, build, or update Storybook unless the user explicitly asks the agent to log visual explorations there.
+
+### Release discipline
+
+Maintainers keep `package.json` and `release.json` on the same semantic version, merge the release contents, then create a matching `v<version>` tag and publish a stable GitHub Release with concise human-readable notes. The checker reads GitHub's latest published Release, so merging the version bump cannot announce it early. The first release containing Update Beacon also needs an external announcement because older installations cannot discover a checker they do not have. A commit, tag, GitHub Release, package publication, and announcement are separate outward acts and retain separate approval gates.
 
 ## Current Limitations
 

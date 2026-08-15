@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(projectRoot, "bin/hai-harness.mjs");
+const checker = path.join(projectRoot, "Agents/check-for-update.mjs");
 
 function run(command, args, cwd) {
   return spawnSync(command, args, { cwd, encoding: "utf8" });
@@ -21,6 +22,14 @@ function git(cwd, ...args) {
 
 function harness(cwd, ...args) {
   return run(process.execPath, [cli, ...args], cwd);
+}
+
+function beacon(cwd, ...args) {
+  return run(process.execPath, [checker, "--target", cwd, "--cache", path.join(cwd, ".beacon-cache.json"), ...args], cwd);
+}
+
+function beaconWithLocalCache(cwd, ...args) {
+  return run(process.execPath, [checker, "--target", cwd, ...args], cwd);
 }
 
 async function makeGitFixture(t) {
@@ -83,8 +92,20 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   const target = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-install-"));
   t.after(() => fs.rm(target, { recursive: true, force: true }));
 
+  const packageMetadata = JSON.parse(await fs.readFile(path.join(projectRoot, "package.json"), "utf8"));
+  const releaseMetadata = JSON.parse(await fs.readFile(path.join(projectRoot, "release.json"), "utf8"));
+  assert.equal(releaseMetadata.version, packageMetadata.version);
+  const checkerSource = await fs.readFile(checker, "utf8");
+  assert.match(checkerSource, /api\.github\.com\/repos\/ClaudiusMa\/HAI-Harness\/releases\/latest/);
+  assert.doesNotMatch(checkerSource, /raw\.githubusercontent\.com.*release\.json/);
+
   const installed = harness(target, "init", "--target", target);
   assert.equal(installed.status, 0, installed.stderr);
+  const receipt = JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8"));
+  assert.equal(receipt.schemaVersion, 1);
+  assert.equal(receipt.installedVersion, "0.2.0");
+  assert.equal(receipt.channel, "stable");
+  assert.equal(receipt.checkEnabled, true);
   assert.deepEqual((await fs.readdir(path.join(projectRoot, "Agents/tasks"))).sort(), ["TEMPLATE.md"]);
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), /^# Augustus Tasks/m);
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/julius.md"), "utf8"), /^# Julius Tasks/m);
@@ -96,6 +117,8 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   await fs.writeFile(path.join(target, "Agents/skills/decision-logger/SKILL.md"), "stale stable method\n");
   await fs.writeFile(path.join(target, "Agents/handoffs/TEMPLATE.md"), "stale handoff template\n");
   await fs.unlink(path.join(target, "Agents/tasks/julius.md"));
+  const disabled = beacon(target, "--disable");
+  assert.equal(disabled.status, 0, disabled.stderr);
   const updated = harness(target, "update", "--target", target);
   assert.equal(updated.status, 0, updated.stderr);
   assert.equal(await fs.readFile(path.join(target, "Agents/planning.md"), "utf8"), "project-owned planning\n");
@@ -105,8 +128,10 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.notEqual(await fs.readFile(path.join(target, "Agents/skills/decision-logger/SKILL.md"), "utf8"), "stale stable method\n");
   assert.notEqual(await fs.readFile(path.join(target, "Agents/handoffs/TEMPLATE.md"), "utf8"), "stale handoff template\n");
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/julius.md"), "utf8"), /^# Julius Tasks/m);
+  assert.equal(JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8")).checkEnabled, false);
   const healthy = harness(target, "doctor", "--target", target);
   assert.equal(healthy.status, 0, healthy.stderr);
+  assert.match(healthy.stdout, /Update status: disabled/);
 
   await fs.writeFile(path.join(target, "Agents/planning.md"), "planning\n".repeat(2633));
   await fs.writeFile(path.join(target, "Agents/tasks/julius.md"), "task\n".repeat(842));
@@ -115,4 +140,144 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(polluted.stdout, /Agents\/planning\.md: 2633 lines \(limit 1200\)/);
   assert.match(polluted.stdout, /Agents\/tasks\/julius\.md: 842 lines \(limit 400\)/);
   assert.match(polluted.stdout, /handoffs\/ or Agents\/_archive\//);
+});
+
+test("update beacon is weekly, private, resilient, and notifies once per release", async (t) => {
+  const target = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-beacon-"));
+  t.after(() => fs.rm(target, { recursive: true, force: true }));
+  assert.equal(harness(target, "init", "--target", target).status, 0);
+
+  const cachePath = path.join(target, ".beacon-cache.json");
+  const fixtureDir = path.join(target, "fixtures");
+  await fs.mkdir(fixtureDir);
+  const availableManifest = path.join(fixtureDir, "available.json");
+  const newerManifest = path.join(fixtureDir, "newer.json");
+  const draftManifest = path.join(fixtureDir, "draft.json");
+  const prereleaseManifest = path.join(fixtureDir, "prerelease.json");
+  const unversionedTagManifest = path.join(fixtureDir, "unversioned-tag.json");
+  const malformedManifest = path.join(fixtureDir, "malformed.json");
+  const oversizedManifest = path.join(fixtureDir, "oversized.json");
+  await fs.writeFile(availableManifest, JSON.stringify({
+    tag_name: "v0.3.0",
+    html_url: "https://example.invalid/v0.3.0",
+    draft: false,
+    prerelease: false
+  }));
+  await fs.writeFile(newerManifest, JSON.stringify({
+    tag_name: "v0.4.0",
+    html_url: "https://example.invalid/v0.4.0",
+    draft: false,
+    prerelease: false
+  }));
+  await fs.writeFile(draftManifest, JSON.stringify({
+    tag_name: "v0.5.0",
+    html_url: "https://example.invalid/v0.5.0",
+    draft: true,
+    prerelease: false
+  }));
+  await fs.writeFile(prereleaseManifest, JSON.stringify({
+    tag_name: "v0.5.0",
+    html_url: "https://example.invalid/v0.5.0",
+    draft: false,
+    prerelease: true
+  }));
+  await fs.writeFile(unversionedTagManifest, JSON.stringify({
+    tag_name: "0.5.0",
+    html_url: "https://example.invalid/0.5.0",
+    draft: false,
+    prerelease: false
+  }));
+  await fs.writeFile(malformedManifest, "{not-json");
+  await fs.writeFile(oversizedManifest, "x".repeat(17 * 1024));
+
+  const seeded = {
+    schemaVersion: 1,
+    lastNotifiedVersion: null
+  };
+  seeded.lastCheckedAt = "2026-08-10T00:00:00.000Z";
+  seeded.lastCheckStatus = "current";
+  seeded.latestVersion = "0.2.0";
+  await fs.writeFile(cachePath, `${JSON.stringify(seeded, null, 2)}\n`);
+
+  const notDue = beacon(target, "--now", "2026-08-11T00:00:00.000Z", "--manifest", malformedManifest);
+  assert.equal(notDue.status, 0, notDue.stderr);
+  assert.equal(notDue.stdout, "");
+  assert.equal(JSON.parse(await fs.readFile(cachePath, "utf8")).lastCheckedAt, "2026-08-10T00:00:00.000Z");
+
+  const due = beacon(target, "--now", "2026-08-18T00:00:00.000Z", "--manifest", availableManifest);
+  assert.equal(due.status, 0, due.stderr);
+  assert.match(due.stdout, /HAI-Harness 0\.3\.0 is available \(installed: 0\.2\.0\)/);
+  assert.match(due.stdout, /update --dry-run/);
+  assert.match(due.stdout, /https:\/\/example\.invalid\/v0\.3\.0/);
+  const notifiedState = JSON.parse(await fs.readFile(cachePath, "utf8"));
+  assert.equal(notifiedState.lastNotifiedVersion, "0.3.0");
+  assert.equal(notifiedState.lastCheckStatus, "available");
+
+  const repeated = beacon(target, "--now", "2026-08-19T00:00:00.000Z", "--manifest", availableManifest);
+  assert.equal(repeated.status, 0, repeated.stderr);
+  assert.equal(repeated.stdout, "");
+
+  const nextRelease = beacon(target, "--force", "--now", "2026-08-19T00:00:00.000Z", "--manifest", newerManifest);
+  assert.equal(nextRelease.status, 0, nextRelease.stderr);
+  assert.match(nextRelease.stdout, /HAI-Harness 0\.4\.0 is available/);
+
+  const updatedReceipt = JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8"));
+  updatedReceipt.installedVersion = "0.4.0";
+  await fs.writeFile(path.join(target, ".hai-harness.json"), `${JSON.stringify(updatedReceipt, null, 2)}\n`);
+  const updatedStatus = beacon(target, "--status", "--now", "2026-08-20T00:00:00.000Z", "--manifest", malformedManifest);
+  assert.equal(updatedStatus.status, 0, updatedStatus.stderr);
+  assert.match(updatedStatus.stdout, /Update status: current \(0\.4\.0\)/);
+
+  assert.equal(beacon(target, "--disable").status, 0);
+  const beforeDisabledCheck = JSON.parse(await fs.readFile(cachePath, "utf8")).lastCheckedAt;
+  const optedOut = beacon(target, "--force", "--now", "2026-09-01T00:00:00.000Z", "--manifest", availableManifest);
+  assert.equal(optedOut.status, 0, optedOut.stderr);
+  assert.equal(optedOut.stdout, "");
+  assert.equal(JSON.parse(await fs.readFile(cachePath, "utf8")).lastCheckedAt, beforeDisabledCheck);
+
+  assert.equal(beacon(target, "--enable").status, 0);
+  for (const rejectedManifest of [
+    path.join(fixtureDir, "missing.json"),
+    malformedManifest,
+    oversizedManifest,
+    draftManifest,
+    prereleaseManifest,
+    unversionedTagManifest
+  ]) {
+    const rejected = beacon(target, "--force", "--now", "2026-09-01T00:00:00.000Z", "--manifest", rejectedManifest);
+    assert.equal(rejected.status, 0, rejected.stderr);
+    assert.equal(rejected.stdout, "");
+    const status = beacon(target, "--status", "--now", "2026-09-01T00:00:00.000Z", "--manifest", rejectedManifest);
+    assert.equal(status.status, 0, status.stderr);
+    assert.match(status.stdout, /Update status: unknown\/offline/);
+  }
+});
+
+test("routine update checks keep an installed Git worktree clean", async (t) => {
+  const { tempRoot, repo } = await makeGitFixture(t);
+  assert.equal(harness(repo, "init", "--target", repo).status, 0);
+  git(repo, "add", "-A");
+  git(repo, "commit", "-m", "Install fixture harness");
+
+  const manifestPath = path.join(tempRoot, "release.json");
+  await fs.writeFile(manifestPath, JSON.stringify({
+    tag_name: "v0.3.0",
+    html_url: "https://example.invalid/v0.3.0",
+    draft: false,
+    prerelease: false
+  }));
+  const cachePath = path.resolve(repo, git(repo, "rev-parse", "--git-path", "hai-harness/update-beacon.json"));
+  await fs.mkdir(path.dirname(cachePath), { recursive: true });
+  await fs.writeFile(cachePath, JSON.stringify({
+    schemaVersion: 1,
+    lastCheckedAt: "2026-08-01T00:00:00.000Z",
+    lastCheckStatus: "current",
+    latestVersion: "0.2.0",
+    lastNotifiedVersion: null
+  }));
+
+  const checked = beaconWithLocalCache(repo, "--now", "2026-08-14T00:00:00.000Z", "--manifest", manifestPath);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.match(checked.stdout, /HAI-Harness 0\.3\.0 is available/);
+  assert.equal(git(repo, "status", "--porcelain", "--untracked-files=all"), "");
 });
