@@ -1,9 +1,11 @@
 .DS_Store
 node_modules/
 
-# The "harness on top of the harness" — local dogfooding layer. Git tracks only
-# the harness product itself, never the meta-instance used to build it.
-/.hai/
+# Local operating state stays private except the canonical project decisions.
+/.hai/*
+!/.hai/Human/
+/.hai/Human/*
+!/.hai/Human/decisions.md
 /AGENTS.override.md
 /CLAUDE.md
 /hai-meta
