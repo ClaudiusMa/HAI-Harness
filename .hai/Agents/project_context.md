@@ -18,7 +18,7 @@ architecture and process truth here. Iteration state belongs in planning.md.
 
 The installable product consists of reusable artifacts:
 
-- `../AGENTS.md` and `../Agents/` — installable operating templates and skills;
+- `../scaffold/AGENTS.md` and `../Agents/` — installable operating templates and skills;
 - `../Agents/planning.md` — blank planning template only;
 - `../Agents/tasks/TEMPLATE.md` — the only upstream task file;
 - `../Human/` — blank human-workspace templates;
@@ -40,8 +40,8 @@ All substantive `.hai/` project context is version-controlled for transparency; 
 
 ## Session bootstrap
 
-- A tracked root `AGENTS.override.md` is the local Codex entry point and must redirect development sessions to `.hai/AGENTS.md` and this outer harness.
-- The tracked root `AGENTS.md` is shipped product source; it is not the operating contract for developing HAI-Harness itself.
+- The tracked root `AGENTS.md` is the universal repository entry point and must redirect development sessions to `.hai/AGENTS.md` and this outer harness.
+- `scaffold/AGENTS.md` is distributable product source and installs as target-root `AGENTS.md`; the repository redirect must never ship as that template.
 - Future sessions read outer onboarding, outer project context, the active role, outer planning, and only the task/handoff/lesson context routed from there.
 
 ## Required inner-to-outer closeout
@@ -60,7 +60,8 @@ An inner product change is incomplete until the same iteration performs all of t
 
 ## Current product capabilities and rules
 
-- Native CLI task lanes create sibling `codex/<task-slug>` worktrees from a clean, named, checked-out non-main integration branch.
+- Native CLI task lanes create sibling `task/<task-slug>` worktrees from a clean, named, checked-out non-main integration branch and store provider-neutral branch metadata.
+- Task-lane approval preserves compatibility for lanes created under the retired naming convention, but all new lanes use the neutral convention and commits receive no forced provider attribution.
 - Local commit/merge requires explicit approval and preserves Git hooks; push, PR, deploy, and publication remain separate acts.
 - `traffic-control` reconciles overlapping controllers, writers, generated outputs, mutable verification, and outward targets.
 - `lesson-logger` promotes confirmed preventable failures toward deterministic checks, Standing Gates, or capped conditional lessons.
@@ -69,7 +70,7 @@ An inner product change is incomplete until the same iteration performs all of t
 
 ## Git and safety boundaries
 
-- Track `.hai/` project context, `AGENTS.override.md`, `CLAUDE.md`, and `hai-meta` under the 2026-09-09 transparency decision. Keep machine-local settings, caches, and receipts ignored; do not place private external project material in public context.
+- Track `.hai/` project context, root `AGENTS.md`, and `hai-meta` under the 2026-09-09 transparency decision. Keep machine-local settings, caches, and receipts ignored; do not place private external project material in public context.
 - Never merge or push to `main` without explicit user authorization.
 - Never reset, stash, clean, or copy dirty work to manufacture a task baseline.
 - Builds, dependency installation, broad test runs, migrations, networked checks, and outward acts retain their normal approval gates.

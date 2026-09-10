@@ -4,7 +4,7 @@ HAI-Harness is a repo-as-truth collaboration architecture for humans and AI agen
 
 **Want to contribute or understand where the project is heading?** Start with the [contributor guide and project records](https://github.com/ClaudiusMa/HAI-Harness/blob/main/CONTRIBUTING.md).
 
-*Author's Note: In my own testing, whether spinning up a rapid 0-to-1 demo or tackling complex long-running tasks, using this harness consistently outperforms using Claude Code out of the box. My core assumption is that every product needs its own independent harness layer—one that governs both human and AI. Open to discussion on this.*
+*Author's Note: In my own testing, whether spinning up a rapid 0-to-1 demo or tackling complex long-running tasks, this harness consistently improves on an unstructured agent workflow. My core assumption is that every product needs its own independent harness layer—one that governs both human and AI. Open to discussion on this.*
 
 ## The Philosophy: Horsepower & Transmission
 
@@ -46,7 +46,7 @@ The repository-level coordination system is operational:
 - A strict Parallel Split Gate rejects concurrent work unless write scopes, dependencies, verification, and mutable setup are independent.
 - Worker contracts record exact scope, ordering, preservation requirements, approval state, verification, and stop conditions.
 - Workers report broken assumptions back to Claudia and the user instead of silently widening scope.
-- Native CLI worktree lanes isolate implementation on `codex/<task-slug>` branches and gate hook-preserving local integration on explicit approval.
+- Native CLI worktree lanes isolate implementation on `task/<task-slug>` branches and gate hook-preserving local integration on explicit approval.
 - The `traffic-control` skill performs a read-only census across peer-controller tasks and the current task's child workers, then returns exactly one state: `CLEAR`, `SEQUENCE`, `TRANSFER_REQUIRED`, or `BLOCKED`.
 - Fast Resume avoids a full repeat census only when the same root controller resumes the same child worker in the same worktree with unchanged or narrower scope and no relevant drift.
 
@@ -90,7 +90,7 @@ Today, archive structure and compact promotion exist, but background cleanup and
 
 ## Installing HAI-Harness Into An Existing Project
 
-HAI-Harness is a repository overlay, not a runtime dependency. It adds the `Agents/` and `Human/` collaboration layer (plus a root `AGENTS.md` pointer for AI tools) alongside the project files you already have. It does not replace your app structure.
+HAI-Harness is a repository overlay, not a runtime dependency. It adds the `Agents/` and `Human/` collaboration layer plus a root `AGENTS.md` entry point alongside the project files you already have. It does not replace your app structure.
 
 ### First-time install
 
@@ -103,7 +103,7 @@ npx github:ClaudiusMa/HAI-Harness init
 
 After install you'll have:
 
-- `AGENTS.md` at the project root — the entry point any AI agent reads first. It points the agent at `Agents/onboarding.md` and explicitly tells it not to read `Human/`.
+- `AGENTS.md` at the project root — the provider-neutral entry point for AI agents. It points the agent at `Agents/onboarding.md` and explicitly tells it not to read `Human/`.
 - `Agents/` — the agent operating layer.
 - `Human/` — your private workspace for product thinking.
 - `.hai-harness.json` — the installed-version receipt and update-check preference.
@@ -155,7 +155,7 @@ npx github:ClaudiusMa/HAI-Harness worktree status
 npx github:ClaudiusMa/HAI-Harness worktree approve --approved "Complete my task"
 ```
 
-Create runs from the primary checkout against one clean, checked-out, named non-`main`/non-`master` integration branch. Approval runs from the task lane, preserves Git hooks, commits and merges locally, and performs no push, PR, deployment, or publication.
+Create runs from the primary checkout against one clean, checked-out, named non-`main`/non-`master` integration branch and creates `task/<task-slug>`. Approval runs from the task lane, preserves Git hooks, commits and merges locally without adding provider attribution, and performs no push, PR, deployment, or publication.
 
 ### Prompt-hygiene diagnostics
 
@@ -216,9 +216,11 @@ When you sit down to work, follow this loop:
 ## Developing this project
 
 We use HAI-Harness to develop itself through the same local-source installer and
-updater used by other projects. The [contributor guide](https://github.com/ClaudiusMa/HAI-Harness/blob/main/CONTRIBUTING.md)
+updater used by other projects. The repository root `AGENTS.md` routes contributors
+into the checked-in `.hai/` operating layer, while `scaffold/AGENTS.md` is installed
+as the root entry point in other projects. The [contributor guide](https://github.com/ClaudiusMa/HAI-Harness/blob/main/CONTRIBUTING.md)
 links current direction, confirmed decisions, active work, open questions, and
 recorded history, and explains the source-to-`.hai/` workflow.
-Development records, root redirects, and `hai-meta` are tracked in the repository
+Development records, the root redirect, and `hai-meta` are tracked in the repository
 but excluded from the installable package. Machine-local settings, caches, and
 installation receipts remain ignored.

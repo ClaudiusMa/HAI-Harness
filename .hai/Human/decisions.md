@@ -105,3 +105,9 @@ Archive or reset this file before changing the version header convention.
 - Why: Self-hosting should exercise the same workflow available to users while making the project's current positions and their history accessible to open-source contributors.
 - Tradeoffs: Reusable installed files remain duplicated by design but are maintained through the normal updater; project records and root redirects are authored once in Git instead of being duplicated as helper-generated seeds. Machine-local data stays excluded.
 - Follow-up: Simplify the wrapper, verify populated project records survive initialization and updates, and link current direction, decisions, work, and recorded history from contributor guidance.
+
+- Date: 2026-09-10
+- Decision: Use root `AGENTS.md` as the single product-neutral agent instruction entry, remove `CLAUDE.md` and `AGENTS.override.md`, and eliminate Claude/Codex-specific defaults from the current HAI-Harness workflow.
+- Why: HAI-Harness must work across AI products rather than encoding one provider's file, branch, metadata, or attribution conventions.
+- Tradeoffs: Products that do not discover `AGENTS.md` automatically must be pointed to it by their own integration layer; HAI-Harness will not maintain parallel provider-specific instruction files.
+- Follow-up: Relocate the installable root template into scaffold source, update installer and worktree behavior, synchronize `.hai`, and add provider-neutrality regression checks.
