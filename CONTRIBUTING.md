@@ -24,10 +24,10 @@ when explicitly authorized.
 
 ## Develop the harness with the harness
 
-The root `Agents/`, `Human/`, and `AGENTS.md` are reusable product templates.
-The checked-in [`.hai/` installation](.hai/README.md) holds this project's live
-context. Begin agent work through [AGENTS.override.md](AGENTS.override.md) or
-[CLAUDE.md](CLAUDE.md), then follow outer onboarding and the assigned task.
+The root `Agents/` and `Human/` trees plus [`scaffold/AGENTS.md`](scaffold/AGENTS.md)
+are reusable product templates. The checked-in [`.hai/` installation](.hai/README.md)
+holds this project's live context. Begin agent work through the repository root
+[`AGENTS.md`](AGENTS.md), then follow outer onboarding and the assigned task.
 
 For a clean fresh clone checked out on `main`, create and check out a local
 integration branch before the first task lane:
@@ -68,8 +68,9 @@ Recover missing project records or root redirects from Git. The helper has no
 embedded project seeds, extra skill-copy step, or destructive flags. For a preview,
 use `node bin/hai-harness.mjs update --target .hai --dry-run`.
 
-The ordinary updater refreshes shipped stable methods and skills while preserving
+The ordinary updater installs `scaffold/AGENTS.md` as `.hai/AGENTS.md` and refreshes
+shipped stable methods and skills while preserving
 populated planning, context, design, queues, handoff entries, lesson state, archive
-entries, Human records, and additional local skills. Root redirects and `.hai/README.md`
-are maintained directly in Git. Development context is excluded from the package;
+entries, Human records, and additional local skills. The root `AGENTS.md` redirect and
+`.hai/README.md` are maintained directly in Git. Development context is excluded from the package;
 keep machine-local settings, caches, and installation receipts ignored.

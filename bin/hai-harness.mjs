@@ -10,8 +10,19 @@ import { fileURLToPath } from "node:url";
 const runFile = promisify(execFile);
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const templateDirs = ["Agents", "Human"];
-const templateFiles = ["AGENTS.md"];
+const rootInstructionFile = { source: "scaffold/AGENTS.md", target: "AGENTS.md" };
+const templateFiles = [rootInstructionFile];
 const ignoredNames = new Set([".DS_Store"]);
+const taskBranchPrefix = "task/";
+const taskMetadataKeys = {
+  integration: "haiIntegrationBranch",
+  base: "haiBaseCommit"
+};
+const legacyTaskBranchPrefix = "codex/";
+const legacyTaskMetadataKeys = {
+  integration: "codexIntegrationBranch",
+  base: "codexBaseCommit"
+};
 const generatedTaskRoles = [
   { slug: "augustus", name: "Augustus" },
   { slug: "julius", name: "Julius" }
@@ -20,7 +31,8 @@ const generatedTaskRoles = [
 // Stable method files are safe to refresh. Project-owned state is never
 // overwritten by `update`.
 const scaffoldPaths = [
-  "AGENTS.md",
+  rootInstructionFile,
+  ...[
   "Agents/check-for-update.mjs",
   "Agents/onboarding.md",
   "Agents/claudia.md",
@@ -44,6 +56,7 @@ const scaffoldPaths = [
   "Agents/skills/lesson-logger/SKILL.md",
   "Agents/skills/retrospective/SKILL.md",
   "Human/onboarding.md"
+  ].map((relativePath) => ({ source: relativePath, target: relativePath }))
 ];
 
 // These files hold project-owned state after installation. `update` creates
@@ -171,7 +184,7 @@ async function init(options) {
     await copyDirectory(path.join(packageRoot, dir), path.join(options.target, dir), options, results);
   }
   for (const file of templateFiles) {
-    await copyFile(path.join(packageRoot, file), path.join(options.target, file), options, results);
+    await copyFile(path.join(packageRoot, file.source), path.join(options.target, file.target), options, results);
   }
   for (const role of generatedTaskRoles) {
     await generateTaskFile(role, options, results, options.force);
@@ -184,8 +197,8 @@ async function update(options) {
   await assertDirectory(options.target);
   const results = { updated: [], created: [], preserved: [], missingSource: [] };
 
-  for (const relativePath of scaffoldPaths) {
-    await refreshPath(relativePath, options, results, false);
+  for (const pathMapping of scaffoldPaths) {
+    await refreshPath(pathMapping, options, results, false);
   }
   for (const relativePath of createOnlyPaths) {
     await refreshPath(relativePath, options, results, true);
@@ -243,24 +256,26 @@ async function generateTaskFile(role, options, results, overwrite) {
   results[key].push(relativePath);
 }
 
-async function refreshPath(relativePath, options, results, createOnly) {
-  const sourcePath = path.join(packageRoot, relativePath);
-  const targetPath = path.join(options.target, relativePath);
+async function refreshPath(pathMapping, options, results, createOnly) {
+  const sourceRelativePath = typeof pathMapping === "string" ? pathMapping : pathMapping.source;
+  const targetRelativePath = typeof pathMapping === "string" ? pathMapping : pathMapping.target;
+  const sourcePath = path.join(packageRoot, sourceRelativePath);
+  const targetPath = path.join(options.target, targetRelativePath);
   if (!(await exists(sourcePath))) {
-    results.missingSource.push(relativePath);
+    results.missingSource.push(sourceRelativePath);
     return;
   }
 
   const targetExists = await exists(targetPath);
   if (createOnly && targetExists) {
-    results.preserved.push(relativePath);
+    results.preserved.push(targetRelativePath);
     return;
   }
   if (!options.dryRun) {
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
     await fs.copyFile(sourcePath, targetPath);
   }
-  results[targetExists ? "updated" : "created"].push(relativePath);
+  results[targetExists ? "updated" : "created"].push(targetRelativePath);
 }
 
 async function doctor(options) {
@@ -387,7 +402,7 @@ async function createWorktree(options, slug) {
   }
   await assertClean(integrationRoot, "The integration worktree is dirty. Finish or commit its current work first.");
 
-  const taskBranch = `codex/${slug}`;
+  const taskBranch = `${taskBranchPrefix}${slug}`;
   if (await localBranchExists(controlRoot, taskBranch)) throw new Error(`Task branch already exists: ${taskBranch}`);
   const taskRoot = path.join(`${controlRoot}-worktrees`, slug);
   if (await exists(taskRoot)) throw new Error(`Task worktree path already exists: ${taskRoot}`);
@@ -398,8 +413,8 @@ async function createWorktree(options, slug) {
   try {
     await git(controlRoot, ["worktree", "add", "-b", taskBranch, taskRoot, baseCommit], { inherit: true });
     created = true;
-    await git(controlRoot, ["config", "--local", `branch.${taskBranch}.codexIntegrationBranch`, integrationBranch]);
-    await git(controlRoot, ["config", "--local", `branch.${taskBranch}.codexBaseCommit`, baseCommit]);
+    await git(controlRoot, ["config", "--local", `branch.${taskBranch}.${taskMetadataKeys.integration}`, integrationBranch]);
+    await git(controlRoot, ["config", "--local", `branch.${taskBranch}.${taskMetadataKeys.base}`, baseCommit]);
   } catch (error) {
     if (created) {
       await git(controlRoot, ["worktree", "remove", "--force", taskRoot]).catch(() => {});
@@ -426,9 +441,10 @@ async function worktreeStatus(options) {
   console.log(`Branch:             ${branch || "detached"}`);
   console.log(`Primary checkout:   ${controlRoot || "unknown"}`);
   console.log(`Working tree:       ${dirty ? "dirty" : "clean"}`);
-  if (branch.startsWith("codex/")) {
-    const integration = await gitOptional(controlRoot, ["config", "--get", `branch.${branch}.codexIntegrationBranch`]);
-    const base = await gitOptional(controlRoot, ["config", "--get", `branch.${branch}.codexBaseCommit`]);
+  const metadataKeys = metadataKeysForBranch(branch);
+  if (metadataKeys) {
+    const integration = await gitOptional(controlRoot, ["config", "--get", `branch.${branch}.${metadataKeys.integration}`]);
+    const base = await gitOptional(controlRoot, ["config", "--get", `branch.${branch}.${metadataKeys.base}`]);
     console.log(`Integration branch: ${integration || "missing"}`);
     console.log(`Base commit:        ${base || "missing"}`);
   }
@@ -440,10 +456,11 @@ async function approveWorktree(options) {
   const controlRoot = worktrees[0]?.root;
   if (!controlRoot || samePath(taskRoot, controlRoot)) throw new Error("Run worktree approve from a task worktree.");
   const taskBranch = await git(taskRoot, ["branch", "--show-current"]);
-  if (!taskBranch.startsWith("codex/")) throw new Error("Approval requires a codex/* task branch.");
+  const metadataKeys = metadataKeysForBranch(taskBranch);
+  if (!metadataKeys) throw new Error("Approval requires a recognized task-lane branch.");
 
-  const integrationBranch = await gitOptional(controlRoot, ["config", "--get", `branch.${taskBranch}.codexIntegrationBranch`]);
-  const baseCommit = await gitOptional(controlRoot, ["config", "--get", `branch.${taskBranch}.codexBaseCommit`]);
+  const integrationBranch = await gitOptional(controlRoot, ["config", "--get", `branch.${taskBranch}.${metadataKeys.integration}`]);
+  const baseCommit = await gitOptional(controlRoot, ["config", "--get", `branch.${taskBranch}.${metadataKeys.base}`]);
   assertSafeBranch(integrationBranch, "Task metadata has no named local integration branch.");
   if (!baseCommit || !/^[0-9a-f]{40,64}$/.test(baseCommit)) throw new Error("Task metadata has no valid base commit.");
   if (!(await localBranchExists(controlRoot, integrationBranch))) throw new Error(`Unknown local integration branch: ${integrationBranch}`);
@@ -459,8 +476,7 @@ async function approveWorktree(options) {
   await git(taskRoot, ["diff", "--cached", "--check"], { inherit: true });
   const hasStagedChanges = !(await gitExitZero(taskRoot, ["diff", "--cached", "--quiet"]));
   if (hasStagedChanges) {
-    const message = withCodexTrailer(options.approved.trim());
-    await git(taskRoot, ["commit", "-m", message], { inherit: true });
+    await git(taskRoot, ["commit", "-m", options.approved.trim()], { inherit: true });
   }
   await assertClean(taskRoot, "The task worktree changed during its approved commit.");
   const taskCommit = await git(taskRoot, ["rev-parse", "HEAD"]);
@@ -476,7 +492,7 @@ async function approveWorktree(options) {
   }
   await assertClean(integrationRoot, "The integration worktree changed during approval. The task worktree is preserved.");
 
-  const mergeMessage = withCodexTrailer(`Merge ${taskBranch}: ${options.approved.trim()}`);
+  const mergeMessage = `Merge ${taskBranch}: ${options.approved.trim()}`;
   try {
     await git(integrationRoot, ["merge", "--no-ff", "--no-commit", taskCommit], { inherit: true });
     await git(integrationRoot, ["commit", "-m", mergeMessage], { inherit: true });
@@ -505,10 +521,11 @@ async function approveWorktree(options) {
   console.log("No push, pull request, remote merge, deployment, or publication was performed.");
 }
 
-function withCodexTrailer(message) {
-  const trailer = "Co-authored-by: Codex <noreply@openai.com>";
-  const withoutDuplicates = message.split(/\r?\n/).filter((line) => line !== trailer).join("\n").trimEnd();
-  return `${withoutDuplicates}\n\n${trailer}`;
+function metadataKeysForBranch(branch) {
+  if (branch.startsWith(taskBranchPrefix)) return taskMetadataKeys;
+  // Compatibility for task lanes created before the provider-neutral convention.
+  if (branch.startsWith(legacyTaskBranchPrefix)) return legacyTaskMetadataKeys;
+  return null;
 }
 
 function assertSafeBranch(branch, missingMessage) {

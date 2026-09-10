@@ -132,7 +132,7 @@ Record the outcome. In each worker's `Dependencies` field, name the specific art
 
 ## Worktree And Approval Routing
 
-- Assign implementation to a fresh `codex/<task-slug>` lane created from the primary checkout with `hai-harness worktree create`; the named local integration branch must be checked out, clean, and not `main` or `master`.
+- Assign implementation to a fresh `task/<task-slug>` lane created from the primary checkout with `hai-harness worktree create`; the named local integration branch must be checked out, clean, and not `main` or `master`.
 - Require project preview/dev commands and review to run from that exact task worktree. HAI-Harness does not own an application server, route, framework, or port.
 - After focused verification and explicit user approval, the worker runs `hai-harness worktree approve --approved "<message>"`. Commit hooks stay enabled; push, PR, deploy, and publish remain separate approvals.
 - Never resolve a dirty or conflicting lane with copy, reset, stash, clean, or `--no-verify`. Preserve the task worktree when local integration cannot complete safely.
