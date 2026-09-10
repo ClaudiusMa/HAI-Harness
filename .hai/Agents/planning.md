@@ -42,9 +42,13 @@ Remote acts approved: none for this iteration; earlier Update Beacon publication
 
 ## Active Queue
 
+- Status reconciliation, 2026-09-10: live `git ls-remote origin refs/heads/main` confirms `38e0b964e27f5260f7861a06e7b5d32af43b4c76`, matching clean local integration. Earlier publication-blocked notes describe an earlier attempt, not current remote state.
+- Current closeout: privacy wording corrected in Human onboarding source, synced outer copy, and README; publication records reconciled in `codex/context-transparency-closeout`. Sync and diff checks passed. Fixes remain uncommitted for review; no new remote action was performed.
+- Separate pending work: `codex/product-neutral-agents` belongs to the idle `Replace CLAUDE.md with AGENTS.md` task. It contains implemented, reviewed provider-neutral entry-point and task-lane changes, still uncommitted and awaiting local integration approval. Preserve it; this closeout does not adopt or merge that queue.
+
 - Approved 2026-09-10: simplify self-hosting using the normal local-source installer/update; keep `.hai/` as the working installation and public project record; add an obvious contributor entry point.
 - Claudia owns this task. Augustus resumes the owned `codex/transparency-sync-docs` lane; its earlier corrections are part of this scope. Traffic: CLEAR; integration baseline `1ad318a` is clean, the other closeout lane is untouched, and no overlapping active peer writer was found.
-- Implementation complete and reviewed by Claudia: thin helper, preservation regression, contributor navigation, and outer sync verified. Active worker implementation queue: none. Local integration approved; exact integration result is recorded in Git history. No push or release authorized.
+- Implementation complete and reviewed by Claudia: thin helper, preservation regression, contributor navigation, and outer sync verified. Merged and subsequently verified on remote `main` at `38e0b96`. No remaining implementation queue for that iteration.
 - Contract: [Augustus](tasks/augustus.md). Discovery below stays unchanged and unassigned.
 
 - Discovery intake, 2026-09-09: user confirmed product discovery direction and audience. Research activities, participant count, schedule, and first prototype remain undecided; no research execution or implementation queue is assigned.
@@ -88,8 +92,8 @@ Remote acts approved: none for this iteration; earlier Update Beacon publication
 - Updated tracking policy and generated instructions; superseded private-only instructions remain historical evidence in dated decisions.
 - Generalized unrelated private field-project names before publication.
 - Verified shell syntax, sync, doctor, four CLI tests, and package boundary; local settings and receipts remain ignored.
-- **Local integration:** transparency merge `1ad318af2ac62d384fc35698cbab844a35736daf` is on `local-integration`; no remote push occurred.
+- **Integration and publication:** transparency merge `1ad318af2ac62d384fc35698cbab844a35736daf` and subsequent self-hosting merge `38e0b964e27f5260f7861a06e7b5d32af43b4c76` are on local integration and live remote `main`, verified 2026-09-10. The original blocked push did not execute; a later publication reached the remote.
 - **Privacy closeout:** Claudia completed a full scan of all 81 tracked files; no sensitive patterns were found beyond normal attribution/test email. The installable package still excludes development context, root redirects, and the helper.
 - **Follow-up — 2026-09-10:** user approved simple self-hosting and contributor access, including local integration. Replaced embedded seeds and bulk copying with ordinary CLI delegation; published contributor navigation in the working diff. `npm test` 5/5, shell syntax, sync, doctor, local links, 24-path parity, project-state hashes, and the unchanged 39-file package boundary passed. Reviewed by Claudia and approved for local integration from `codex/transparency-sync-docs`; no remote acts authorized.
-- **Publication gate:** automatic approval review rejected the attempted push before execution because the destination/protected-branch publication was not explicitly authorized. Obtain authorization for the exact repository and branch before pushing; the 2026-09-10 approval authorizes local integration after review, not remote publication.
+- **Historical publication gate:** automatic approval review rejected the initial push before execution. That rejection is historical; live remote verification above establishes that publication subsequently completed. No new push is needed for those merged changes; future changes retain their normal approval gates.
 - **Handoff:** [context transparency](handoffs/context-transparency.md). Discovery direction and its undecided research/prototype scope remain unchanged.
