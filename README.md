@@ -105,7 +105,7 @@ After install you'll have:
 
 - `AGENTS.md` at the project root — the provider-neutral entry point for AI agents. It points the agent at `Agents/onboarding.md` and explicitly tells it not to read `Human/`.
 - `Agents/` — the agent operating layer.
-- `Human/` — your private workspace for product thinking.
+- `Human/` — your human-owned workspace for product thinking. Visibility follows your project's sharing and version-control policy; agents do not read it by default.
 - `.hai-harness.json` — the installed-version receipt and update-check preference.
 
 Verify the install at any time:

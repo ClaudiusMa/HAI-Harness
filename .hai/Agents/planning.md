@@ -5,9 +5,9 @@ Planner-owned source of truth for developing the HAI-Harness product. Product so
 Last updated: 2026-09-10
 Last updated by: Claudia
 User check-in after material clarification: yes — product-neutral `AGENTS.md` direction explicitly confirmed 2026-09-10
-Verification approved: low-cost focused tests, syntax checks, sync, doctor, package-boundary inspection, and privacy/provider-neutrality scans; broad/full test runs require a separate check-in
-Local integration approved: no for this iteration; earlier approvals are historical evidence only
-Remote acts approved: none for this iteration
+Verification approved: combined full tests, syntax checks, sync, doctor, package-boundary inspection, and privacy scans for the approved integration
+Local integration approved: yes — user requested all described changes on remote main, 2026-09-10
+Remote acts approved: push the combined product-neutral and transparency closeout changes to origin/main; no tag or release
 
 ## Current Product Truth
 
@@ -43,11 +43,12 @@ Remote acts approved: none for this iteration
 
 ## Active Queue
 
-- Approved 2026-09-10: make `AGENTS.md` the universal instruction contract and remove Claude/Codex-specific assumptions from the current framework.
-- Claudia owns this task. Augustus owns the isolated `codex/product-neutral-agents` bootstrap lane created by the pre-change CLI from clean `local-integration` at `38e0b96`; future lanes produced by the change must use a provider-neutral namespace. Traffic: CLEAR; the older transparency controller is idle, its historical worktree is clean and non-overlapping, and no active peer writer or owned child existed at intake.
-- Sequence: establish a single root `AGENTS.md` repository entry; relocate the installable `AGENTS.md` template into scaffold source; delete `CLAUDE.md` and `AGENTS.override.md`; update installer/update/doctor/package behavior; replace current Codex/Claude language and worktree mechanics with provider-neutral equivalents; preserve explicit legacy compatibility only where required and label it as such; sync the outer harness; verify focused behavior and scan current guidance.
-- Implementation is complete and reviewed: the repository and installed-project entry points are separated cleanly, new task lanes and metadata are provider-neutral, forced provider attribution is gone, and explicit compatibility remains only for already-open legacy lanes. Focused tests passed 3/3; sync, doctor, 24/24 parity, 75 local links, the 39-file package boundary, privacy/provider scans, syntax, and diff checks passed. The Tier 0 portability check landed and its pending lesson spec was retired.
-- Contract: [Augustus](tasks/augustus.md); [handoff](handoffs/product-neutral-agents.md). Awaiting explicit local commit/merge approval. No remote publication or broad/full tests are authorized. Discovery below stays unchanged and unassigned.
+- User approved integrating and pushing all described changes to remote main on 2026-09-10. This supersedes the earlier pending local/remote approval gates.
+- Product-neutral implementation merged locally as `e867e7c`; the closeout lane combines that result with human-workspace visibility corrections and reconciled publication records. The planning conflict was resolved by preserving both outcomes and the latest authorization.
+- Root `AGENTS.md` routes development into `.hai/`; `scaffold/AGENTS.md` installs into user projects. New task lanes and metadata are provider-neutral, with compatibility for existing lanes and no forced provider attribution.
+- Human onboarding and README now describe human ownership and project-controlled visibility. Prior transparency/self-hosting work was verified on remote `main` at `38e0b96`; the originally rejected push remains historical evidence only.
+- Combined verification passed: full tests 5/5, sync of 24 stable paths, doctor (update status unknown/offline), diff check, scan of 84 tracked files with no high-signal privacy matches, and the 39-file package boundary with scaffold included and development records excluded.
+- Contract: [Augustus](tasks/augustus.md); [product-neutral handoff](handoffs/product-neutral-agents.md); [transparency handoff](handoffs/context-transparency.md). Verification is complete; local integration precedes the authorized push by Claudia. Discovery remains unassigned.
 
 - Discovery intake, 2026-09-09: user confirmed product discovery direction and audience. Research activities, participant count, schedule, and first prototype remain undecided; no research execution or implementation queue is assigned.
 - Focus: context continuity during returning, switching, and handoffs among humans and AI. Teammates is the explanatory framing.
@@ -90,8 +91,8 @@ Remote acts approved: none for this iteration
 - Updated tracking policy and generated instructions; superseded private-only instructions remain historical evidence in dated decisions.
 - Generalized unrelated private field-project names before publication.
 - Verified shell syntax, sync, doctor, four CLI tests, and package boundary; local settings and receipts remain ignored.
-- **Local integration:** transparency merge `1ad318af2ac62d384fc35698cbab844a35736daf` is on `local-integration`; no remote push occurred.
+- **Integration and publication:** transparency merge `1ad318af2ac62d384fc35698cbab844a35736daf` and subsequent self-hosting merge `38e0b964e27f5260f7861a06e7b5d32af43b4c76` are on local integration and live remote `main`, verified 2026-09-10. The original blocked push did not execute; a later publication reached the remote.
 - **Privacy closeout:** Claudia completed a full scan of all 81 tracked files; no sensitive patterns were found beyond normal attribution/test email. The installable package still excludes development context, root redirects, and the helper.
 - **Follow-up — 2026-09-10:** user approved simple self-hosting and contributor access, including local integration. Replaced embedded seeds and bulk copying with ordinary CLI delegation; published contributor navigation in the working diff. `npm test` 5/5, shell syntax, sync, doctor, local links, 24-path parity, project-state hashes, and the unchanged 39-file package boundary passed. Reviewed by Claudia and approved for local integration from `codex/transparency-sync-docs`; no remote acts authorized.
-- **Publication gate:** automatic approval review rejected the attempted push before execution because the destination/protected-branch publication was not explicitly authorized. Obtain authorization for the exact repository and branch before pushing; the 2026-09-10 approval authorizes local integration after review, not remote publication.
+- **Historical publication gate:** automatic approval review rejected the initial push before execution. That rejection is historical; live remote verification above establishes that publication subsequently completed. No new push is needed for those merged changes; future changes retain their normal approval gates.
 - **Handoff:** [context transparency](handoffs/context-transparency.md). Discovery direction and its undecided research/prototype scope remain unchanged.
