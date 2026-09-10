@@ -1,11 +1,6 @@
 .DS_Store
 node_modules/
 
-# Local operating state stays private except the canonical project decisions.
-/.hai/*
-!/.hai/Human/
-/.hai/Human/*
-!/.hai/Human/decisions.md
-/AGENTS.override.md
-/CLAUDE.md
-/hai-meta
+# Machine-local settings and installation receipts; project context is tracked.
+.claude/settings.local.json
+/.hai/.hai-harness.json

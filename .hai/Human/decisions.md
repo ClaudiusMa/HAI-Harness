@@ -93,3 +93,9 @@ Archive or reset this file before changing the version header convention.
 - Why: The user explicitly requested that project decisions not be gitignored.
 - Tradeoffs: Supersedes the decision-log portion of the 2026-08-02 all-private outer-harness policy; decision contents become reviewable for version control, but no commit or publication is authorized by this change.
 - Follow-up: Preserve this exception in project ownership guidance.
+
+- Date: 2026-09-09
+- Decision: Version-control and publish all substantive HAI-Harness development context in `.hai/`, root agent redirects, and `hai-meta`, alongside the product source.
+- Why: The user wants the project's human and agent context to be transparent.
+- Tradeoffs: Supersedes the 2026-08-02 private-only policy and the later decisions-only exception; machine-local settings, caches, and install receipts remain ignored, and development context remains excluded from the installable package.
+- Follow-up: Keep current instructions and helper-generated instructions consistent with this policy.
