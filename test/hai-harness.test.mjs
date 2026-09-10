@@ -51,15 +51,23 @@ test("worktree lifecycle succeeds and unsafe requests are rejected", async (t) =
 
   const created = harness(repo, "worktree", "create", "happy-path", "--target", repo);
   assert.equal(created.status, 0, created.stderr);
+  assert.match(created.stdout, /branch:\s+task\/happy-path/);
   const taskRoot = `${repo}-worktrees/happy-path`;
+  assert.equal(git(repo, "config", "--get", "branch.task/happy-path.haiIntegrationBranch"), "develop");
+  assert.equal(git(repo, "config", "--get", "branch.task/happy-path.haiBaseCommit"), git(repo, "rev-parse", "HEAD"));
+  assert.notEqual(run("git", ["config", "--get", "branch.task/happy-path.codexIntegrationBranch"], repo).status, 0);
   const status = harness(taskRoot, "worktree", "status", "--target", taskRoot);
   assert.equal(status.status, 0, status.stderr);
+  assert.match(status.stdout, /Branch:\s+task\/happy-path/);
   assert.match(status.stdout, /Integration branch: develop/);
   await fs.writeFile(path.join(taskRoot, "result.txt"), "approved\n");
   const approved = harness(taskRoot, "worktree", "approve", "--approved", "Complete fixture", "--target", taskRoot);
   assert.equal(approved.status, 0, approved.stderr);
   assert.equal((await fs.stat(taskRoot).catch(() => null)), null);
   assert.equal(git(repo, "rev-list", "--parents", "-n", "1", "HEAD").split(" ").length, 3);
+  assert.equal(git(repo, "log", "-1", "--format=%B", "HEAD^2"), "Complete fixture");
+  assert.equal(git(repo, "log", "-1", "--format=%B", "HEAD"), "Merge task/happy-path: Complete fixture");
+  assert.doesNotMatch(git(repo, "log", "-2", "--format=%B"), /co-authored-by|codex|openai/i);
 
   await fs.writeFile(path.join(repo, "dirty.txt"), "dirty\n");
   const dirty = harness(repo, "worktree", "create", "dirty-reject", "--target", repo);
@@ -86,6 +94,20 @@ test("worktree lifecycle succeeds and unsafe requests are rejected", async (t) =
   const unsafe = harness(repo, "worktree", "create", "unsafe-branch", "--integration", "bad..branch", "--target", repo);
   assert.notEqual(unsafe.status, 0);
   assert.match(unsafe.stderr, /unsafe integration branch/i);
+
+  // A lane created before neutral naming must remain approvable while it is in flight.
+  const legacyBranch = "codex/legacy-compatible";
+  const legacyRoot = `${repo}-worktrees/legacy-compatible`;
+  const legacyBase = git(repo, "rev-parse", "HEAD");
+  git(repo, "worktree", "add", "-b", legacyBranch, legacyRoot, legacyBase);
+  git(repo, "config", "--local", `branch.${legacyBranch}.codexIntegrationBranch`, "develop");
+  git(repo, "config", "--local", `branch.${legacyBranch}.codexBaseCommit`, legacyBase);
+  await fs.writeFile(path.join(legacyRoot, "legacy-result.txt"), "approved\n");
+  const legacyApproved = harness(legacyRoot, "worktree", "approve", "--approved", "Complete legacy fixture", "--target", legacyRoot);
+  assert.equal(legacyApproved.status, 0, legacyApproved.stderr);
+  assert.equal((await fs.stat(legacyRoot).catch(() => null)), null);
+  assert.equal(git(repo, "log", "-1", "--format=%B", "HEAD^2"), "Complete legacy fixture");
+  assert.doesNotMatch(git(repo, "log", "-2", "--format=%B"), /co-authored-by|openai/i);
 });
 
 test("init, update, and doctor preserve state and flag polluted startup context", async (t) => {
@@ -95,12 +117,24 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   const packageMetadata = JSON.parse(await fs.readFile(path.join(projectRoot, "package.json"), "utf8"));
   const releaseMetadata = JSON.parse(await fs.readFile(path.join(projectRoot, "release.json"), "utf8"));
   assert.equal(releaseMetadata.version, packageMetadata.version);
+  assert.ok(packageMetadata.files.includes("scaffold"));
+  assert.ok(!packageMetadata.files.includes("AGENTS.md"));
   const checkerSource = await fs.readFile(checker, "utf8");
   assert.match(checkerSource, /api\.github\.com\/repos\/ClaudiusMa\/HAI-Harness\/releases\/latest/);
   assert.doesNotMatch(checkerSource, /raw\.githubusercontent\.com.*release\.json/);
 
   const installed = harness(target, "init", "--target", target);
   assert.equal(installed.status, 0, installed.stderr);
+  assert.equal(
+    await fs.readFile(path.join(target, "AGENTS.md"), "utf8"),
+    await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8")
+  );
+  assert.notEqual(
+    await fs.readFile(path.join(target, "AGENTS.md"), "utf8"),
+    await fs.readFile(path.join(projectRoot, "AGENTS.md"), "utf8")
+  );
+  assert.equal(await fs.stat(path.join(target, "AGENTS.override.md")).catch(() => null), null);
+  assert.equal(await fs.stat(path.join(target, "CLAUDE.md")).catch(() => null), null);
   const receipt = JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8"));
   assert.equal(receipt.schemaVersion, 1);
   assert.equal(receipt.installedVersion, "0.2.0");
@@ -114,6 +148,7 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   await fs.writeFile(path.join(target, "Agents/design.md"), "project-owned design guide\n");
   await fs.writeFile(path.join(target, "Agents/lessons/INDEX.md"), "project-owned lesson index\n");
   await fs.writeFile(path.join(target, "Agents/tasks/augustus.md"), "project-owned Augustus queue\n");
+  await fs.writeFile(path.join(target, "AGENTS.md"), "stale root entry point\n");
   await fs.writeFile(path.join(target, "Agents/skills/decision-logger/SKILL.md"), "stale stable method\n");
   await fs.writeFile(path.join(target, "Agents/handoffs/TEMPLATE.md"), "stale handoff template\n");
   await fs.unlink(path.join(target, "Agents/tasks/julius.md"));
@@ -125,6 +160,10 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.equal(await fs.readFile(path.join(target, "Agents/design.md"), "utf8"), "project-owned design guide\n");
   assert.equal(await fs.readFile(path.join(target, "Agents/lessons/INDEX.md"), "utf8"), "project-owned lesson index\n");
   assert.equal(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), "project-owned Augustus queue\n");
+  assert.equal(
+    await fs.readFile(path.join(target, "AGENTS.md"), "utf8"),
+    await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8")
+  );
   assert.notEqual(await fs.readFile(path.join(target, "Agents/skills/decision-logger/SKILL.md"), "utf8"), "stale stable method\n");
   assert.notEqual(await fs.readFile(path.join(target, "Agents/handoffs/TEMPLATE.md"), "utf8"), "stale handoff template\n");
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/julius.md"), "utf8"), /^# Julius Tasks/m);
@@ -285,7 +324,7 @@ test("routine update checks keep an installed Git worktree clean", async (t) => 
 test("self-hosting wrapper uses ordinary updates and preserves populated project records", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "hai-self-hosting-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  for (const entry of ["Agents", "Human", "bin", "AGENTS.md", "package.json", "release.json", "hai-meta"]) {
+  for (const entry of ["Agents", "Human", "bin", "scaffold", "AGENTS.md", "package.json", "release.json", "hai-meta"]) {
     await fs.cp(path.join(projectRoot, entry), path.join(root, entry), { recursive: true });
   }
   const target = path.join(root, ".hai");
@@ -297,7 +336,7 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
     ".hai/Agents/handoffs/project.md", ".hai/Agents/lessons/INDEX.md",
     ".hai/Agents/lessons/project.md", ".hai/Agents/_archive/project.md",
     ".hai/Human/brief.md", ".hai/Human/decisions.md", ".hai/Human/open_questions.md",
-    ".hai/Human/reflections.md", ".hai/README.md", "AGENTS.override.md", "CLAUDE.md",
+    ".hai/Human/reflections.md", ".hai/README.md", "AGENTS.md",
     ".hai/Agents/skills/local-only/SKILL.md", ".hai/Agents/skills/decision-logger/local-note.md"
   ];
   for (const record of records) {
@@ -330,5 +369,11 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
   const checked = meta("doctor");
   assert.equal(checked.status, 0, checked.stderr);
   assert.match(checked.stdout, /Update status: disabled/);
-  assert.equal(await fs.readFile(path.join(root, "AGENTS.override.md"), "utf8"), "Project record: AGENTS.override.md\n");
+  assert.equal(await fs.readFile(path.join(root, "AGENTS.md"), "utf8"), "Project record: AGENTS.md\n");
+  assert.equal(
+    await fs.readFile(path.join(target, "AGENTS.md"), "utf8"),
+    await fs.readFile(path.join(root, "scaffold/AGENTS.md"), "utf8")
+  );
+  assert.equal(await fs.stat(path.join(root, "AGENTS.override.md")).catch(() => null), null);
+  assert.equal(await fs.stat(path.join(root, "CLAUDE.md")).catch(() => null), null);
 });

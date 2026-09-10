@@ -1,6 +1,6 @@
 # Lessons Index
 
-Last swept: not yet — no project events have been processed.
+Last swept: 2026-09-10 product-neutral AGENTS intake
 Owner: Claudia, through `Agents/skills/lesson-logger/SKILL.md` only.
 
 <!--

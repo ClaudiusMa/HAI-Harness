@@ -4,10 +4,10 @@ Planner-owned source of truth for developing the HAI-Harness product. Product so
 
 Last updated: 2026-09-10
 Last updated by: Claudia
-User check-in after material clarification: yes — simple self-hosting and contributor access approved 2026-09-10
-Verification approved: focused local tests, installer preservation fixtures, sync, privacy scan, and package dry run for this change
-Local integration approved: yes — user approved 2026-09-10; Claudia reviewed the implementation
-Remote acts approved: none for this iteration; earlier Update Beacon publication is historical evidence below
+User check-in after material clarification: yes — product-neutral `AGENTS.md` direction explicitly confirmed 2026-09-10
+Verification approved: combined full tests, syntax checks, sync, doctor, package-boundary inspection, and privacy scans for the approved integration
+Local integration approved: yes — user requested all described changes on remote main, 2026-09-10
+Remote acts approved: push the combined product-neutral and transparency closeout changes to origin/main; no tag or release
 
 ## Current Product Truth
 
@@ -17,7 +17,8 @@ Remote acts approved: none for this iteration; earlier Update Beacon publication
 - This outer `.hai/` harness owns all real plans, worker assignments, handoffs, lessons, and confirmed human decisions for building the product.
 - The upstream task surface is only `../Agents/tasks/TEMPLATE.md`; `init` generates project-local role task files and `update` preserves populated installed queues.
 - Every inner scaffold change must be followed in the same iteration by `./hai-meta sync` from the repository root plus outer planning/decision/task closeout.
-- A tracked root `AGENTS.override.md` routes future Codex development sessions to this outer harness while the tracked `../AGENTS.md` remains a clean shipped template.
+- Root `AGENTS.md` must be the single product-neutral development entry point for this repository and route agents to the outer `.hai/` harness. The installable root-agent template must live in scaffold source rather than competing for that path.
+- The current harness contract must not depend on provider-specific instruction files, branch namespaces, Git metadata keys, or forced co-author attribution.
 - Storybook exploration logging is explicit-user-triggered only.
 - Installed harnesses should discover new releases through a default-on, anonymous check no more than weekly, notify only once a newer actionable release is available, and never auto-apply updates.
 - Update discovery must preserve the existing boundary: stable scaffold files may refresh, while project-authored planning, context, design, queues, handoffs, lessons, archives, and Human content remain untouched.
@@ -42,14 +43,12 @@ Remote acts approved: none for this iteration; earlier Update Beacon publication
 
 ## Active Queue
 
-- Status reconciliation, 2026-09-10: live `git ls-remote origin refs/heads/main` confirms `38e0b964e27f5260f7861a06e7b5d32af43b4c76`, matching clean local integration. Earlier publication-blocked notes describe an earlier attempt, not current remote state.
-- Current closeout: privacy wording corrected in Human onboarding source, synced outer copy, and README; publication records reconciled in `codex/context-transparency-closeout`. Sync and diff checks passed. Fixes remain uncommitted for review; no new remote action was performed.
-- Separate pending work: `codex/product-neutral-agents` belongs to the idle `Replace CLAUDE.md with AGENTS.md` task. It contains implemented, reviewed provider-neutral entry-point and task-lane changes, still uncommitted and awaiting local integration approval. Preserve it; this closeout does not adopt or merge that queue.
-
-- Approved 2026-09-10: simplify self-hosting using the normal local-source installer/update; keep `.hai/` as the working installation and public project record; add an obvious contributor entry point.
-- Claudia owns this task. Augustus resumes the owned `codex/transparency-sync-docs` lane; its earlier corrections are part of this scope. Traffic: CLEAR; integration baseline `1ad318a` is clean, the other closeout lane is untouched, and no overlapping active peer writer was found.
-- Implementation complete and reviewed by Claudia: thin helper, preservation regression, contributor navigation, and outer sync verified. Merged and subsequently verified on remote `main` at `38e0b96`. No remaining implementation queue for that iteration.
-- Contract: [Augustus](tasks/augustus.md). Discovery below stays unchanged and unassigned.
+- User approved integrating and pushing all described changes to remote main on 2026-09-10. This supersedes the earlier pending local/remote approval gates.
+- Product-neutral implementation merged locally as `e867e7c`; the closeout lane combines that result with human-workspace visibility corrections and reconciled publication records. The planning conflict was resolved by preserving both outcomes and the latest authorization.
+- Root `AGENTS.md` routes development into `.hai/`; `scaffold/AGENTS.md` installs into user projects. New task lanes and metadata are provider-neutral, with compatibility for existing lanes and no forced provider attribution.
+- Human onboarding and README now describe human ownership and project-controlled visibility. Prior transparency/self-hosting work was verified on remote `main` at `38e0b96`; the originally rejected push remains historical evidence only.
+- Combined verification passed: full tests 5/5, sync of 24 stable paths, doctor (update status unknown/offline), diff check, scan of 84 tracked files with no high-signal privacy matches, and the 39-file package boundary with scaffold included and development records excluded.
+- Contract: [Augustus](tasks/augustus.md); [product-neutral handoff](handoffs/product-neutral-agents.md); [transparency handoff](handoffs/context-transparency.md). Verification is complete; local integration precedes the authorized push by Claudia. Discovery remains unassigned.
 
 - Discovery intake, 2026-09-09: user confirmed product discovery direction and audience. Research activities, participant count, schedule, and first prototype remain undecided; no research execution or implementation queue is assigned.
 - Focus: context continuity during returning, switching, and handoffs among humans and AI. Teammates is the explanatory framing.
@@ -68,7 +67,7 @@ Remote acts approved: none for this iteration; earlier Update Beacon publication
 
 ## Next-Iteration Intake Contract
 
-1. Start from root `AGENTS.override.md`, then read `.hai/AGENTS.md`, outer onboarding, project context, the named role, and this plan.
+1. Start from root `AGENTS.md`, then read `.hai/AGENTS.md`, outer onboarding, project context, the named role, and this plan.
 2. Record new strategy and assignments only in `.hai/Agents/planning.md` and `.hai/Agents/tasks/`.
 3. Workers edit the tracked inner product source; inner planning/task templates remain generic.
 4. After inner scaffold changes, run `./hai-meta sync` before completion.
