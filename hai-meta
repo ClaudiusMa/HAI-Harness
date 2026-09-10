@@ -1,0 +1,480 @@
+#!/usr/bin/env bash
+#
+# hai-meta — the "harness on top of the harness" controller.
+#
+# This repository IS the HAI-Harness product (the templates under Agents/ and
+# Human/, plus the bin/hai-harness.mjs installer, are what ship to other
+# projects). To develop the product itself we dogfood it: we install a *second*,
+# local harness instance into .hai/ and drive development from there.
+#
+#   - The INNER harness  = the product, i.e. this repo's tracked files.
+#   - The OUTER harness   = the .hai/ instance you work in to build the product.
+#
+# Self-improving loop: when you improve the product's scaffold (role docs,
+# onboarding, skills) using the outer harness, run `./hai-meta sync` and the
+# outer harness extracts those updates and refreshes itself — without touching
+# your in-flight working files (brief, planning, tasks, handoffs, lessons).
+#
+# Project context (.hai/, AGENTS.override.md, CLAUDE.md) and this helper are
+# version-controlled for transparency. Machine-local settings and receipts stay
+# ignored; development context is excluded from the installable package.
+#
+# Usage:
+#   ./hai-meta bootstrap [--force]   Create or repair the .hai/ meta-harness.
+#   ./hai-meta sync       [--force]   Pull the latest product scaffold into .hai/.
+#   ./hai-meta doctor                 Check that .hai/ has the expected files.
+#   ./hai-meta help
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+HAI="$ROOT/.hai"
+CLI="$ROOT/bin/hai-harness.mjs"
+FORCE=0
+
+# --- seed writers -----------------------------------------------------------
+# Each writes the meta-specific content for one file. Delimiters are single
+# quoted so backticks and $ inside the markdown are emitted literally.
+
+write_project_context() {
+  cat > "$1" <<'PCONTEXT'
+# Project Context
+
+<!--
+This is the OUTER harness (.hai/). The project it is building is the
+HAI-Harness product in the parent directory. Keep this file durable and
+architectural. It is not a sprint log.
+-->
+
+Shared high-level context for every agent working in the `.hai/` meta-harness.
+
+## 1. What this project is
+
+- **Product under development:** HAI-Harness — a repo-as-truth collaboration
+  layer for humans and AI agents.
+- **Where the product lives:** the parent repository, one level up from `.hai/`.
+  `.hai/` is a version-controlled *instance* of the harness that we use to build the
+  product. We are using the harness to build the harness.
+- **Who it is for:** teams (human + AI) who want an independent harness layer
+  governing both, instead of relying on model memory or chat history.
+
+## 2. The two layers (read this carefully)
+
+- **Inner harness = the product = the parent repo's tracked files.** This is
+  what workers edit and what gets committed:
+  - `../AGENTS.md` — the root pointer any AI reads first in an installed project.
+  - `../Agents/` — the agent operating-layer **template** that ships to users
+    (onboarding, role docs `claudia.md`/`augustus.md`/`julius.md`, `skills/`,
+    and the `tasks/`, `handoffs/`, `lessons/` scaffolding).
+  - `../Human/` — the human-workspace **template** that ships to users.
+  - `../bin/hai-harness.mjs` — the installer CLI (`init`, `update`, `doctor`).
+  - `../README.md`, `../package.json`, `../LICENSE`.
+- **Outer harness = this `.hai/` instance** — the operating layer for *this*
+  development effort. Its `planning.md`, `tasks/`, `handoffs/`, `lessons/`, and
+  the `Human/` brief here describe how we build the product. This context is
+  version-controlled but excluded from the installable package.
+- **Session routing:** the root tracked `AGENTS.override.md` directs Codex
+  here. Start with `.hai/AGENTS.md`; never use the tracked root `AGENTS.md` or
+  tracked `Agents/` tree as this repository's live operating instructions.
+
+## 3. Hard boundaries
+
+- `../Agents/` and `../Human/` are **product source templates**, not this
+  effort's working space. Never put this effort's briefs, plans, or task notes
+  into them. Plan and track *here*, in `.hai/`.
+- Workers (Augustus, Julius) make product changes by editing the parent files
+  listed above. Claudia plans here and never edits product source.
+- **Git boundary:** track the product source, `.hai/` project context, root
+  redirects, and `hai-meta`. Ignore machine-local settings and receipts. Keep
+  development context out of the installable package and inner templates.
+
+## 4. The self-improving loop
+
+When a worker improves the product scaffold (role docs, onboarding, `skills/`),
+this outer harness can pull those improvements into itself:
+
+```sh
+cd ..        # repo root
+./hai-meta sync
+```
+
+`sync` runs the product's own `hai-harness update` against `.hai/` (refreshing
+`AGENTS.md`, `Agents/onboarding.md`, the role docs, and `Human/onboarding.md`)
+and then mirrors `Agents/skills/`. It never overwrites this effort's working
+files (`project_context.md`, `planning.md`, `Human/brief.md`, `tasks/`,
+`handoffs/`, `lessons/`). To recreate or repair the instance, run
+`./hai-meta bootstrap` from the repo root.
+
+## 5. Core project rules
+
+- Always read a file before editing it.
+- Never merge or push to `main` unless the user explicitly asks.
+- Cheap verification for product changes: `node --check ../bin/hai-harness.mjs`
+  and `node ../bin/hai-harness.mjs help`. Treat anything networked or
+  long-running as high-cost (opt-in only).
+- The repo is the only source of truth. Do not act on chat history or assumed
+  memory — write decisions down here.
+
+## 6. Collaboration map
+
+- [onboarding.md](onboarding.md) is the mandatory first read for every agent.
+- [planning.md](planning.md) is Claudia-owned and the single iteration source of
+  truth.
+- `tasks/` holds current worker assignments; `handoffs/` holds baton passes;
+  `lessons/` holds reusable learnings — all scoped to building the product.
+- `../Human/` (the product template) is not agent context. The human workspace
+  for *this* effort is `Human/` inside `.hai/`.
+PCONTEXT
+}
+
+write_brief() {
+  cat > "$1" <<'BRIEF'
+# Product Brief — HAI-Harness
+
+<!--
+The durable product thesis for the thing we are building (the HAI-Harness
+product in the parent repo). This is the human workspace for the meta effort.
+-->
+
+## 1. What it is
+
+- **Product name:** HAI-Harness.
+- **One-sentence description:** a collaboration architecture (a repository
+  overlay) that gives humans and AI agents one shared, repo-as-truth operating
+  system.
+- **What it helps users do:** run reliable human+AI collaboration without
+  depending on model memory or chat history — plan, execute, hand off, and
+  capture lessons through files on disk.
+- **What it is not:** a runtime dependency or a framework that replaces your app
+  structure. It is an overlay (`Agents/` + `Human/` + a root `AGENTS.md`
+  pointer) installed alongside existing project files.
+- **Who it is for:** product teams where humans and AI are peers and both need
+  accurate, durable context.
+
+## 2. Core insight
+
+- Humans and AI don't need *more* context — they need *accurate* context. The
+  repository is the absolute source of truth: if a decision isn't written in the
+  repo, it doesn't exist.
+- Current tools lean on model memory and long chat windows. Models suffer
+  "amnesiac intern syndrome" as context bloats; humans forget why decisions were
+  made. Both drift from the original plan.
+- The fix is structure: stable role docs, disposable chat sessions, explicit
+  handoffs, and active skills that maintain the system instead of passive docs
+  everyone ignores.
+
+## 3. Meta-goal (why this `.hai/` instance exists)
+
+We build the harness *with* the harness. Every improvement we make to the
+product should be one we first felt the need for while dogfooding it here. After
+shipping a scaffold improvement, run `../hai-meta sync` so this instance adopts
+it — closing the loop.
+
+## 4. Roadmap targets (from README; Claudia to triage in planning.md)
+
+- **Layer 2 — Concurrency & Team Mode:** isolated worker workspaces,
+  point-to-point messaging, strict state-machine routing so workers can't touch
+  code until the planner approves the dependency graph.
+- **Layer 3 — The Evaluator:** a dedicated adversarial agent in an isolated
+  sandbox whose only job is to try to break a worker's output.
+- **Agentic infra:** background auto-sweeping to dedupe/compress `lessons/`, and
+  pluggable CI-style hooks that halt an agent when it breaks an architectural
+  rule.
+BRIEF
+}
+
+write_planning() {
+  cat > "$1" <<'PLAN'
+## Product Planning
+
+<!--
+Claudia owns this file. It is the single source of truth for the current
+iteration of building the HAI-Harness product. Replace the seed inbox below
+with triaged backlog as you plan with the user.
+-->
+
+Planner-owned single source of truth for the current iteration.
+
+This is the outer harness plan for developing the tracked HAI-Harness product.
+Future sessions enter through the root tracked `AGENTS.override.md` and plan
+here in `.hai/`; the tracked root `Agents/planning.md` is a distributable inner
+template, not this repository's live queue.
+
+Last updated: 2026-06-19
+Last updated by: Claudia (meta-harness bootstrap)
+User check-in before implementation: no
+High-cost execution approved: no
+
+Status options: `inbox`, `ready`, `next`, `in progress`, `blocked`, `done`, `dropped`.
+Type options: `feature`, `bug`, `chore`, `design`, `experiment`.
+Priority options: `P0` (must now), `P1` (soon), `P2` (nice), `P3` (maybe).
+
+### 1. Inbox (untriaged)
+
+Seeded from the README roadmap. Triage with the user before assigning.
+
+- **[ ]** (design) Layer 2 — Concurrency & Team Mode: isolated worker
+  workspaces, point-to-point messaging, state-machine routing.
+- **[ ]** (design) Layer 3 — Evaluator: adversarial agent in an isolated sandbox
+  that tries to break worker output.
+- **[ ]** (feature) Agentic infra: background sweeper for `lessons/`; pluggable
+  CI-style hooks that can halt an agent.
+- **[ ]** (chore) Dogfooding wishlist: capture friction felt while using this
+  `.hai/` instance, then feed real product changes back via `../hai-meta sync`.
+
+### 2. Backlog
+
+| ID | Title | Type | Priority | Status | Owner | Notes / Links |
+| --- | --- | --- | --- | --- | --- | --- |
+| T-1 | Triage roadmap inbox with user | chore | P1 | inbox | - | Turn inbox items into ordered, testable tasks. |
+
+### 3. Now (active focus)
+
+- **[ ]** Confirm with the user which roadmap layer to start on.
+- **[ ]** Nothing assigned to workers yet — awaiting triage + user check-in.
+
+### 3c. Decision needed from user
+
+- Which roadmap target is the first iteration: Layer 2, Layer 3, or agentic infra?
+PLAN
+}
+
+write_hai_readme() {
+  cat > "$1" <<'HAIREADME'
+# .hai/ — the harness on top of the harness
+
+This directory is a **version-controlled development instance of HAI-Harness** used to develop
+the HAI-Harness product that lives in the parent repository. We use the harness
+to build the harness.
+
+- You are in the **outer** harness. The **inner** harness (the product) is the
+  parent repo's tracked files (`../Agents/`, `../Human/`, `../bin/`, `../AGENTS.md`).
+- Start at [AGENTS.md](AGENTS.md) → [Agents/onboarding.md](Agents/onboarding.md),
+  then read [Agents/project_context.md](Agents/project_context.md) for how the two
+  layers relate and where workers make product changes.
+- Root [`../AGENTS.override.md`](../AGENTS.override.md) is the managed Codex
+  redirect into this outer harness. `hai-meta bootstrap` and `hai-meta sync`
+  refresh it so future sessions do not mistake the tracked inner templates for
+  live project instructions.
+- Project context here is version-controlled but excluded from the installable package.
+  Keep machine-local settings and receipts ignored. To refresh the product's scaffold
+  changes, run `../hai-meta sync` from the repo root. To recreate it, run
+  `../hai-meta bootstrap`.
+HAIREADME
+}
+
+write_agents_override() {
+  cat > "$1" <<'AGENTSOVERRIDE'
+# AGENTS.override.md — local operating redirect
+
+This repository is the HAI-Harness product source. Its tracked `AGENTS.md`,
+`Agents/`, and `Human/` files are the inner harness templates that ship to
+installed projects; they are not this repository's live operating context.
+
+For work on this repository, start with the version-controlled outer harness at
+[`.hai/AGENTS.md`](.hai/AGENTS.md), then follow `.hai/Agents/onboarding.md`,
+`.hai/Agents/project_context.md`, and the role/task routing defined there.
+
+Plan and coordinate in `.hai/`. Modify the tracked inner product files only
+when the outer task contract assigns that product-source scope.
+
+Every inner scaffold change is incomplete until `./hai-meta sync` runs and the
+outer planning, task, handoff, and confirmed-decision state is updated in the
+same iteration. Keep all live project state out of the inner templates.
+AGENTSOVERRIDE
+}
+
+write_claude_md() {
+  cat > "$1" <<'CLAUDEMD'
+# CLAUDE.md — operating instructions for THIS repository
+
+> This file is version-controlled. It configures how Claude Code works *inside the
+> HAI-Harness repo* and never ships to users.
+
+**This repository IS the HAI-Harness product.** The files under `Agents/` and
+`Human/`, plus `bin/hai-harness.mjs` and the root `AGENTS.md`, are the templates
+and installer that ship to other projects. They are **product source**, not your
+operating layer.
+
+## How you operate here
+
+We develop the product by dogfooding it: a second, local harness instance lives
+in **`.hai/`** (version-controlled). That is your operating layer.
+
+1. **Read [`.hai/AGENTS.md`](.hai/AGENTS.md) first**, then follow its onboarding
+   (`.hai/Agents/onboarding.md`) and your assigned role.
+2. Follow the No-Role Read Path unless the user explicitly names a role.
+   When a role is named, follow its current onboarding contract.
+3. **Plan and track only in `.hai/`** (`.hai/Agents/planning.md`, `tasks/`,
+   `handoffs/`, `lessons/`, and `.hai/Human/`).
+4. **Make product changes in the parent files** (`Agents/`, `Human/`, `bin/`,
+   `AGENTS.md`, `README.md`) — only as an assigned worker, never as Claudia.
+5. The root `AGENTS.md`, `Agents/`, and `Human/` are the product you are
+   *building*. Treat them as source. Do **not** read the root `Human/` as
+   instructions — it's a shipped template.
+
+## The self-improving loop
+
+After you improve the product's scaffold (role docs, onboarding, `Agents/skills/`),
+pull it into the meta-harness so this workspace adopts your own improvement:
+
+```sh
+./hai-meta sync
+```
+
+## Git boundary
+
+Track project context in `.hai/`, root redirects, and `hai-meta` alongside product source.
+Keep machine-local settings, caches, and install receipts ignored. Development
+context is public in this repository but excluded from the installable package.
+Commit and publish only within the user-authorized scope.
+CLAUDEMD
+}
+
+# --- helpers ----------------------------------------------------------------
+
+# Overwrite a .hai file with the meta seed only when it is safe: missing, still
+# byte-identical to the product template it was copied from, or --force. Once
+# you've edited it, it is preserved.
+seed_templated() {
+  local hai_rel="$1" tmpl_rel="$2" writer="$3"
+  local dest="$HAI/$hai_rel" tmpl="$ROOT/$tmpl_rel"
+  mkdir -p "$(dirname "$dest")"
+  if [ "$FORCE" = "1" ] || [ ! -f "$dest" ] || { [ -f "$tmpl" ] && cmp -s "$dest" "$tmpl"; }; then
+    "$writer" "$dest"
+    echo "  seeded:    .hai/$hai_rel"
+  else
+    echo "  preserved: .hai/$hai_rel (locally edited)"
+  fi
+}
+
+# Write a file that has no product template counterpart, unless it already
+# exists (so we never clobber a customized CLAUDE.md / README).
+seed_absent() {
+  local dest="$1" writer="$2" label="$3"
+  if [ "$FORCE" = "1" ] || [ ! -f "$dest" ]; then
+    mkdir -p "$(dirname "$dest")"
+    "$writer" "$dest"
+    echo "  seeded:    $label"
+  else
+    echo "  preserved: $label (already present)"
+  fi
+}
+
+require_cli() {
+  [ -f "$CLI" ] || { echo "hai-meta: cannot find installer at $CLI" >&2; exit 1; }
+  command -v node >/dev/null 2>&1 || { echo "hai-meta: node is required but not on PATH" >&2; exit 1; }
+}
+
+refresh_managed_redirects() {
+  write_agents_override "$ROOT/AGENTS.override.md"
+  echo "  managed:   AGENTS.override.md"
+}
+
+# --- commands ---------------------------------------------------------------
+
+cmd_bootstrap() {
+  require_cli
+  echo "Bootstrapping the outer (.hai/) harness in $ROOT"
+  echo ""
+  mkdir -p "$HAI"
+
+  # 1. Lay down the product templates (skips files that already exist).
+  node "$CLI" init --target "$HAI"
+  echo ""
+
+  # 2. Replace the generic templates with meta-specific seeds where untouched.
+  echo "Applying meta-harness seeds:"
+  seed_templated "Agents/project_context.md" "Agents/project_context.md" write_project_context
+  seed_templated "Agents/planning.md"        "Agents/planning.md"        write_planning
+  seed_templated "Human/brief.md"            "Human/brief.md"            write_brief
+  seed_absent    "$HAI/README.md"            write_hai_readme            ".hai/README.md"
+
+  # 3. Refresh managed redirects at the repo root.
+  refresh_managed_redirects
+  seed_absent    "$ROOT/CLAUDE.md"           write_claude_md             "CLAUDE.md"
+  echo ""
+  echo "Done. The outer harness is ready in .hai/"
+  echo "Start a session and read .hai/AGENTS.md (root redirects point there)."
+}
+
+cmd_sync() {
+  require_cli
+  [ -d "$HAI" ] || { echo "hai-meta: .hai/ not found — run './hai-meta bootstrap' first" >&2; exit 1; }
+  echo "Syncing the outer (.hai/) harness from the product source"
+  echo ""
+
+  # 1. Official scaffold refresh: AGENTS.md, onboarding, role docs. This never
+  #    touches project-specific files (planning, tasks, handoffs, lessons, brief).
+  node "$CLI" update --target "$HAI"
+  echo ""
+
+  # 2. Mirror the parts of the scaffold `update` doesn't cover but the dogfood
+  #    instance should track: the skills the harness ships.
+  if [ -d "$ROOT/Agents/skills" ]; then
+    mkdir -p "$HAI/Agents/skills"
+    cp -R "$ROOT/Agents/skills/." "$HAI/Agents/skills/"
+    echo "Mirrored: Agents/skills/ -> .hai/Agents/skills/"
+  fi
+  refresh_managed_redirects
+  echo ""
+  echo "Done. The outer harness now reflects the current product scaffold."
+  echo "Your working files (planning.md, tasks/, handoffs/, lessons/, brief.md) were left untouched."
+}
+
+cmd_doctor() {
+  require_cli
+  node "$CLI" doctor --target "$HAI"
+  [ -f "$ROOT/AGENTS.override.md" ] || {
+    echo "hai-meta: missing managed root AGENTS.override.md; run './hai-meta sync'" >&2
+    exit 1
+  }
+  grep -Fq '.hai/AGENTS.md' "$ROOT/AGENTS.override.md" || {
+    echo "hai-meta: AGENTS.override.md does not route to .hai/AGENTS.md" >&2
+    exit 1
+  }
+  if git -C "$ROOT" check-ignore -q AGENTS.override.md; then
+    echo "hai-meta: AGENTS.override.md must be eligible for version control" >&2
+    exit 1
+  fi
+  echo "Managed Codex redirect exists, routes to .hai/, and is eligible for version control."
+}
+
+usage() {
+  cat <<'USAGE'
+hai-meta — the harness on top of the harness (version-controlled development context)
+
+Usage:
+  ./hai-meta bootstrap [--force]   Create or repair .hai/ and managed root redirects.
+  ./hai-meta sync      [--force]   Pull the latest product scaffold into .hai/ (self-update).
+  ./hai-meta doctor                Check that .hai/ has the expected harness files.
+  ./hai-meta help
+
+The .hai/ instance, AGENTS.override.md, CLAUDE.md, and this script are
+version-controlled. Machine-local settings and receipts stay ignored; the
+installable package excludes this development context.
+USAGE
+}
+
+# --- entrypoint -------------------------------------------------------------
+
+main() {
+  local command="${1:-help}"
+  shift || true
+  for arg in "$@"; do
+    case "$arg" in
+      --force) FORCE=1 ;;
+      *) echo "hai-meta: unknown option '$arg'" >&2; exit 1 ;;
+    esac
+  done
+
+  case "$command" in
+    bootstrap) cmd_bootstrap ;;
+    sync)      cmd_sync ;;
+    doctor)    cmd_doctor ;;
+    help|-h|--help) usage ;;
+    *) echo "hai-meta: unknown command '$command'" >&2; echo ""; usage; exit 1 ;;
+  esac
+}
+
+main "$@"

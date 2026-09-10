@@ -210,3 +210,13 @@ When you sit down to work, follow this loop:
 9. **Control Traffic:** When controllers, child workers, or mutable scopes may overlap, use **`traffic-control`** to return `CLEAR`, `SEQUENCE`, `TRANSFER_REQUIRED`, or `BLOCKED` before adding motion. Use Fast Resume only for the same settled controller/child/worktree lane without scope growth or drift.
 10. **Evaluate and Approve:** Athena or Hephaestus can issue design-review handoffs. After focused checks and review, explicit `worktree approve` commits and merges locally; remote acts remain separate.
 11. **Learn and Archive:** Claudia uses **`lesson-logger`** only for confirmed preventable failures, routing them to checks, Standing Gates, or capped conditional lessons. Move superseded task/handoff history under `Agents/_archive/`.
+
+## Developing this project
+
+This repository publishes its own working context in [`.hai/`](.hai/README.md):
+[product brief](.hai/Human/brief.md), [decisions](.hai/Human/decisions.md),
+[project context](.hai/Agents/project_context.md), and [planning](.hai/Agents/planning.md).
+Root agent redirects and `hai-meta` describe how we use the harness to build itself.
+These development records are separate from the reusable `Agents/` and `Human/`
+templates installed into other projects and are excluded from the package.
+Machine-local settings, caches, and installation receipts remain ignored.
