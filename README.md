@@ -2,6 +2,8 @@
 
 HAI-Harness is a repo-as-truth collaboration architecture for humans and AI agents.
 
+**Want to contribute or understand where the project is heading?** Start with the [contributor guide and project records](https://github.com/ClaudiusMa/HAI-Harness/blob/main/CONTRIBUTING.md).
+
 *Author's Note: In my own testing, whether spinning up a rapid 0-to-1 demo or tackling complex long-running tasks, using this harness consistently outperforms using Claude Code out of the box. My core assumption is that every product needs its own independent harness layer—one that governs both human and AI. Open to discussion on this.*
 
 ## The Philosophy: Horsepower & Transmission
@@ -213,10 +215,10 @@ When you sit down to work, follow this loop:
 
 ## Developing this project
 
-This repository publishes its own working context in [`.hai/`](.hai/README.md):
-[product brief](.hai/Human/brief.md), [decisions](.hai/Human/decisions.md),
-[project context](.hai/Agents/project_context.md), and [planning](.hai/Agents/planning.md).
-Root agent redirects and `hai-meta` describe how we use the harness to build itself.
-These development records are separate from the reusable `Agents/` and `Human/`
-templates installed into other projects and are excluded from the package.
-Machine-local settings, caches, and installation receipts remain ignored.
+We use HAI-Harness to develop itself through the same local-source installer and
+updater used by other projects. The [contributor guide](https://github.com/ClaudiusMa/HAI-Harness/blob/main/CONTRIBUTING.md)
+links current direction, confirmed decisions, active work, open questions, and
+recorded history, and explains the source-to-`.hai/` workflow.
+Development records, root redirects, and `hai-meta` are tracked in the repository
+but excluded from the installable package. Machine-local settings, caches, and
+installation receipts remain ignored.

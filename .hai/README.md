@@ -1,19 +1,22 @@
-# .hai/ — the harness on top of the harness
+# .hai/ — our working HAI-Harness installation
 
-This directory is a **version-controlled development instance of HAI-Harness** used to develop
-the HAI-Harness product that lives in the parent repository. We use the harness
-to build the harness.
+We use the ordinary HAI-Harness installer and updater to develop the product itself.
+This checked-in installation contains this project's live context; the parent
+repository's `Agents/`, `Human/`, and `AGENTS.md` are reusable product templates.
 
-- You are in the **outer** harness. The **inner** harness (the product) is the
-  parent repo's tracked files (`../Agents/`, `../Human/`, `../bin/`, `../AGENTS.md`).
-- Start at [AGENTS.md](AGENTS.md) → [Agents/onboarding.md](Agents/onboarding.md),
-  then read [Agents/project_context.md](Agents/project_context.md) for how the two
-  layers relate and where workers make product changes.
-- Root [`../AGENTS.override.md`](../AGENTS.override.md) is the managed Codex
-  redirect into this outer harness. `hai-meta bootstrap` and `hai-meta sync`
-  refresh it so future sessions do not mistake the tracked inner templates for
-  live project instructions.
-- Project context here is version-controlled but excluded from the installable package.
-  Keep machine-local settings and receipts ignored. To refresh the product's scaffold
-  changes, run `../hai-meta sync` from the repo root. To recreate it, run
-  `../hai-meta bootstrap`.
+Contributors start with the [project records and contribution guide](../CONTRIBUTING.md).
+Agents start at [AGENTS.md](AGENTS.md), [onboarding](Agents/onboarding.md), and
+[project context](Agents/project_context.md). The checked-in root
+[AGENTS.override.md](../AGENTS.override.md) and [CLAUDE.md](../CLAUDE.md) route sessions here.
+
+From the repository root, run `./hai-meta sync` after improving product source.
+It delegates to `node bin/hai-harness.mjs update --target .hai`, including shipped
+skills, and preserves project-owned records and additional local skills.
+`./hai-meta doctor` runs the ordinary installation checks.
+
+`./hai-meta bootstrap` installs missing generic files through ordinary `init`.
+It does not recreate project history or rewrite redirects; recover missing project
+records from Git. The helper accepts no destructive flags and contains no project seeds.
+
+Project context is tracked for transparency and excluded from the installable package.
+Keep machine-local settings, caches, and installation receipts ignored.

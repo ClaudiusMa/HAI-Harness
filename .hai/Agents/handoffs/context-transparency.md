@@ -1,0 +1,14 @@
+# Context transparency and self-hosting closeout
+
+- From: Augustus, assigned by Claudia
+- Date: 2026-09-10
+- Scope: transparency, simple self-hosting, and contributor navigation. Discovery direction and undecided research/prototype scope remain unchanged.
+- Baseline: transparency merge `1ad318af2ac62d384fc35698cbab844a35736daf` on `local-integration`. Earlier final privacy scan by Claudia covered all 81 tracked files; no sensitive patterns beyond normal attribution/test email.
+- Lane: `codex/transparency-sync-docs`. Prior seed typo correction is subsumed by removing all helper seeds. `hai-meta` delegates to ordinary local-source init/update/doctor with `.hai/` target; bootstrap creates the target directory first. No bulk skill copy or redirect regeneration remains. Existing CLI already covers shipped skills, so it needed no change.
+- Contributor entry: README links the repository contributor guide; the guide links current direction, decisions, active work, open questions, handoffs, archives, and Git history. It distinguishes maintained records from complete transcripts and explains source-first development and normal installer preservation.
+- Verification: shell syntax and `npm test` 5/5 passed. New fixture covers repeated bootstrap/sync, 18 populated records, additional local skills, shipped skill refresh, invocation outside the repository, destructive flag rejection, and doctor delegation. Initial fixture caught the ordinary init target-directory prerequisite; wrapper now creates only that directory before delegation.
+- Actual sync: all tracked outer files and root redirects retained pre-sync hashes; 24 stable scaffold paths match source. Human state was checked through preservation hashes only and not edited by Augustus. Outer planning/tasks/handoff updated after sync. Doctor passed with update status unknown/offline.
+- Local navigation links resolve. Package dry run retains 39 files and excludes development context, contributor guide, redirects, and helper. Package allowlist unchanged.
+- Approval: user approved implementation, focused tests, and local integration on 2026-09-10. Claudia review passed; native local integration approved. Implementation queue is complete; Git history records the exact integration result. Remote push, tag, release, and publication remain unauthorized.
+- Earlier remote push was rejected by automatic approval review before execution because exact destination/protected-branch publication lacked authorization. No push occurred; do not infer remote permission from local approval.
+- Final privacy scan: all 84 prospective tracked files checked for local user paths, credential patterns, private field-project names, and Google Docs links; zero matches.
