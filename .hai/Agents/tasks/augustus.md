@@ -1,29 +1,33 @@
 # Augustus Tasks
 
-Planner owns this execution contract. Augustus uses it as the current queue. Historical queues belong under `Agents/_archive/tasks/`.
-
-Keep this file execution-only. Do not copy product rationale, option analysis, or planner strategy here.
+Planner-owned execution contract. Last updated: 2026-09-10 by Claudia.
 
 ## Assigned Queue
 
-- Status: done
-- Task / outcome: implement installed-user update discovery without automatic updates, telemetry, repeated notices, or project-state loss
-- Read first: `../onboarding.md` → `../project_context.md` → `../augustus.md` → this file
-- Active now: none
-- Next in sequence: none; future `v0.2.0` tag/Release/publication work requires a new explicit assignment and outward-act approval
-- Queue order and priority: P0 — (1) version/release and installed-state contracts; (2) cached dependency-free checker and startup routing; (3) CLI init/update/doctor integration; (4) deterministic tests; (5) README/release documentation; (6) privacy and syntax verification; (7) `../../hai-meta sync` and outer closeout evidence
-- Files / write scope: inner `../../package.json`, `../../release.json` or the chosen single release-manifest equivalent, `../../bin/hai-harness.mjs`, `../../test/hai-harness.test.mjs`, `../../AGENTS.md`, `../../Agents/onboarding.md`, one dependency-free checker under `../../Agents/`, `../../README.md`; stable outer mirrors changed only by `../../hai-meta sync`
-- Read-only / preserve: all project-owned installed planning, context, design, worker queues, handoff entries, lesson state, archive entries, and Human workspace content; all unrelated inner source; current `.hai/` planning, decisions, tasks, handoffs, and lessons except sync-managed stable method mirrors
-- Current handoff: none
-- Dependencies: sequence the user-approved local merge of `codex/readme-currentness` before creating the new lane; preserve the resulting baseline exactly
-- Verification: passed — `npm test` 4/4; CLI and checker syntax; `git diff --check`; bounded privacy scan; package dry run with checker/release metadata; same-iteration outer sync with planning/tasks/lessons preserved; authoritative `../../hai-meta doctor` reports `current (0.2.0)`; release discovery is gated on GitHub's latest published stable Release and rejects drafts, prereleases, invalid tags, malformed data, and oversized responses
-- User-approved to execute: yes — product policy confirmed 2026-08-14, subject to the dependency and approval gates above
-- High-cost approval: granted 2026-08-14 for the focused `npm test` verification in this queue
-- Outward acts authorized: completed — exact merge `b5db1722c273b183ac231def3af2aa7ab9ff54f1` pushed to `origin/main` and verified; no further outward acts authorized
+- Status: implementation complete; reviewed by Claudia and approved for local integration
+- Active implementation queue: none; discovery remains unassigned
+- Outcome: use HAI-Harness to develop itself through the ordinary local-source installer/update, with publicly navigable project context and history.
+- Lane: resume the owned `codex/transparency-sync-docs` worktree; preserve its reviewed prior corrections and leave other worktrees untouched.
+- Sequence: simplify helper; add preservation regression checks; improve contributor entry/navigation; synchronize outer stable files; complete review and local integration.
+- Write scope: `hai-meta`, `README.md`, new `CONTRIBUTING.md`, relevant `test/hai-harness.test.mjs` tests; `bin/hai-harness.mjs` only if a demonstrated gap requires a reusable fix; root redirects and `.hai/README.md`, `.hai/Agents/project_context.md` for accurate self-hosting guidance; stable outer files only through sync.
+- Coordination closeout: update this task, planning, and context-transparency handoff with results. Preserve completed planning/task evidence in `.hai/Agents/_archive/` if shortening current context; link archives from contributor guidance without editing sync-managed archive README files.
+- Read-only/preserve: inner generic templates unless a necessary reusable change is identified; all Human records, discovery direction, project-authored state, local skills, and other lanes. Claudia owns the decision log.
+- Acceptance: helper delegates init/update/doctor to the ordinary CLI with `.hai` target and has no embedded project-state seeds or bulk skill mirror. Checked-in project records and redirects are canonical. Bootstrap/update must not erase populated records; unsupported destructive wrapper flags fail clearly. README has a prominent contributor entry that links current direction, decisions, active work, open questions, and history. Explain which records are maintained and avoid promising missing transcripts.
+- Verification: focused npm tests including populated-state preservation and ordinary updater skill refresh; shell syntax; sync; stable parity and project-state hashes; local links; privacy scan of prospective tracked content; package dry run retains existing distribution boundary.
+- Approval: user said "sounds good, approve and do it" on 2026-09-10 after the self-hosting/contributor design. Implementation, focused verification, and local commit/integration are approved. Claudia review passed; proceed with native worktree approve. No remote push, tag, release, or publication.
+- Dependencies: one sequential worker; no parallel writer. Root controller may update decision log separately and will notify worker.
 
 ## Stop Conditions
 
-- Stop before further writing until Claudia assigns a new queue.
-- Stop before any tag, GitHub Release, package publication, or announcement without explicit approval.
-- Stop before any commit/merge approval, push, tag, release, package publication, or external announcement unless that exact outward act is authorized.
-- Stop for a broken assumption, scope expansion, missing high-cost approval, or unapproved outward act.
+- Report a source/field-state boundary violation, unexplained lane drift, broken assumption, or necessary scope expansion.
+- Never reset, stash, clean, bypass hooks, or write to another worktree.
+- No remote acts. Preserve lane if integration fails.
+
+## Verification results — 2026-09-10
+
+- Thin wrapper implemented; ordinary CLI already covers shipped skills, so no product CLI change was needed.
+- `npm test` 5/5, shell syntax, sync, doctor, and diff checks passed; doctor reports unknown/offline update status.
+- Sync preserved hashes for every tracked outer file and root redirect; 24 stable scaffold paths match source.
+- Contributor local links resolve; package dry run retains 39 files and excludes all development context.
+- New fixture verifies repeated bootstrap/sync preservation, local skill additions, shipped skill refresh, outside-root invocation, force rejection, and doctor delegation.
+- Claudia review passed; local integration is user-approved. Exact integration result belongs in Git history; remote acts remain unauthorized.

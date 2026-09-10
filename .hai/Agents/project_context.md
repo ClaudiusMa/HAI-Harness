@@ -54,7 +54,9 @@ An inner product change is incomplete until the same iteration performs all of t
 4. Log confirmed durable decisions in outer `Human/decisions.md` through `decision-logger`.
 5. Confirm inner templates contain no real HAI-Harness development state.
 
-`./hai-meta sync` may refresh stable method files, the upstream task template, and skills. It must preserve outer planning, project context, generated task queues, handoffs, lesson state, archives, and human state.
+`hai-meta` is a thin wrapper around the ordinary local-source CLI with `.hai/` as its target: bootstrap delegates to `init`, sync to `update`, and doctor to `doctor`. It contains no project-state seeds, redirect generation, or extra skill-copy step. Checked-in project records and root redirects are canonical; bootstrap fills missing generic files and cannot reconstruct lost project history.
+
+`./hai-meta sync` refreshes stable method files, the upstream task template, and shipped skills through the ordinary updater. It must preserve outer planning, project context, generated task queues, handoffs, lesson state, archives, and human state.
 
 ## Current product capabilities and rules
 

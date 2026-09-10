@@ -99,3 +99,9 @@ Archive or reset this file before changing the version header convention.
 - Why: The user wants the project's human and agent context to be transparent.
 - Tradeoffs: Supersedes the 2026-08-02 private-only policy and the later decisions-only exception; machine-local settings, caches, and install receipts remain ignored, and development context remains excluded from the installable package.
 - Follow-up: Keep current instructions and helper-generated instructions consistent with this policy.
+
+- Date: 2026-09-10
+- Decision: Develop HAI-Harness using its tracked `.hai/` working installation, refreshed from local product source through the normal installer/update mechanism, with a thin `hai-meta` wrapper and a public contributor entry point to project context and history.
+- Why: Self-hosting should exercise the same workflow available to users while making the project's current positions and their history accessible to open-source contributors.
+- Tradeoffs: Reusable installed files remain duplicated by design but are maintained through the normal updater; project records and root redirects are authored once in Git instead of being duplicated as helper-generated seeds. Machine-local data stays excluded.
+- Follow-up: Simplify the wrapper, verify populated project records survive initialization and updates, and link current direction, decisions, work, and recorded history from contributor guidance.

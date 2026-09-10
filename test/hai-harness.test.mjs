@@ -281,3 +281,54 @@ test("routine update checks keep an installed Git worktree clean", async (t) => 
   assert.match(checked.stdout, /HAI-Harness 0\.3\.0 is available/);
   assert.equal(git(repo, "status", "--porcelain", "--untracked-files=all"), "");
 });
+
+test("self-hosting wrapper uses ordinary updates and preserves populated project records", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "hai-self-hosting-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  for (const entry of ["Agents", "Human", "bin", "AGENTS.md", "package.json", "release.json", "hai-meta"]) {
+    await fs.cp(path.join(projectRoot, entry), path.join(root, entry), { recursive: true });
+  }
+  const target = path.join(root, ".hai");
+  const meta = (...args) => run("bash", [path.join(root, "hai-meta"), ...args], os.tmpdir());
+  assert.equal(meta("bootstrap").status, 0);
+  const records = [
+    ".hai/Agents/planning.md", ".hai/Agents/project_context.md", ".hai/Agents/design.md",
+    ".hai/Agents/tasks/augustus.md", ".hai/Agents/tasks/julius.md",
+    ".hai/Agents/handoffs/project.md", ".hai/Agents/lessons/INDEX.md",
+    ".hai/Agents/lessons/project.md", ".hai/Agents/_archive/project.md",
+    ".hai/Human/brief.md", ".hai/Human/decisions.md", ".hai/Human/open_questions.md",
+    ".hai/Human/reflections.md", ".hai/README.md", "AGENTS.override.md", "CLAUDE.md",
+    ".hai/Agents/skills/local-only/SKILL.md", ".hai/Agents/skills/decision-logger/local-note.md"
+  ];
+  for (const record of records) {
+    await fs.mkdir(path.dirname(path.join(root, record)), { recursive: true });
+    await fs.writeFile(path.join(root, record), `Project record: ${record}\n`);
+  }
+  // A source-side extra file must not be bulk-mirrored over local skill state.
+  await fs.writeFile(path.join(root, "Agents/skills/decision-logger/local-note.md"), "source extra\n");
+  const stable = "Agents/skills/decision-logger/SKILL.md";
+  await fs.writeFile(path.join(target, stable), "stale method\n");
+  for (const command of ["bootstrap", "sync", "sync"]) {
+    const result = meta(command);
+    assert.equal(result.status, 0, result.stderr);
+    for (const record of records) {
+      assert.equal(await fs.readFile(path.join(root, record), "utf8"), `Project record: ${record}\n`, record);
+    }
+  }
+  assert.equal(await fs.readFile(path.join(target, stable), "utf8"), await fs.readFile(path.join(root, stable), "utf8"));
+  for (const command of ["bootstrap", "sync", "doctor"]) {
+    const rejected = meta(command, "--force");
+    assert.notEqual(rejected.status, 0);
+    assert.match(rejected.stderr, /options are not supported/);
+  }
+  assert.notEqual(meta("unknown").status, 0);
+  // Doctor delegates successfully without rewriting canonical redirects.
+  const receiptPath = path.join(target, ".hai-harness.json");
+  const receipt = JSON.parse(await fs.readFile(receiptPath, "utf8"));
+  receipt.checkEnabled = false;
+  await fs.writeFile(receiptPath, JSON.stringify(receipt));
+  const checked = meta("doctor");
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.match(checked.stdout, /Update status: disabled/);
+  assert.equal(await fs.readFile(path.join(root, "AGENTS.override.md"), "utf8"), "Project record: AGENTS.override.md\n");
+});

@@ -2,11 +2,12 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 Last updated by: Claudia
-User check-in after material clarification: yes — update policy confirmed 2026-08-14
-High-cost execution approved: yes — focused `npm test` for H-5 approved 2026-08-14
-Outward acts approved: completed — exact merge `b5db1722c273b183ac231def3af2aa7ab9ff54f1` pushed to `origin/main`; no remaining outward acts approved
+User check-in after material clarification: yes — simple self-hosting and contributor access approved 2026-09-10
+Verification approved: focused local tests, installer preservation fixtures, sync, privacy scan, and package dry run for this change
+Local integration approved: yes — user approved 2026-09-10; Claudia reviewed the implementation
+Remote acts approved: none for this iteration; earlier Update Beacon publication is historical evidence below
 
 ## Current Product Truth
 
@@ -15,7 +16,7 @@ Outward acts approved: completed — exact merge `b5db1722c273b183ac231def3af2aa
 - The tracked inner repository is the distributable HAI-Harness product and contains templates only, never HAI-Harness development state.
 - This outer `.hai/` harness owns all real plans, worker assignments, handoffs, lessons, and confirmed human decisions for building the product.
 - The upstream task surface is only `../Agents/tasks/TEMPLATE.md`; `init` generates project-local role task files and `update` preserves populated installed queues.
-- Every inner scaffold change must be followed in the same iteration by `../hai-meta sync` plus outer planning/decision/task closeout.
+- Every inner scaffold change must be followed in the same iteration by `./hai-meta sync` from the repository root plus outer planning/decision/task closeout.
 - A tracked root `AGENTS.override.md` routes future Codex development sessions to this outer harness while the tracked `../AGENTS.md` remains a clean shipped template.
 - Storybook exploration logging is explicit-user-triggered only.
 - Installed harnesses should discover new releases through a default-on, anonymous check no more than weekly, notify only once a newer actionable release is available, and never auto-apply updates.
@@ -40,6 +41,11 @@ Outward acts approved: completed — exact merge `b5db1722c273b183ac231def3af2aa
 - **Synchronization and future routing:** `./hai-meta sync` and `./hai-meta doctor` passed; stable inner improvements are present in this outer harness; the managed, gitignored root `AGENTS.override.md` now routes future Codex sessions here and enforces same-iteration outer closeout.
 
 ## Active Queue
+
+- Approved 2026-09-10: simplify self-hosting using the normal local-source installer/update; keep `.hai/` as the working installation and public project record; add an obvious contributor entry point.
+- Claudia owns this task. Augustus resumes the owned `codex/transparency-sync-docs` lane; its earlier corrections are part of this scope. Traffic: CLEAR; integration baseline `1ad318a` is clean, the other closeout lane is untouched, and no overlapping active peer writer was found.
+- Implementation complete and reviewed by Claudia: thin helper, preservation regression, contributor navigation, and outer sync verified. Active worker implementation queue: none. Local integration approved; exact integration result is recorded in Git history. No push or release authorized.
+- Contract: [Augustus](tasks/augustus.md). Discovery below stays unchanged and unassigned.
 
 - Discovery intake, 2026-09-09: user confirmed product discovery direction and audience. Research activities, participant count, schedule, and first prototype remain undecided; no research execution or implementation queue is assigned.
 - Focus: context continuity during returning, switching, and handoffs among humans and AI. Teammates is the explanatory framing.
@@ -78,7 +84,12 @@ Outward acts approved: completed — exact merge `b5db1722c273b183ac231def3af2aa
 
 ## Completed — 2026-09-09 context transparency
 
-- User authorized publication of substantive project context, agent redirects, and the sync helper.
+- User authorized tracking substantive project context, agent redirects, and the sync helper. Remote publication requires explicit authorization for the concrete destination and branch.
 - Updated tracking policy and generated instructions; superseded private-only instructions remain historical evidence in dated decisions.
 - Generalized unrelated private field-project names before publication.
 - Verified shell syntax, sync, doctor, four CLI tests, and package boundary; local settings and receipts remain ignored.
+- **Local integration:** transparency merge `1ad318af2ac62d384fc35698cbab844a35736daf` is on `local-integration`; no remote push occurred.
+- **Privacy closeout:** Claudia completed a full scan of all 81 tracked files; no sensitive patterns were found beyond normal attribution/test email. The installable package still excludes development context, root redirects, and the helper.
+- **Follow-up — 2026-09-10:** user approved simple self-hosting and contributor access, including local integration. Replaced embedded seeds and bulk copying with ordinary CLI delegation; published contributor navigation in the working diff. `npm test` 5/5, shell syntax, sync, doctor, local links, 24-path parity, project-state hashes, and the unchanged 39-file package boundary passed. Reviewed by Claudia and approved for local integration from `codex/transparency-sync-docs`; no remote acts authorized.
+- **Publication gate:** automatic approval review rejected the attempted push before execution because the destination/protected-branch publication was not explicitly authorized. Obtain authorization for the exact repository and branch before pushing; the 2026-09-10 approval authorizes local integration after review, not remote publication.
+- **Handoff:** [context transparency](handoffs/context-transparency.md). Discovery direction and its undecided research/prototype scope remain unchanged.
