@@ -2,12 +2,12 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 Last updated by: Claudia
-User check-in after material clarification: yes — product-neutral `AGENTS.md` direction explicitly confirmed 2026-09-10
+User check-in after material clarification: yes — product-neutral `AGENTS.md` direction confirmed 2026-09-10; direct local and remote `main` publication reaffirmed 2026-09-11
 Verification approved: combined full tests, syntax checks, sync, doctor, package-boundary inspection, and privacy scans for the approved integration
-Local integration approved: yes — user requested all described changes on remote main, 2026-09-10
-Remote acts approved: push the combined product-neutral and transparency closeout changes to origin/main; no tag or release
+Local integration approved: yes and complete — combined result integrated as `3ec129f`
+Remote acts approved: complete — combined result pushed to `origin/main` on 2026-09-11; no tag or release
 
 ## Current Product Truth
 
@@ -43,12 +43,12 @@ Remote acts approved: push the combined product-neutral and transparency closeou
 
 ## Active Queue
 
-- User approved integrating and pushing all described changes to remote main on 2026-09-10. This supersedes the earlier pending local/remote approval gates.
+- Product-neutral implementation and transparency closeout are complete. The user reaffirmed direct local and remote `main` publication on 2026-09-11, superseding the earlier pending gates.
 - Product-neutral implementation merged locally as `e867e7c`; the closeout lane combines that result with human-workspace visibility corrections and reconciled publication records. The planning conflict was resolved by preserving both outcomes and the latest authorization.
 - Root `AGENTS.md` routes development into `.hai/`; `scaffold/AGENTS.md` installs into user projects. New task lanes and metadata are provider-neutral, with compatibility for existing lanes and no forced provider attribution.
 - Human onboarding and README now describe human ownership and project-controlled visibility. Prior transparency/self-hosting work was verified on remote `main` at `38e0b96`; the originally rejected push remains historical evidence only.
 - Combined verification passed: full tests 5/5, sync of 24 stable paths, doctor (update status unknown/offline), diff check, scan of 84 tracked files with no high-signal privacy matches, and the 39-file package boundary with scaffold included and development records excluded.
-- Contract: [Augustus](tasks/augustus.md); [product-neutral handoff](handoffs/product-neutral-agents.md); [transparency handoff](handoffs/context-transparency.md). Verification is complete; local integration precedes the authorized push by Claudia. Discovery remains unassigned.
+- Contract: [Augustus](tasks/augustus.md); [product-neutral handoff](handoffs/product-neutral-agents.md); [transparency handoff](handoffs/context-transparency.md). Verification and publication are complete: `origin/main` contains combined integration commit `3ec129f`; a final coordination-only closeout commit records this state. Discovery remains unassigned.
 
 - Discovery intake, 2026-09-09: user confirmed product discovery direction and audience. Research activities, participant count, schedule, and first prototype remain undecided; no research execution or implementation queue is assigned.
 - Focus: context continuity during returning, switching, and handoffs among humans and AI. Teammates is the explanatory framing.
