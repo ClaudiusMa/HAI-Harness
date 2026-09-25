@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Plan release
+        id: plan
+        run: |
+          set -euo pipefail
+          node .github/scripts/plan-release.mjs > release-plan.json
+          cat release-plan.json
+          publish="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.publish ? "true" : "false")')"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        if: steps.plan.outputs.publish == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          node .github/scripts/plan-release.mjs --apply
+          version="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.version)')"
+          tag="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.tag)')"
+          node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); fs.writeFileSync("release-notes.txt", p.summary);'
+          message="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.commitMessage)')"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json release.json
+          git commit -m "$message"
+          git tag "$tag"
+          git push origin HEAD:main
+          git push origin "$tag"
+
+          gh release create "$tag" \
+            --title "$tag" \
+            --notes-file release-notes.txt
