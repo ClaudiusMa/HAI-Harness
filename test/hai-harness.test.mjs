@@ -415,3 +415,97 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
   assert.equal(await fs.stat(path.join(root, "AGENTS.override.md")).catch(() => null), null);
   assert.equal(await fs.stat(path.join(root, "CLAUDE.md")).catch(() => null), null);
 });
+
+test("release planner publishes product changes and skips non-release pushes", async (t) => {
+  const { planRelease } = await import(path.join(projectRoot, ".github/scripts/plan-release.mjs"));
+  const { tempRoot, repo } = await makeGitFixture(t);
+
+  await fs.writeFile(path.join(repo, "package.json"), `${JSON.stringify({
+    name: "hai-harness",
+    version: "0.2.0"
+  }, null, 2)}\n`);
+  await fs.writeFile(path.join(repo, "release.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    channel: "stable",
+    version: "0.2.0",
+    releaseNotesUrl: "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.0",
+    summary: "seed"
+  }, null, 2)}\n`);
+  await fs.mkdir(path.join(repo, "Agents"), { recursive: true });
+  await fs.writeFile(path.join(repo, "Agents/onboarding.md"), "product\n");
+  git(repo, "add", "package.json", "release.json", "Agents/onboarding.md");
+  git(repo, "commit", "-m", "Add installable product seed");
+
+  const noPriorTag = await planRelease({ repoRoot: repo, apply: true });
+  assert.equal(noPriorTag.publish, true);
+  assert.equal(noPriorTag.version, "0.2.1");
+  assert.equal(noPriorTag.tag, "v0.2.1");
+  assert.equal(noPriorTag.packageVersion, noPriorTag.releaseVersion);
+  assert.equal(
+    noPriorTag.releaseNotesUrl,
+    "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.1"
+  );
+  const packageAfterFirst = JSON.parse(await fs.readFile(path.join(repo, "package.json"), "utf8"));
+  const releaseAfterFirst = JSON.parse(await fs.readFile(path.join(repo, "release.json"), "utf8"));
+  assert.equal(packageAfterFirst.version, "0.2.1");
+  assert.equal(releaseAfterFirst.version, "0.2.1");
+  assert.equal(packageAfterFirst.version, releaseAfterFirst.version);
+  git(repo, "add", "package.json", "release.json");
+  git(repo, "commit", "-m", "release: v0.2.1");
+  git(repo, "tag", "v0.2.1");
+
+  const releaseCommitSkip = await planRelease({ repoRoot: repo });
+  assert.equal(releaseCommitSkip.publish, false);
+  assert.equal(releaseCommitSkip.reason, "release-commit");
+
+  await fs.mkdir(path.join(repo, ".hai", "Agents"), { recursive: true });
+  await fs.writeFile(path.join(repo, ".hai", "Agents", "planning.md"), "outer planning only\n");
+  git(repo, "add", ".hai/Agents/planning.md");
+  git(repo, "commit", "-m", "Record outer planning");
+  const haiOnlySkip = await planRelease({ repoRoot: repo });
+  assert.equal(haiOnlySkip.publish, false);
+  assert.match(haiOnlySkip.reason, /no-product-path-changes/);
+
+  await fs.writeFile(path.join(repo, "Agents/onboarding.md"), "product revision\n");
+  git(repo, "add", "Agents/onboarding.md");
+  git(repo, "commit", "-m", "Revise agent onboarding");
+  const productBump = await planRelease({ repoRoot: repo, apply: true });
+  assert.equal(productBump.publish, true);
+  assert.equal(productBump.version, "0.2.2");
+  assert.equal(productBump.packageVersion, productBump.releaseVersion);
+  assert.equal(productBump.packageVersion, "0.2.2");
+  const packageAfterBump = JSON.parse(await fs.readFile(path.join(repo, "package.json"), "utf8"));
+  const releaseAfterBump = JSON.parse(await fs.readFile(path.join(repo, "release.json"), "utf8"));
+  assert.equal(packageAfterBump.version, "0.2.2");
+  assert.equal(releaseAfterBump.version, "0.2.2");
+  assert.equal(packageAfterBump.version, releaseAfterBump.version);
+  assert.equal(
+    releaseAfterBump.releaseNotesUrl,
+    "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.2"
+  );
+  assert.match(releaseAfterBump.summary, /Revise agent onboarding/);
+});
+
+test("release planner sees product files in a merge tip when no tag exists", async (t) => {
+  const { planRelease } = await import(path.join(projectRoot, ".github/scripts/plan-release.mjs"));
+  const { repo } = await makeGitFixture(t);
+  git(repo, "checkout", "-b", "feature");
+  await fs.mkdir(path.join(repo, "Agents"), { recursive: true });
+  await fs.writeFile(path.join(repo, "Agents/onboarding.md"), "from feature\n");
+  await fs.writeFile(path.join(repo, "package.json"), `${JSON.stringify({ version: "0.2.0" }, null, 2)}\n`);
+  await fs.writeFile(path.join(repo, "release.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    channel: "stable",
+    version: "0.2.0",
+    releaseNotesUrl: "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.0",
+    summary: "seed"
+  }, null, 2)}\n`);
+  git(repo, "add", "Agents/onboarding.md", "package.json", "release.json");
+  git(repo, "commit", "-m", "Add product on feature");
+  git(repo, "checkout", "develop");
+  git(repo, "merge", "--no-ff", "-m", "Merge feature", "feature");
+  const plan = await planRelease({ repoRoot: repo });
+  assert.equal(plan.publish, true);
+  assert.equal(plan.version, "0.2.1");
+  assert.ok(plan.productChanges.includes("Agents/onboarding.md"));
+});

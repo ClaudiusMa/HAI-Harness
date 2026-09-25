@@ -167,7 +167,7 @@ This repository is the canonical published HAI-Harness upstream. Installed copie
 
 ### Release discipline
 
-Maintainers keep `package.json` and `release.json` on the same semantic version, merge the release contents, then create a matching `v<version>` tag and publish a stable GitHub Release with concise human-readable notes. The checker reads GitHub's latest published Release, so merging the version bump cannot announce it early. The first release containing Update Beacon also needs an external announcement because older installations cannot discover a checker they do not have. A commit, tag, GitHub Release, package publication, and announcement are separate outward acts and retain separate approval gates.
+A push to origin `main` runs the release planner automatically. When installable product paths changed since the last `vX.Y.Z` tag (`Agents/`, `Human/`, `bin/`, `scaffold/`, `package.json`, `release.json`, `README.md`, `LICENSE`, `hai-meta`), the workflow bumps the shared patch version in `package.json` and `release.json`, tags `v<version>`, and publishes a stable GitHub Release. A `.hai/`-only push does not publish, and the release commit itself does not publish again. Maintainers do not manually tag or publish that GitHub Release. The Update Beacon remains notice-only: installed projects learn about the release but never auto-apply it. Package publication and any external announcement stay separate outward acts.
 
 ## Current Limitations
 
