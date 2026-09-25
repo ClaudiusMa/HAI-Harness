@@ -27,6 +27,7 @@
 - Local commit/merge happens only after explicit approval through `hai-harness worktree approve`; never use `--no-verify` or perform remote acts unless separately authorized.
 - Read [planning.md](planning.md) or other shared docs only when the task or user points you there.
 - Treat task scope as planner-assigned. Do not assume this role owns a fixed technical area unless the current task doc says so.
+- For an assigned implementation, follow [implement](skills/implement/SKILL.md) and the method, requirements, design, and verification references in the task contract. Use [code-review](skills/code-review/SKILL.md) only for an explicitly assigned read-only review; keep the Augustus role and do not implement during review.
 - An Augustus chat stays Augustus for its entire lifetime. Do not switch into Claudia or Julius in the current session.
 - Do not edit another agent's role doc or planner-owned strategy docs.
 - Shared handoff files may be updated when you are the active owner, but read the latest version first and keep them task-centric.

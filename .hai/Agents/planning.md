@@ -2,12 +2,12 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-09-11
+Last updated: 2026-09-24
 Last updated by: Claudia
-User check-in after material clarification: yes — product-neutral `AGENTS.md` direction confirmed 2026-09-10; direct local and remote `main` publication reaffirmed 2026-09-11
-Verification approved: combined full tests, syntax checks, sync, doctor, package-boundary inspection, and privacy scans for the approved integration
-Local integration approved: yes and complete — combined result integrated as `3ec129f`
-Remote acts approved: complete — combined result pushed to `origin/main` on 2026-09-11; no tag or release
+User check-in: 2026-09-24 — implement a small Ponytail-inspired harness upgrade; avoid overengineering.
+Verification: focused local installer/update tests, skill validation, sync, and diff checks; no full suite or network benchmark assigned.
+Local integration approved: not yet — revised implementation and independent review complete; efficiency means a straightforward effective upgrade, not a minimum-size diff.
+Remote acts approved: none for this iteration.
 
 ## Current Product Truth
 
@@ -42,6 +42,20 @@ Remote acts approved: complete — combined result pushed to `origin/main` on 20
 - **Synchronization and future routing:** `./hai-meta sync` and `./hai-meta doctor` passed; stable inner improvements are present in this outer harness; the managed, gitignored root `AGENTS.override.md` now routes future Codex sessions here and enforces same-iteration outer closeout.
 
 ## Active Queue
+
+### Lean implementation and review — 2026-09-24
+
+- Status: revised implementation, focused verification, sync and fresh independent Julius review complete. User correction applied: efficiency means straightforward useful improvement, not minimum changes. Claudia remains manager/controller.
+- Outcome: shared operational implementation method, lifecycle/child routing, concrete review and fix/recheck closure, and discoverable deferral evidence. Routine review uses worker capability, with higher effort/capability reserved for evidenced risk or uncertainty.
+- Scope: complete shared implementation skill, explicit startup/resume/child read routing, concrete code-review checks and fix/recheck closure, discoverable deferral notes through existing handoffs, installer/doctor registration and focused coverage. No new named role, provider-specific hooks, intensity modes, review engine or CLI command.
+- Contract: [Augustus](tasks/augustus.md); handoff: [lean harness](handoffs/lean-harness.md).
+- Lane: task/lean-harness from codex/lean-harness-integration, base c94cfc9; primary integration checkout remains clean.
+- Traffic: CLEAR. Parent task 01a0d4cb-84d0-7ed2-978d-97388f2890db, Claudia controller; no owned children at census, one checkout before lane creation, no overlapping active peer found in visible task inventory. Product and sync writes belong only to this worker; Claudia owns this lane's outer planning/task/decision closeout. No shared builds, servers, or external acts.
+- Dependencies: Augustus revision completed before fresh independent Julius review. The scenario walkthrough led to an explicit uncertainty-versus-confirmed-finding clarification, then focused sync/parity verification. No active product writers remain.
+- Verification: revised focused installer/update/doctor and self-hosting tests passed (2 tests); Node syntax and diff checks passed; sync completed; 9 method/scaffold mirrors match and 7 protected files remain unchanged. Ruby parsed both skills; standard validator could not run because bundled Python lacks PyYAML (no dependencies installed). Fresh Julius review found no material source issues. Four instruction walkthroughs covered explicit UI requirements, committed/untracked review scope, fix rechecks, and uncertain resource constraints; the last prompted clearer evidence standards. This is not an empirical model benchmark. Final wording correction passed sync/YAML/parity/diff checks; installer tests were not redundantly rerun. Full suite and actual host-injection/compliance testing were not run.
+- Approval boundary: implementation authorized; local commit/merge and remote publication remain unapproved for this iteration.
+
+### Previous completed queue
 
 - Product-neutral implementation and transparency closeout are complete. The user reaffirmed direct local and remote `main` publication on 2026-09-11, superseding the earlier pending gates.
 - Product-neutral implementation merged locally as `e867e7c`; the closeout lane combines that result with human-workspace visibility corrections and reconciled publication records. The planning conflict was resolved by preserving both outcomes and the latest authorization.
@@ -82,6 +96,8 @@ Remote acts approved: complete — combined result pushed to `origin/main` on 20
 | H-4 | Lesson/prompt-state automation | chore | P2 | inbox | Automate bounded sweeping without expanding always-loaded context |
 
 ## Decision Needed From User
+
+- Revised lane is completed and reviewed. Explicit local commit/merge approval into codex/lean-harness-integration remains pending; no main merge, push, or release is included.
 
 - Decide separately whether to tag and publish stable GitHub Release `v0.2.0`; until then, Update Beacon correctly treats the implementation as unreleased.
 
