@@ -111,3 +111,9 @@ Archive or reset this file before changing the version header convention.
 - Why: HAI-Harness must work across AI products rather than encoding one provider's file, branch, metadata, or attribution conventions.
 - Tradeoffs: Products that do not discover `AGENTS.md` automatically must be pointed to it by their own integration layer; HAI-Harness will not maintain parallel provider-specific instruction files.
 - Follow-up: Relocate the installable root template into scaffold source, update installer and worktree behavior, synchronize `.hai`, and add provider-neutrality regression checks.
+
+- Date: 2026-09-24
+- Decision: Adopt a straightforward, effective Ponytail-inspired upgrade to the installable harness using existing worker and manager roles, a shared implementation method, and independent conditional review; efficiency does not mean minimizing the change size.
+- Why: The user approved taking useful Ponytail mechanisms into HAI, questioned automatic use of the highest capability for routine review, and explicitly corrected the interpretation that efficient means minimal changes.
+- Tradeoffs: Keep review assignments flexible and capability proportional to risk; add no permanent reviewer role, provider-specific hook system, or new orchestration layer. Existing safety and integration approval boundaries remain.
+- Follow-up: Revised implementation, focused delivery checks, instruction walkthroughs, independent review and sync are complete; obtain explicit local integration approval.
