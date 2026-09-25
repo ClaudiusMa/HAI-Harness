@@ -106,15 +106,22 @@ export async function planRelease(options) {
   }
 
   const version = lastTag ? bumpPatch(lastTag.version) : FIRST_RELEASE_VERSION;
-  const tag = `v${version}`;
-  const subjects = await listCommitSubjects(git, lastTag);
-  const summary = summarizeSubjects(subjects, version);
-  const releaseNotesUrl = `${releaseNotesBase}/${tag}`;
-
   const packagePath = path.join(repoRoot, "package.json");
   const releasePath = path.join(repoRoot, "release.json");
   const packageJson = JSON.parse(await readFile(packagePath));
   const releaseJson = JSON.parse(await readFile(releasePath));
+  if (packageJson.version === version) {
+    return {
+      publish: false,
+      reason: "already-at-release-version",
+      version,
+      lastTag: lastTag ? lastTag.tag : null
+    };
+  }
+  const tag = `v${version}`;
+  const subjects = await listCommitSubjects(git, lastTag);
+  const summary = summarizeSubjects(subjects, version);
+  const releaseNotesUrl = `${releaseNotesBase}/${tag}`;
 
   const nextPackage = { ...packageJson, version };
   const nextRelease = {
@@ -175,11 +182,10 @@ async function findLatestReleaseTag(git) {
  */
 async function listChangedPaths(git, lastTag) {
   // With a prior release tag, any product path changed since that tag can publish.
-  // With no prior tag, only the tip commit is inspected so a .hai/-only tip skips.
-  // --root -m --first-parent includes files from a merge tip; plain diff-tree omits them.
+  // With no prior tag, any tracked product file can publish the first release.
   const output = lastTag
     ? await git(["diff", "--name-only", `${lastTag.tag}..HEAD`])
-    : await git(["diff-tree", "--no-commit-id", "--name-only", "-r", "--root", "-m", "--first-parent", "HEAD"]);
+    : await git(["ls-files"]);
   return uniquePaths(output);
 }
 
