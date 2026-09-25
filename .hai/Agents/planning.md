@@ -4,10 +4,10 @@ Planner-owned source of truth for developing the HAI-Harness product. Product so
 
 Last updated: 2026-09-24
 Last updated by: Claudia
-User check-in: 2026-09-24 — implement a small Ponytail-inspired harness upgrade; avoid overengineering.
-Verification: focused local installer/update tests, skill validation, sync, and diff checks; no full suite or network benchmark assigned.
-Local integration approved: not yet — revised implementation and independent review complete; efficiency means a straightforward effective upgrade, not a minimum-size diff.
-Remote acts approved: none for this iteration.
+User check-in: 2026-09-24 — do not make the user perform a release. A push to origin `main` must check and update the README release instructions, `package.json`, and `release.json`, then publish the stable GitHub Release.
+Verification: focused release-planner tests and diff checks. No live GitHub publish in this iteration.
+Local integration approved: 2026-09-24 — user asked for a final check, then push.
+Remote acts approved: push this lane to origin `main`. The workflow publishes later releases; this iteration does not create the GitHub Release by hand.
 
 ## Current Product Truth
 
@@ -22,7 +22,8 @@ Remote acts approved: none for this iteration.
 - Storybook exploration logging is explicit-user-triggered only.
 - Installed harnesses should discover new releases through a default-on, anonymous check no more than weekly, notify only once a newer actionable release is available, and never auto-apply updates.
 - Update discovery must preserve the existing boundary: stable scaffold files may refresh, while project-authored planning, context, design, queues, handoffs, lessons, archives, and Human content remain untouched.
-- Update Beacon version `0.2.0` is merged and present on remote `main` at `b5db1722c273b183ac231def3af2aa7ab9ff54f1`; it is not yet a published GitHub Release, so installed beacons will not announce it prematurely.
+- Update Beacon version `0.2.0` is on `main` and was never published. Installed receipts are already `0.2.0`, so publishing `v0.2.0` would look current and would not announce newer method files.
+- A push to origin `main` publishes the release. The user does not run a separate release step. Installed projects still only receive a notice; they do not auto-apply.
 
 ## Completed Iteration — 2026-08-02 reusable harness extraction
 
@@ -42,6 +43,19 @@ Remote acts approved: none for this iteration.
 - **Synchronization and future routing:** `./hai-meta sync` and `./hai-meta doctor` passed; stable inner improvements are present in this outer harness; the managed, gitignored root `AGENTS.override.md` now routes future Codex sessions here and enforces same-iteration outer closeout.
 
 ## Active Queue
+
+### Automatic release on origin main — 2026-09-24
+
+- Status: final check passed. A no-tag merge tip now lists product files, so the first push to `main` can publish `0.2.1`. Focused planner tests passed 2/2. User approved local integration and push to origin `main` on 2026-09-24. Decision logged.
+- User direction: a push to origin `main` checks and updates the README release instructions, `package.json`, and `release.json`, then publishes a stable GitHub Release. The user does not handle that release.
+- Release rule: publish only when installable product paths changed since the last release tag (`Agents/`, `Human/`, `bin/`, `scaffold/`, `package.json`, `release.json`, `README.md`, `LICENSE`, `hai-meta`). Ignore `.hai/`-only pushes. The release commit itself must not start another release.
+- Version rule: bump the patch in `package.json` and `release.json` together, set `releaseNotesUrl` to the new tag, and write a short summary from the included commit subjects. The first release is `0.2.1`, not `0.2.0`.
+- README rule: replace the manual maintainer release steps with this automatic path. Do not rewrite the README on every later release.
+- Boundary: installed projects keep the notice-only beacon. No auto-apply.
+- Contract: [Augustus](tasks/augustus.md); handoff: [auto release](handoffs/auto-release.md).
+- Lane: `task/auto-release` from a new local integration branch `codex/auto-release` cut from current `main`. Primary is on `main`, so the worker checks out that integration branch before creating the lane.
+- Verification: focused tests for the planner. No live publish, push, or tag in this iteration.
+- Approval boundary: implementation authorized. Local commit/merge is not approved. The workflow may publish only after it is on origin `main`.
 
 ### Lean implementation and review — 2026-09-24
 

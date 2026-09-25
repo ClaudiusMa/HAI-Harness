@@ -117,3 +117,9 @@ Archive or reset this file before changing the version header convention.
 - Why: The user approved taking useful Ponytail mechanisms into HAI, questioned automatic use of the highest capability for routine review, and explicitly corrected the interpretation that efficient means minimal changes.
 - Tradeoffs: Keep review assignments flexible and capability proportional to risk; add no permanent reviewer role, provider-specific hook system, or new orchestration layer. Existing safety and integration approval boundaries remain.
 - Follow-up: Revised implementation, focused delivery checks, instruction walkthroughs, independent review and sync are complete; obtain explicit local integration approval.
+
+- Date: 2026-09-24
+- Decision: A push to origin main automatically checks installable product changes and publishes the next stable GitHub Release, including the shared version in package.json and release.json and the README release instructions.
+- Why: The user does not want a separate release step, and installed projects cannot discover newer harness files until a stable GitHub Release exists.
+- Tradeoffs: Pushes that only change .hai do not publish. Installed projects still only receive a notice and do not apply the update themselves. The first release is 0.2.1 because existing receipts are already 0.2.0.
+- Follow-up: Keep the push-to-main workflow as the release path.

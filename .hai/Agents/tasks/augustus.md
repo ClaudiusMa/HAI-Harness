@@ -4,26 +4,25 @@ Planner-owned contract. Updated 2026-09-24 by Claudia.
 
 ## Assigned Queue
 
-- Status: revised implementation, focused verification, sync and independent review complete
-- Task / outcome: straightforward, substantive Ponytail-inspired implementation/review upgrade; optimize usefulness and reliability, not lines changed.
-- Read first: outer onboarding, project context, Augustus role, this contract; parent assignment provides exact scope.
-- Active now: none.
-- Next: await explicit local integration approval; do not commit or merge before it.
-- Lane: task/lean-harness; integration codex/lean-harness-integration; base c94cfc9.
-- Files / write scope: Agents/onboarding.md, Agents/claudia.md, Agents/augustus.md, Agents/julius.md, Agents/tasks/TEMPLATE.md, Agents/skills/code-review/SKILL.md, Agents/skills/implement/SKILL.md, Agents/skills/handoff/SKILL.md, scaffold/AGENTS.md, bin/hai-harness.mjs, test/hai-harness.test.mjs; stable .hai/ mirrors only through sync. Other source files require reporting the concrete need first.
-- Preserve: all other files, root development redirect, human state, current project context, planner-owned outer planning/tasks/handoffs, existing worktree and approval semantics, provider neutrality, version.
-- Acceptance: worker read path carries concise reuse-first/root-cause discipline; Claudia remains manager/planner; review is a fresh read-only worker assignment using one shared skill, conditional on substantive risk; same worker capability by default with effort selected independently and escalation for concrete uncertainty/risk; tiny mechanical changes need no extra reviewer; safety, explicit requirements and design contracts are preserved.
-- Acceptance: the new skill is installed and updated without overwriting populated task/project state; sync updates the outer harness; no new roles/provider hooks/intensity modes/CLI subsystem or mandatory generic review bureaucracy.
-- Revision acceptance: one canonical implementation skill gives the ordered reuse/native/stdlib/custom choice, root-cause investigation, safety/design limits, meaningful checks and bounded completion evidence; onboarding and child contracts route to implement versus review on start/resume/compaction without changing roles. Review checks include concrete overengineering categories, same-behavior replacement, verification gaps, original producer fixes and scoped recheck closure. Whole-repository review stays explicit-only. Deferred compromises identify location, actual limit and revisit trigger in existing handoffs, without a second ledger. Installer/update/doctor deliver both skills while preserving project-owned state.
-- Existing patterns: shared onboarding for common rules; worker role pointers; explicit scaffoldPaths; existing handoff contracts/invariants for meaningful tradeoffs.
-- Dependencies: sequential queue, no other product writer.
-- Verification: validator for the new skill, focused existing install/update and self-hosting tests, syntax/diff checks, sync and scoped parity/state preservation. No word-matching policy tests.
-- User-approved to execute: yes — current user request.
-- High-cost approval: not granted; no full test suite, builds, dependency installs, or paid/network benchmark.
+- Status: checked and approved for local integration and push to origin main
+- Task / outcome: a push to origin `main` publishes a stable GitHub Release without a manual release step.
+- Read first: outer onboarding, project context, Augustus role, [implement](../skills/implement/SKILL.md), this contract, and [auto release](../handoffs/auto-release.md).
+- Active now: implement the release planner and the GitHub Action that runs it.
+- Next: focused tests, then `./hai-meta sync` for any stable scaffold wording. Stop before commit, merge, push, tag, or publish.
+- Lane: from the primary checkout, create and check out local integration branch `codex/auto-release` from current `main` (`0cef892`), then `hai-harness worktree create auto-release --integration codex/auto-release`. Edit only in `task/auto-release`.
+- Files / write scope: `package.json` and `release.json` only as the planner's inputs/outputs under test fixtures, not a live version bump in this commit; `README.md` release-discipline section; a dependency-free release planner under the repo; `.github/workflows/` for the push-to-`main` action; `test/hai-harness.test.mjs` for the planner. Stable outer mirrors only through `./hai-meta sync` when a shipped scaffold sentence changes.
+- Preserve: beacon notice-only behavior, project-state preservation on `update`, provider neutrality, the existing `0.2.0` version until the action publishes, `.hai/` planning except the sync of stable method text.
+- Acceptance: on push to `main`, the action runs the planner. If installable product paths changed since the last `vX.Y.Z` tag, it bumps the patch, keeps `package.json` and `release.json` on that same version, sets `releaseNotesUrl` to `https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v<version>`, writes a short summary, commits those two files, tags `v<version>`, and publishes a stable GitHub Release. The release commit does not publish again. A push that only changes `.hai/` does not publish. With no prior tag, the next version is `0.2.1`.
+- Acceptance: README tells maintainers this happens on push to origin `main` and no longer asks them to tag or publish by hand.
+- Existing patterns: dependency-free Node, `release.json` schema already read by tests, GitHub Actions `GITHUB_TOKEN` with `contents: write`. No new npm dependency.
+- Dependencies: none. Do not write the lean-harness worktree.
+- Verification: focused planner tests covering no-prior-tag to `0.2.1`, product-path change bumps patch, `.hai/`-only and release-commit skips, and version files stay equal. Syntax and diff checks. No networked GitHub call.
+- User-approved to execute: yes.
+- High-cost approval: not granted.
 - Local commit/merge: not approved.
-- Outward acts authorized: none.
+- Outward acts authorized: none in this iteration. The workflow is the future outward act.
 
 ## Stop Conditions
 
 - Report ambiguity, broken assumptions, unrelated drift, scope expansion, or required high-cost work.
-- Never reset, stash, clean, bypass hooks, commit, merge, push, or publish under this contract.
+- Never reset, stash, clean, bypass hooks, commit, merge, push, tag, or publish under this contract.
