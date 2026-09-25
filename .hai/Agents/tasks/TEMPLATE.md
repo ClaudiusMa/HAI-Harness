@@ -12,7 +12,11 @@ Keep this file execution-only. Do not copy product rationale, option analysis, o
 - Active now: none
 - Next in sequence: none
 - Queue order and priority: none
+- Method reference: none
+- Requirements / design references: none
 - Files / write scope: none
+- Acceptance criteria: none
+- Existing patterns / interfaces to reuse or preserve: none
 - Read-only / preserve: all project-owned files until assigned
 - Current handoff: none
 - Dependencies: none
@@ -20,6 +24,8 @@ Keep this file execution-only. Do not copy product rationale, option analysis, o
 - User-approved to execute: no
 - High-cost approval: not granted
 - Outward acts authorized: none
+
+For implementation assignments, name `../skills/implement/SKILL.md`. For an explicitly assigned read-only review, name `../skills/code-review/SKILL.md` instead. Include the specific requirements, design, and verification references the worker needs to complete the assignment; do not route a review through the implementation method.
 
 ## Stop Conditions
 

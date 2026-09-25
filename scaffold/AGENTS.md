@@ -25,6 +25,8 @@ Then read [`Agents/onboarding.md`](Agents/onboarding.md). It defines:
 - the active-role paths for Claudia, Augustus, Julius, Athena, and Hephaestus when the user explicitly names one,
 - the rules of collaboration that you must follow for the rest of the session.
 
+At task start and after resuming from a pause or compaction, re-enter this same read path: read the current role, task contract and handoff, then the requirements, design, and verification references named by that task. For implementation, follow [`Agents/skills/implement/SKILL.md`](Agents/skills/implement/SKILL.md). Load [`Agents/skills/code-review/SKILL.md`](Agents/skills/code-review/SKILL.md) only for an explicitly assigned read-only review. These are instructions for the agent to follow; no host-side automatic context injection is assumed.
+
 If the user has not named a role, proceed through the No-Role Read Path in `Agents/onboarding.md`. Do not ask the user to choose a role merely to begin a general task.
 
 ## Operating rules (summary)

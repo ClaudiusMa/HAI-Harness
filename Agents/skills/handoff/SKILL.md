@@ -68,6 +68,7 @@ To: {next worker, or "next assigned worker"}
 - Name the exact files and constraints that matter.
 - If nothing was verified, say so plainly.
 - If a blocker requires user input, spell it out directly.
+- For a material implementation compromise, record where it lives, the actual limit it imposes, and the concrete condition that should trigger revisiting it. If a changed-file comment includes `hai-defer:`, include its file/line and limit/trigger under Contracts / invariants. Do not scan unrelated files, create a separate debt ledger, or record routine choices.
 - Do not update `project_context.md`, `Agents/patterns.md`, or `Agents/graveyard.md` as part of handoff.
 
 ## Completion

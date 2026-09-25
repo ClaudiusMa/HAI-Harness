@@ -22,6 +22,8 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 
 - An update notice is advisory. Show the release and dry-run command, then let the user decide whether to update; never update automatically.
 - Read only the context you need for the current task and, when one is explicitly named, the active role.
+- **Implementation:** Use [implement](skills/implement/SKILL.md) for assigned implementation tasks. Follow its path through requirements, affected behavior and callers, approach selection, contract preservation, meaningful verification, and completion evidence. The task contract names the method and relevant requirements, design, and verification references.
+- **Review:** Claudia owns planning, routing, evidence, and completion decisions; she does not write product code and is not the default line-by-line reviewer. For substantive behavior, shared interfaces, dependencies, security or data handling, installer, or worktree changes, Claudia assigns a fresh worker who did not implement the change to review it read-only using [code-review](skills/code-review/SKILL.md). Keep the worker capability at its normal level and choose effort separately; escalate concrete high-risk findings or uncertainty to Claudia or a higher-capability reviewer. Skip extra review for trivial prose or mechanical edits. The reviewer reports evidence, checked areas, and unchecked areas without editing or approving the change.
 - **Worktree first for implementation lanes.** Before changing application/source, tests, generated output, runtime assets, app config, dependencies, builds, or server lifecycle, create a sibling `task/<task-slug>` lane with `hai-harness worktree create <task-slug> --integration <branch>`. Run creation only from the primary checkout. The named local integration branch must be checked out, clean, and not `main` or `master`.
 - One clean committed integration branch is the source of truth. Never copy uncommitted product files, reset, stash, or clean another lane to create a task baseline.
 - Run the project's own preview/dev command from the task worktree and have the user review that exact lane. HAI-Harness owns no static server, route, framework, or reserved port.
@@ -104,9 +106,10 @@ When the user has not named a role:
 3. Read your role doc.
 4. Read your task doc.
 5. Read the handoff for your assigned task if one exists, and check `handoffs/` for any open design or review handoff addressed to you (`From: Athena` or `From: Hephaestus`). These handoffs are legitimate work sources—follow the linked design contract and assigned fixes, then archive the handoff once addressed. If two design directions conflict, stop and ask the human to reconcile before implementing.
-6. Read lesson notes only if your task, `planning.md`, or the user points you there.
-7. Read shared product docs only if your task or the user points you there.
-8. Stay in your assigned role for the life of the current chat/session.
+6. Read the task's acceptance criteria and named requirements, design, and verification references. For implementation, follow `skills/implement/SKILL.md`; for an explicitly assigned read-only review, follow `skills/code-review/SKILL.md` instead. Re-enter this task read path after resuming from a pause or compaction; keep your assigned role.
+7. Read lesson notes only if your task, `planning.md`, or the user points you there.
+8. Read shared product docs only if your task or the user points you there.
+9. Stay in your assigned role for the life of the current chat/session.
 
 ### Athena
 

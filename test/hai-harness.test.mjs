@@ -144,12 +144,24 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), /^# Augustus Tasks/m);
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/julius.md"), "utf8"), /^# Julius Tasks/m);
   assert.doesNotMatch(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), /\{\{ROLE_/);
+  const shippedSkills = ["code-review", "implement"];
+  for (const skill of shippedSkills) {
+    const skillFile = `Agents/skills/${skill}/SKILL.md`;
+    assert.equal(
+      await fs.readFile(path.join(target, skillFile), "utf8"),
+      await fs.readFile(path.join(projectRoot, skillFile), "utf8")
+    );
+  }
   await fs.writeFile(path.join(target, "Agents/planning.md"), "project-owned planning\n");
   await fs.writeFile(path.join(target, "Agents/design.md"), "project-owned design guide\n");
   await fs.writeFile(path.join(target, "Agents/lessons/INDEX.md"), "project-owned lesson index\n");
   await fs.writeFile(path.join(target, "Agents/tasks/augustus.md"), "project-owned Augustus queue\n");
   await fs.writeFile(path.join(target, "AGENTS.md"), "stale root entry point\n");
   await fs.writeFile(path.join(target, "Agents/skills/decision-logger/SKILL.md"), "stale stable method\n");
+  for (const skill of shippedSkills) {
+    await fs.writeFile(path.join(target, `Agents/skills/${skill}/SKILL.md`), `stale ${skill} method\n`);
+    await fs.writeFile(path.join(target, `Agents/skills/${skill}/project-note.md`), `project-owned ${skill} note\n`);
+  }
   await fs.writeFile(path.join(target, "Agents/handoffs/TEMPLATE.md"), "stale handoff template\n");
   await fs.unlink(path.join(target, "Agents/tasks/julius.md"));
   const disabled = beacon(target, "--disable");
@@ -165,9 +177,25 @@ test("init, update, and doctor preserve state and flag polluted startup context"
     await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8")
   );
   assert.notEqual(await fs.readFile(path.join(target, "Agents/skills/decision-logger/SKILL.md"), "utf8"), "stale stable method\n");
+  for (const skill of shippedSkills) {
+    const skillFile = `Agents/skills/${skill}/SKILL.md`;
+    assert.equal(await fs.readFile(path.join(target, skillFile), "utf8"), await fs.readFile(path.join(projectRoot, skillFile), "utf8"));
+    assert.equal(await fs.readFile(path.join(target, `Agents/skills/${skill}/project-note.md`), "utf8"), `project-owned ${skill} note\n`);
+  }
   assert.notEqual(await fs.readFile(path.join(target, "Agents/handoffs/TEMPLATE.md"), "utf8"), "stale handoff template\n");
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/julius.md"), "utf8"), /^# Julius Tasks/m);
   assert.equal(JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8")).checkEnabled, false);
+  for (const skill of shippedSkills) await fs.unlink(path.join(target, `Agents/skills/${skill}/SKILL.md`));
+  const missingReviewSkill = harness(target, "doctor", "--target", target);
+  assert.notEqual(missingReviewSkill.status, 0);
+  assert.match(missingReviewSkill.stdout, /Agents\/skills\/code-review\/SKILL\.md/);
+  assert.match(missingReviewSkill.stdout, /Agents\/skills\/implement\/SKILL\.md/);
+  const restoredReviewSkill = harness(target, "update", "--target", target);
+  assert.equal(restoredReviewSkill.status, 0, restoredReviewSkill.stderr);
+  for (const skill of shippedSkills) {
+    const skillFile = `Agents/skills/${skill}/SKILL.md`;
+    assert.equal(await fs.readFile(path.join(target, skillFile), "utf8"), await fs.readFile(path.join(projectRoot, skillFile), "utf8"));
+  }
   const healthy = harness(target, "doctor", "--target", target);
   assert.equal(healthy.status, 0, healthy.stderr);
   assert.match(healthy.stdout, /Update status: disabled/);
@@ -337,7 +365,8 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
     ".hai/Agents/lessons/project.md", ".hai/Agents/_archive/project.md",
     ".hai/Human/brief.md", ".hai/Human/decisions.md", ".hai/Human/open_questions.md",
     ".hai/Human/reflections.md", ".hai/README.md", "AGENTS.md",
-    ".hai/Agents/skills/local-only/SKILL.md", ".hai/Agents/skills/decision-logger/local-note.md"
+    ".hai/Agents/skills/local-only/SKILL.md", ".hai/Agents/skills/decision-logger/local-note.md",
+    ".hai/Agents/skills/code-review/project-note.md", ".hai/Agents/skills/implement/project-note.md"
   ];
   for (const record of records) {
     await fs.mkdir(path.dirname(path.join(root, record)), { recursive: true });
@@ -345,8 +374,15 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
   }
   // A source-side extra file must not be bulk-mirrored over local skill state.
   await fs.writeFile(path.join(root, "Agents/skills/decision-logger/local-note.md"), "source extra\n");
-  const stable = "Agents/skills/decision-logger/SKILL.md";
-  await fs.writeFile(path.join(target, stable), "stale method\n");
+  for (const skill of ["code-review", "implement"]) {
+    await fs.writeFile(path.join(root, `Agents/skills/${skill}/project-note.md`), "source extra\n");
+  }
+  const stableSkills = [
+    "Agents/skills/decision-logger/SKILL.md",
+    "Agents/skills/code-review/SKILL.md",
+    "Agents/skills/implement/SKILL.md"
+  ];
+  for (const stable of stableSkills) await fs.writeFile(path.join(target, stable), "stale method\n");
   for (const command of ["bootstrap", "sync", "sync"]) {
     const result = meta(command);
     assert.equal(result.status, 0, result.stderr);
@@ -354,7 +390,9 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
       assert.equal(await fs.readFile(path.join(root, record), "utf8"), `Project record: ${record}\n`, record);
     }
   }
-  assert.equal(await fs.readFile(path.join(target, stable), "utf8"), await fs.readFile(path.join(root, stable), "utf8"));
+  for (const stable of stableSkills) {
+    assert.equal(await fs.readFile(path.join(target, stable), "utf8"), await fs.readFile(path.join(root, stable), "utf8"));
+  }
   for (const command of ["bootstrap", "sync", "doctor"]) {
     const rejected = meta(command, "--force");
     assert.notEqual(rejected.status, 0);
