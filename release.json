@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "version": "0.2.1",
-  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.1",
-  "summary": "HAI-Harness 0.2.1: Publish main releases through a pull request so branch protection can accept them."
+  "version": "0.2.2",
+  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.2",
+  "summary": "HAI-Harness 0.2.2: Merge task/default-claudia: Make Claudia the default session when a message names no role.; Make Claudia the default session when a message names no role."
 }
