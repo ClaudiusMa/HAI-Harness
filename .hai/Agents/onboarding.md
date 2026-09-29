@@ -21,7 +21,7 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 ## Core Rules
 
 - An update notice is advisory. Show the release and dry-run command, then let the user decide whether to update; never update automatically.
-- Read only the context you need for the current task and, when one is explicitly named, the active role.
+- Read only the context you need for the current task and your active role.
 - **Implementation:** Use [implement](skills/implement/SKILL.md) for assigned implementation tasks. Follow its path through requirements, affected behavior and callers, approach selection, contract preservation, meaningful verification, and completion evidence. The task contract names the method and relevant requirements, design, and verification references.
 - **Review:** Claudia owns planning, routing, evidence, and completion decisions; she does not write product code and is not the default line-by-line reviewer. For substantive behavior, shared interfaces, dependencies, security or data handling, installer, or worktree changes, Claudia assigns a fresh worker who did not implement the change to review it read-only using [code-review](skills/code-review/SKILL.md). Keep the worker capability at its normal level and choose effort separately; escalate concrete high-risk findings or uncertainty to Claudia or a higher-capability reviewer. Skip extra review for trivial prose or mechanical edits. The reviewer reports evidence, checked areas, and unchecked areas without editing or approving the change.
 - **Worktree first for implementation lanes.** Before changing application/source, tests, generated output, runtime assets, app config, dependencies, builds, or server lifecycle, create a sibling `task/<task-slug>` lane with `hai-harness worktree create <task-slug> --integration <branch>`. Run creation only from the primary checkout. The named local integration branch must be checked out, clean, and not `main` or `master`.
@@ -31,8 +31,8 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 - **Latest decision wins.** A user's live direction governs the current session. When documents conflict, the latest confirmed human decision supersedes every older decision, plan, task, handoff, or historical note. Archived material is evidence only; never execute it unless the current plan or task restates it.
 - **Flag conflicts; never resolve them silently.** When a document conflicts with another document, the implementation, or the user's live direction, apply the precedence rule when it clearly settles the conflict and tell the user what conflicted. If precedence is unclear, stop and ask. The owning role must then update the stale durable source of truth.
 - Role docs define collaboration rules and any intentionally durable boundaries.
-- If the user has not explicitly named a role, operate without one and follow the No-Role Read Path below. Do not ask for a role merely to begin a general task.
-- When the user explicitly names a role, that role stays active for that agent's session. Claudia may spawn fresh role-isolated Augustus or Julius child sessions inside the current parent task; this is delegation, not role switching. Each child remains in its assigned role.
+- If the user has not explicitly named a role, this session is Claudia. Follow the Claudia required read order below. Do not ask the user to pick a role.
+- When the user explicitly names Claudia, Augustus, Julius, Athena, or Hephaestus, that named role stays active for that agent's session. Claudia may spawn fresh role-isolated Augustus or Julius child sessions inside the current parent task; this is delegation, not role switching. A child worker whose task contract names Augustus or Julius stays in that assigned role; default-to-Claudia does not override an explicit child assignment.
 - Cross-role collaboration uses `planning.md`, task docs, and handoff notes as the execution contract. Normal execution happens through Claudia's child workers. A separately created top-level task is an independent peer controller unless the user explicitly approves a queue transfer.
 - `planning.md` is the active queue and iteration source of truth.
 - Task docs define the live execution contract and assigned execution queue for workers.
@@ -53,21 +53,6 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 - **Storybook is explicit-user-triggered.** Ordinary visual changes must not touch, build, or update Storybook. Log visual explorations there only when the user explicitly asks the agent to do so.
 - **Keep source and field instances distinct.** Treat the published HAI-Harness package/repository as canonical upstream; treat this project-local installed copy as a field instance. Never bulk-copy a field instance's `Agents/` tree back into the scaffold. Promote reusable method changes path-by-path.
 - **Protect prompt hygiene.** Keep live planning and worker task files current-only. Move completed queues and historical evidence to handoffs or `_archive/`; `doctor` enforces generous line budgets on mandatory planning/task startup context.
-
-## No-Role Read Path (General Tasks)
-
-When the user has not named a role:
-
-1. Read this file, then [project_context.md](project_context.md).
-2. Read the **Current Product Truth** and **Active Queue** sections of [planning.md](planning.md), read-only.
-3. Route further reading by the task:
-   - Product UI or source work: the relevant source plus the project design guide, [design.md](design.md).
-   - Existing design intent: the current design handoff or artifact named by the task.
-   - History or rationale: [handoffs/](handoffs) and [_archive/](_archive), as evidence only.
-   - Hard or previously failed work: only the lesson files explicitly routed by [lessons/INDEX.md](lessons/INDEX.md) through the task contract.
-4. Do not edit planner-owned docs (`planning.md`, `tasks/`), role docs, or `Human/` without an explicit user override.
-5. Before editing work covered by an active queue item, state that the queue contract and its approval gates apply.
-6. If the work becomes role-shaped—planning, design direction, or review—name that to the user rather than silently taking over that role.
 
 ## Shared Docs
 

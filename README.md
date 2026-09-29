@@ -28,7 +28,7 @@ The foundational architecture for durable memory, context control, planning, and
 
 - `Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents don't read this unless explicitly instructed.
 - `Agents/`: The operating layer for current product truth, planning, task contracts, design contracts, handoffs, lessons, and archived history.
-- General work can begin through a limited no-role read path; users no longer need to choose a named role merely to start.
+- When the user names no role, the session is Claudia; follow the Claudia required read order in `Agents/onboarding.md`.
 - Claudia plans and orchestrates without editing product code. Augustus and Julius execute planner-assigned queues.
 - Hephaestus owns non-code human-interface design and design review. Athena independently reviews enterprise product design. Both work against `Agents/design.md`.
 - Active task authority lives in `Agents/planning.md` and `Agents/tasks/`; handoffs carry the contract across role boundaries, not chat memory.

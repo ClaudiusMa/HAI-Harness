@@ -2,12 +2,12 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-09-24
+Last updated: 2026-09-29
 Last updated by: Claudia
-User check-in: 2026-09-24 — do not make the user perform a release. A push to origin `main` must check and update the README release instructions, `package.json`, and `release.json`, then publish the stable GitHub Release.
-Verification: focused release-planner tests and diff checks. No live GitHub publish in this iteration.
-Local integration approved: 2026-09-24 — user asked for a final check, then push.
-Remote acts approved: push this lane to origin `main`. The workflow publishes later releases; this iteration does not create the GitHub Release by hand.
+User check-in: 2026-09-29 — an unnamed user message defaults to Claudia. Naming Augustus, Julius, Athena, or Hephaestus still selects that role.
+Verification: recheck on 2026-09-29. Sync mirrors match, `git diff --check` is clean, and no no-role startup path remains. `npm test` is 5/7. The two failures expect installed `0.2.0` while `package.json` is `0.2.1`; they already fail on `main` and this lane does not change them.
+Local integration approved: 2026-09-29 — user asked to recheck and push if the lane is clean.
+Remote acts approved: push to origin `main`. The release workflow may publish the next patch because installable product files changed.
 
 ## Current Product Truth
 
@@ -24,6 +24,7 @@ Remote acts approved: push this lane to origin `main`. The workflow publishes la
 - Update discovery must preserve the existing boundary: stable scaffold files may refresh, while project-authored planning, context, design, queues, handoffs, lessons, archives, and Human content remain untouched.
 - Update Beacon version `0.2.0` is on `main` and was never published. Installed receipts are already `0.2.0`, so publishing `v0.2.0` would look current and would not announce newer method files.
 - A push to origin `main` publishes the release. The user does not run a separate release step. Installed projects still only receive a notice; they do not auto-apply.
+- An unnamed user message starts the session as Claudia. The limited no-role read path is superseded by this 2026-09-29 direction. Explicitly naming Augustus, Julius, Athena, or Hephaestus still selects that role. A child contract that names a worker role stays in that role. Users do not need to name Claudia to start, and the harness does not ask them to pick a role.
 
 ## Completed Iteration — 2026-08-02 reusable harness extraction
 
@@ -43,6 +44,18 @@ Remote acts approved: push this lane to origin `main`. The workflow publishes la
 - **Synchronization and future routing:** `./hai-meta sync` and `./hai-meta doctor` passed; stable inner improvements are present in this outer harness; the managed, gitignored root `AGENTS.override.md` now routes future Codex sessions here and enforces same-iteration outer closeout.
 
 ## Active Queue
+
+### Default role is Claudia — 2026-09-29
+
+- Status: rechecked and approved for local integration and push to origin `main` on 2026-09-29. Diff matches the contract. Extra review skipped: mechanical method wording.
+- User direction: if a message names no agent, the harness defaults to Claudia. Example: "I want to change something" starts as Claudia.
+- Conflict applied: older method text says an unnamed message follows a limited no-role read path and must not take a role. The 2026-09-29 direction supersedes that path.
+- Scope: instruction and README wording only. No runtime role detector, CLI command, or host injection. Claudia remains planning-only. Named roles and spawned worker contracts still win.
+- Contract: [Augustus](tasks/augustus.md); handoff: [default Claudia](handoffs/default-claudia.md).
+- Lane: `task/default-claudia` from `codex/default-claudia`, base `7dcb5a3`.
+- Traffic: CLEAR. Primary was clean on `main`. Idle `codex/auto-release` and `task/lean-harness` worktrees do not share this write scope. This controller owns the new lane. No shared builds, servers, or outward acts.
+- Verification: wording review against the acceptance lines, `node --check bin/hai-harness.mjs` only if that file changes, focused tests only if assertions change, `git diff --check`, and `./hai-meta sync` so `.hai/AGENTS.md` and `.hai/Agents/onboarding.md` match the scaffold sources.
+- Approval boundary: local commit/merge and push to origin `main` approved on 2026-09-29. The release workflow may publish because `Agents/`, `scaffold/`, and `README.md` changed.
 
 ### Automatic release on origin main — 2026-09-24
 
