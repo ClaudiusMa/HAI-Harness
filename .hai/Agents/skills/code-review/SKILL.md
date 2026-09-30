@@ -9,6 +9,7 @@ Review the producer's exact task lane against the original task contract and ref
 
 Trace the changed behavior through its affected callers, interfaces, data, and error paths. Check:
 
+- each task-routed lesson or Standing Gate, and whether the producer's acceptance evidence exercises its rule;
 - whether the change satisfies every assigned requirement and preserves existing validation, error handling, security, accessibility, and data-loss protections;
 - whether callers, failure paths, and neighboring behavior introduce a regression or leave the requested behavior incomplete;
 - whether the meaningful checks cover the changed behavior, including an important failure or regression case when one applies, and what remains unverified;
@@ -16,5 +17,7 @@ Trace the changed behavior through its affected callers, interfaces, data, and e
 - for any `hai-defer:` marker in the changed scope, whether it states the real limit and a concrete revisit condition. Do not scan unrelated files for markers.
 
 Report only actionable findings supported by the source or task contract. For each, give severity, file and line, the trigger and user-visible or operational consequence, and a behavior-preserving correction direction. When impact or severity depends on an unverified environment or assumption, identify the uncertainty and the evidence or check needed to resolve it; do not present it as a confirmed failure. Do not invent findings to fill a report or score changes by lines of code. No findings is a valid result. State what you inspected, which checks you ran or observed, and what you could not verify.
+
+For routed learning, distinguish instruction or scenario inspection from an executed replay/check with observable artifacts. Report the verification scope precisely: actual replay evidence verifies only the exercised failure case and does not establish future recurrence prevention. Give Claudia any durable evidence link; the reviewer reports evidence but does not change lesson state.
 
 Send findings to Claudia for assignment to the producing worker; the reviewer does not fix them or claim approval authority. If the producer changes code in response, review the affected changes against the same contract and report whether the findings are resolved. Keep the recheck scoped to the changed areas and their relevant callers.

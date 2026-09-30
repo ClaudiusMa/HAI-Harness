@@ -21,6 +21,8 @@ Keep this file execution-only. Do not copy product rationale, option analysis, o
 - Current handoff: none
 - Dependencies: none
 - Verification: none assigned
+- Routed lessons / Standing Gates: none; list matching rule and its source when applicable
+- Required worker evidence: report the observed result and link durable artifacts; distinguish instructions/scenario inspection from an executed replay or check
 - User-approved to execute: no
 - High-cost approval: not granted
 - Outward acts authorized: none

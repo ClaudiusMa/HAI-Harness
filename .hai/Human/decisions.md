@@ -123,3 +123,15 @@ Archive or reset this file before changing the version header convention.
 - Why: The user does not want a separate release step, and installed projects cannot discover newer harness files until a stable GitHub Release exists.
 - Tradeoffs: Pushes that only change .hai do not publish. Installed projects still only receive a notice and do not apply the update themselves. The first release is 0.2.1 because existing receipts are already 0.2.0.
 - Follow-up: Keep the push-to-main workflow as the release path.
+
+- Date: 2026-09-29
+- Decision: Repair HAI-Harness self-learning so confirmed preventable failures produce reflection, a reusable safeguard, and explicit verification or an owned pending check.
+- Why: The user identified repeated mistakes and requested a working learning process; the inspected field incident recorded rules without demonstrating their effectiveness.
+- Tradeoffs: Adds focused evidence work on qualifying failures while keeping ordinary preferences outside lesson capture; procedural instructions do not guarantee model compliance.
+- Follow-up: Local repair, outer sync, independent review, and four behavioral executions are complete; integration, publication and field adoption remain separate actions.
+
+- Date: 2026-09-29
+- Decision: Merge the verified learning-cycle repair into main and publish it through the existing origin/main release workflow.
+- Why: The user explicitly requested merge and publication after reviewing the local repair and verification summary.
+- Tradeoffs: The stable release distributes updated process instructions; field projects still require an explicit update and retain their own learning state.
+- Follow-up: Verify remote integration and the published release; record the result.

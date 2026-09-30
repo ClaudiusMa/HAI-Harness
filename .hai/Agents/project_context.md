@@ -82,3 +82,9 @@ An inner product change is incomplete until the same iteration performs all of t
 - Audience: nontechnical/less technical builders including small business owners using AI, plus experienced builders collaborating with people or multiple agents.
 - Research design and prototype scope remain undecided. Do not execute the suggested six-interview plan as an approved assignment.
 - Existing architecture may change based on discovery. Confirmed decisions live in `.hai/Human/decisions.md` (relative to the product root).
+
+## Standing Gates
+
+<!-- standing-gates:start -->
+- Require causal reflection and observed corrective evidence before marking a preventable-failure safeguard verified; retain unverified safeguards as owned pending checks. (src handoffs/learning-cycle-reflection.md)
+<!-- standing-gates:end -->

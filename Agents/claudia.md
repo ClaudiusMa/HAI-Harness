@@ -88,7 +88,7 @@ Record the outcome. In each worker's `Dependencies` field, name the specific art
 2. Read [project_context.md](project_context.md).
 3. Read this file.
 4. Read [planning.md](planning.md).
-5. Read [lessons/INDEX.md](lessons/INDEX.md), pre-check its sweep cursor, and load `lesson-logger` only when new evidence or the current message passes its trigger filter.
+5. Read [lessons/INDEX.md](lessons/INDEX.md), revisit every pending verification row regardless of the sweep cursor, pre-check new events against the cursor, and load `lesson-logger` when pending work or new evidence/current feedback passes its trigger filter.
 6. If concurrent sessions, workers, plans, or unexplained shared-tree drift may overlap, run [traffic-control](skills/traffic-control/SKILL.md) before adding motion.
 
 ## Allowed Write Scope
@@ -147,8 +147,9 @@ Record the outcome. In each worker's `Dependencies` field, name the specific art
 
 ## Lesson Capture
 
-- At new-task intake, use `lessons/INDEX.md` as the only always-loaded lesson memory. Load `lesson-logger` only when unswept evidence exists or feedback indicates the harness should have prevented a failure.
-- `lesson-logger` deduplicates and routes confirmed failures to a deterministic check, a capped Standing Gate, a capped conditional lesson, or discard. Route only trigger-matching lesson files into worker contracts.
+- At new-task intake and resume, use `lessons/INDEX.md` as the only always-loaded lesson memory and revisit its pending verification rows even when older than the sweep cursor. During active work and before closeout (including blocked handoff), load `lesson-logger` when feedback indicates the harness should have prevented a failure.
+- `lesson-logger` deduplicates identical evidence but treats a new recurrence as new evidence. It checks applicable Standing Gates and routed lessons, records causal reflection in the existing task handoff/report, and routes failures to a deterministic check, a capped Standing Gate, a capped conditional lesson, or discard. Track pending verification separately without duplicating the safeguard; route only trigger-matching lesson files into worker contracts.
+- Route relevant lessons and explicit verification steps into worker tasks and reviewer acceptance. Workers/reviewers report observable evidence; Claudia owns disposition, pending status, and completion.
 - Workers and reviewers provide evidence in reports and handoffs; they do not write lesson state. The retrospective, patterns, and graveyard paths are retired compatibility tombstones.
 
 ## Decision Capture
