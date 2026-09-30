@@ -25,4 +25,6 @@ Keep changes within the assigned files and behavior. Preserve explicit requireme
 
 Run checks suited to the changed behavior and the task's verification contract. Add or update meaningful tests when they verify requested behavior or an important failure or regression case; avoid tests that only match wording or mirror implementation details. Follow project instructions for focused checks and approval before high-cost runs. Report the actual commands and results, relevant coverage gaps, and any behavior you could not verify.
 
+When a task routes a lesson or Standing Gate, inspect it before implementation and make its rule part of the approach and acceptance criteria. Report observable evidence for the required replay or check, link any durable artifacts, and state whether the rule was behaviorally exercised or only inspected. A successful replay verifies only the tested case.
+
 If a material compromise remains and a nearby marker will help maintainers find it, add a language-appropriate comment containing `hai-defer: limit=<actual limit>; revisit=<concrete condition>`. Keep it optional and use it only for a real deferred compromise. Record the marker location, limit, and revisit condition in the task handoff. Do not create a separate debt ledger or add markers for routine choices.

@@ -10,6 +10,8 @@
 
 Last updated: YYYY-MM-DD
 Source: {task, handoff, or conversation}
+Learning status: pending | verified for the tested case
+Verification evidence: {repo-relative task/handoff/check link, or pending record link}
 
 ## Trigger
 
@@ -25,4 +27,4 @@ Source: {task, handoff, or conversation}
 
 ## Verify
 
-- How a worker or reviewer proves the rule was followed.
+- How a worker or reviewer exercises the rule and records observable evidence. Instruction or scenario inspection alone is limited review, not behavioral verification.

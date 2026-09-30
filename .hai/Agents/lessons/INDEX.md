@@ -1,6 +1,6 @@
 # Lessons Index
 
-Last swept: 2026-09-10 product-neutral AGENTS intake
+Last swept: 2026-09-29 learning-cycle correction; scoped replay recorded in handoffs/learning-cycle-evaluation.md.
 Owner: Claudia, through `Agents/skills/lesson-logger/SKILL.md` only.
 
 <!--
@@ -16,5 +16,9 @@ Owner: Claudia, through `Agents/skills/lesson-logger/SKILL.md` only.
 None.
 
 ## Pending Tier 0 specs
+
+None.
+
+## Pending verification
 
 None.

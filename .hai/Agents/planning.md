@@ -4,10 +4,18 @@ Planner-owned source of truth for developing the HAI-Harness product. Product so
 
 Last updated: 2026-09-29
 Last updated by: Claudia
-User check-in: 2026-09-29 — an unnamed user message defaults to Claudia. Naming Augustus, Julius, Athena, or Hephaestus still selects that role.
-Verification: recheck on 2026-09-29. Sync mirrors match, `git diff --check` is clean, and no no-role startup path remains. `npm test` is 5/7. The two failures expect installed `0.2.0` while `package.json` is `0.2.1`; they already fail on `main` and this lane does not change them.
-Local integration approved: 2026-09-29 — user asked to recheck and push if the lane is clean.
-Remote acts approved: push to origin `main`. The release workflow may publish the next patch because installable product files changed.
+User check-in: 2026-09-29 — fix the self-learning workflow; local implementation and focused verification authorized.
+Verification: learning-cycle skill validation, offline update/state preservation, sync, independent review and four final-version agent executions passed. Earlier iteration results remain in their own records.
+Local integration approved: 2026-09-29 — user requested merge and publish.
+Remote acts approved: 2026-09-29 — push the verified repair to origin/main and publish its stable GitHub Release through the existing workflow.
+
+## Active iteration — learning cycle repair, 2026-09-29
+
+- User direction: fix self-learning so corrections produce reflection, safeguards, and verification. Local implementation complete; the user subsequently authorized merge and publication for this repair.
+- Controller: Claudia, parent 01a0eded-c131-7720-98a2-c008504f46e4. Traffic CLEAR: primary clean at 1f6bb57; no overlapping active peer in visible inventory; existing other lanes preserved. Managed isolated checkout lesson-learning-cycle owns this iteration. No shared services. Merge to main, origin/main push and stable GitHub Release are now authorized for this repair.
+- Scope: portable lesson workflow and lifecycle routing. One Augustus worker then independent review; sequential because both inspect the same behavior. Contract: tasks/learning-cycle.md. Parent owns outer coordination/lesson/decision records; worker owns assigned source and stable sync mirrors.
+- Validation: focused offline installation/preservation and sync checks, then independent scenario evaluation. No full suite, build, network verification, or publication.
+- Status: complete locally, source frozen, no active implementation worker. Independent source review and recheck found no actionable issues. Four fresh agent executions passed for same-session recurrence, older pending evidence, preference exclusion, and implemented-but-unrun verification. An exploratory failure (completed history in INDEX) was corrected before final replay. Evidence: handoffs/learning-cycle.md, handoffs/learning-cycle-reflection.md, handoffs/learning-cycle-evaluation.md. Lesson/decision state is current. This implements tested process instructions; it does not establish automatic host enforcement or model retraining.
 
 ## Current Product Truth
 

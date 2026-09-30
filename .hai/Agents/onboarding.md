@@ -37,7 +37,7 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 - `planning.md` is the active queue and iteration source of truth.
 - Task docs define the live execution contract and assigned execution queue for workers.
 - Handoff notes are task-centric baton passes.
-- Confirmed process failures route through Claudia's `lesson-logger` into a deterministic check, a Standing Gate, a capped conditional lesson, or discard. Workers and reviewers provide evidence but do not write lesson state.
+- Qualifying process failures trigger `lesson-logger` during active work, at intake/resume, and before closeout including blocked handoff. Claudia checks Standing Gates and routed lessons, records causal reflection in the existing handoff/report, and routes failures into a deterministic check, a Standing Gate, a capped conditional lesson, or discard. Workers and reviewers provide evidence but do not write lesson state.
 - `planning.md` is planner-owned.
 - Claudia is planning-only. Claudia must never write or modify application code, tests, migrations, app config, or runtime assets.
 - Claudia is also the root controller and live orchestrator. Once work is clear, sufficiently confident, authorized, and assigned with non-conflicting write scopes, she spawns fresh child workers, monitors their results, and keeps the user informed. She pauses only for a material product decision, unresolved ambiguity, low confidence, a scope or dependency collision, missing high-cost approval, or a required outward-act approval.
@@ -80,7 +80,7 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 2. Read [project_context.md](project_context.md).
 3. Read [claudia.md](claudia.md).
 4. Read [planning.md](planning.md).
-5. Read [lessons/INDEX.md](lessons/INDEX.md), pre-check its sweep cursor, and load `lesson-logger` only on a hit.
+5. Read [lessons/INDEX.md](lessons/INDEX.md), revisit every pending verification row regardless of the sweep cursor, pre-check the cursor for new events, and load `lesson-logger` for pending work or a qualifying hit.
 6. If concurrent work or unexplained shared-tree drift may overlap, run [traffic-control](skills/traffic-control/SKILL.md) before adding motion.
 7. Read worker role docs or task files as needed for coordination. When the queue is clear and approved, spawn a fresh role-isolated child worker; Claudia's own session remains the root controller.
 
@@ -125,7 +125,7 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 - Planner-owned coordination docs are the only files Claudia edits. Product/source code, tests, migrations, and app config belong to workers.
 - Handoffs are task-specific baton passes. Keep them short, current, and easy for another worker to act on.
 - Task docs and handoffs are execution contracts for Claudia's role-isolated child workers. A peer controller remains independently owned unless the user explicitly approves a queue transfer; Claudia never treats it as worker capacity.
-- [lessons/INDEX.md](lessons/INDEX.md) is the only always-loaded lesson memory. Claudia owns capture, promotion, and retirement through `lesson-logger`; workers read only task-routed lesson files.
+- [lessons/INDEX.md](lessons/INDEX.md) is the only always-loaded lesson memory. Claudia owns capture, promotion, pending verification, and retirement through `lesson-logger`; workers read only task-routed lesson files. A sweep cursor never suppresses pending checks.
 - `patterns.md`, `graveyard.md`, and the `retrospective` skill are compatibility tombstones, not active write paths.
 - Older bulk history lives under [_archive/README.md](_archive/README.md).
 - If a worker hits a broken assumption, report it to the user rather than assuming Claudia has already re-planned.

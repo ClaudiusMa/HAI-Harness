@@ -30,6 +30,16 @@ To: {next worker, or "next assigned worker"}
 
 - Ran:
 - Not run:
+- Evidence links:
+- Status: pending | verified for the tested case | limited inspection only
+
+## Failure reflection (when applicable)
+
+- Expected / observed:
+- Cause (mark hypotheses uncertain):
+- Why prior guidance did not prevent it:
+- Smallest effective safeguard:
+- Owner / next check if pending:
 
 ## Blockers / decisions needed
 
