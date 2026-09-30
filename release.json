@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "version": "0.2.3",
-  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.3",
-  "summary": "HAI-Harness 0.2.3: Merge learning-cycle repair with verified reflection and follow-up; Repair evidence-based lesson learning cycle"
+  "version": "0.2.4",
+  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.4",
+  "summary": "HAI-Harness 0.2.4: Document that release pull requests require Actions permission.; Wait for a merged release pull request before tagging."
 }
