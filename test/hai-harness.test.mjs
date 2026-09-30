@@ -438,6 +438,7 @@ test("release planner publishes product changes and skips non-release pushes", a
 
   const noPriorTag = await planRelease({ repoRoot: repo, apply: true });
   assert.equal(noPriorTag.publish, true);
+  assert.equal(noPriorTag.action, "prepare");
   assert.equal(noPriorTag.version, "0.2.1");
   assert.equal(noPriorTag.tag, "v0.2.1");
   assert.equal(noPriorTag.packageVersion, noPriorTag.releaseVersion);
@@ -471,6 +472,7 @@ test("release planner publishes product changes and skips non-release pushes", a
   git(repo, "commit", "-m", "Revise agent onboarding");
   const productBump = await planRelease({ repoRoot: repo, apply: true });
   assert.equal(productBump.publish, true);
+  assert.equal(productBump.action, "prepare");
   assert.equal(productBump.version, "0.2.2");
   assert.equal(productBump.packageVersion, productBump.releaseVersion);
   assert.equal(productBump.packageVersion, "0.2.2");
@@ -506,6 +508,74 @@ test("release planner sees product files in a merge tip when no tag exists", asy
   git(repo, "merge", "--no-ff", "-m", "Merge feature", "feature");
   const plan = await planRelease({ repoRoot: repo });
   assert.equal(plan.publish, true);
+  assert.equal(plan.action, "prepare");
   assert.equal(plan.version, "0.2.1");
   assert.ok(plan.productChanges.includes("Agents/onboarding.md"));
+});
+
+test("release planner publishes only a merged release tip", async (t) => {
+  const { planRelease } = await import(path.join(projectRoot, ".github/scripts/plan-release.mjs"));
+  const { repo } = await makeGitFixture(t);
+
+  await fs.writeFile(path.join(repo, "package.json"), `${JSON.stringify({ version: "0.2.2" }, null, 2)}\n`);
+  await fs.writeFile(path.join(repo, "release.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    channel: "stable",
+    version: "0.2.2",
+    releaseNotesUrl: "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.2",
+    summary: "HAI-Harness 0.2.2."
+  }, null, 2)}\n`);
+  await fs.mkdir(path.join(repo, "Agents"), { recursive: true });
+  await fs.writeFile(path.join(repo, "Agents/onboarding.md"), "product\n");
+  git(repo, "add", "package.json", "release.json", "Agents/onboarding.md");
+  git(repo, "commit", "-m", "Add product seed");
+  git(repo, "tag", "v0.2.2");
+
+  await fs.writeFile(path.join(repo, "package.json"), `${JSON.stringify({ version: "0.2.3" }, null, 2)}\n`);
+  await fs.writeFile(path.join(repo, "release.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    channel: "stable",
+    version: "0.2.3",
+    releaseNotesUrl: "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.3",
+    summary: "HAI-Harness 0.2.3: learning cycle."
+  }, null, 2)}\n`);
+  git(repo, "add", "package.json", "release.json");
+  git(repo, "commit", "-m", "release: v0.2.3");
+  const untaggedRelease = await planRelease({ repoRoot: repo, apply: true });
+  assert.equal(untaggedRelease.publish, true);
+  assert.equal(untaggedRelease.action, "tag");
+  assert.equal(untaggedRelease.version, "0.2.3");
+  assert.equal(untaggedRelease.tag, "v0.2.3");
+  assert.match(untaggedRelease.summary, /learning cycle/);
+  assert.equal(JSON.parse(await fs.readFile(path.join(repo, "package.json"), "utf8")).version, "0.2.3");
+
+  git(repo, "tag", "v0.2.3");
+  const taggedRelease = await planRelease({ repoRoot: repo });
+  assert.equal(taggedRelease.publish, false);
+  assert.equal(taggedRelease.reason, "release-commit");
+
+  git(repo, "checkout", "-b", "release/v0.2.4");
+  await fs.writeFile(path.join(repo, "package.json"), `${JSON.stringify({ version: "0.2.4" }, null, 2)}\n`);
+  await fs.writeFile(path.join(repo, "release.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    channel: "stable",
+    version: "0.2.4",
+    releaseNotesUrl: "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.4",
+    summary: "HAI-Harness 0.2.4."
+  }, null, 2)}\n`);
+  git(repo, "add", "package.json", "release.json");
+  git(repo, "commit", "-m", "release: v0.2.4");
+  git(repo, "checkout", "develop");
+  git(repo, "merge", "--no-ff", "-m", "Merge pull request #15 from ClaudiusMa/release/v0.2.4", "release/v0.2.4");
+  const mergedRelease = await planRelease({ repoRoot: repo });
+  assert.equal(mergedRelease.publish, true);
+  assert.equal(mergedRelease.action, "tag");
+  assert.equal(mergedRelease.version, "0.2.4");
+
+  await fs.writeFile(path.join(repo, "Agents/onboarding.md"), "later product edit\n");
+  git(repo, "add", "Agents/onboarding.md");
+  git(repo, "commit", "-m", "Revise onboarding without a release tip");
+  const laterCommit = await planRelease({ repoRoot: repo });
+  assert.equal(laterCommit.publish, false);
+  assert.equal(laterCommit.reason, "already-at-release-version");
 });

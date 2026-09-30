@@ -59,6 +59,19 @@ export function isReleaseCommitSubject(subject) {
 }
 
 /**
+ * Version carried by a release commit, or by a merge of `release/vX.Y.Z`.
+ * @param {string} subject
+ * @returns {string | null}
+ */
+export function releaseTipVersion(subject) {
+  const text = String(subject || "").trim();
+  const direct = text.match(/^release: v(\d+\.\d+\.\d+)\b/i);
+  if (direct) return direct[1];
+  const merged = text.match(/^Merge pull request #\d+ from \S+\/release\/v(\d+\.\d+\.\d+)\b/i);
+  return merged ? merged[1] : null;
+}
+
+/**
  * @param {{
  *   repoRoot: string,
  *   apply?: boolean,
@@ -85,11 +98,35 @@ export async function planRelease(options) {
   const releaseNotesBase = options.releaseNotesBase || DEFAULT_RELEASE_NOTES_BASE;
 
   const headSubject = (await git(["log", "-1", "--format=%s"])).trim();
-  if (isReleaseCommitSubject(headSubject)) {
+  const tipVersion = releaseTipVersion(headSubject);
+  if (tipVersion) {
+    const packagePath = path.join(repoRoot, "package.json");
+    const releasePath = path.join(repoRoot, "release.json");
+    const packageJson = JSON.parse(await readFile(packagePath));
+    const releaseJson = JSON.parse(await readFile(releasePath));
+    const tag = `v${tipVersion}`;
+    if (packageJson.version !== tipVersion || (await hasTag(git, tag))) {
+      return {
+        publish: false,
+        reason: "release-commit",
+        headSubject
+      };
+    }
+    const releaseNotesUrl = httpsUrl(releaseJson.releaseNotesUrl)
+      ? releaseJson.releaseNotesUrl
+      : `${releaseNotesBase}/${tag}`;
+    const summary = typeof releaseJson.summary === "string" && releaseJson.summary.trim()
+      ? releaseJson.summary.trim()
+      : `HAI-Harness ${tipVersion}.`;
     return {
-      publish: false,
-      reason: "release-commit",
-      headSubject
+      publish: true,
+      action: "tag",
+      reason: "merged-release",
+      headSubject,
+      version: tipVersion,
+      tag,
+      summary,
+      releaseNotesUrl
     };
   }
 
@@ -138,6 +175,7 @@ export async function planRelease(options) {
 
   return {
     publish: true,
+    action: "prepare",
     reason: "product-path-changes",
     lastTag: lastTag ? lastTag.tag : null,
     version,
@@ -149,6 +187,33 @@ export async function planRelease(options) {
     releaseVersion: nextRelease.version,
     commitMessage: `release: v${version}`
   };
+}
+
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+function httpsUrl(value) {
+  if (typeof value !== "string" || value.length > 2_048) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * @param {(args: string[]) => Promise<string>} git
+ * @param {string} tag
+ */
+async function hasTag(git, tag) {
+  try {
+    const output = await git(["rev-parse", "--verify", "--quiet", `refs/tags/${tag}`]);
+    return Boolean(String(output).trim());
+  } catch {
+    return false;
+  }
 }
 
 /**

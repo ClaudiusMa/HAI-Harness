@@ -29,19 +29,20 @@ jobs:
           node .github/scripts/plan-release.mjs > release-plan.json
           cat release-plan.json
           publish="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.publish ? "true" : "false")')"
+          action="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.action || "")')"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "action=$action" >> "$GITHUB_OUTPUT"
 
-      - name: Publish release
-        if: steps.plan.outputs.publish == 'true'
+      - name: Open release pull request
+        if: steps.plan.outputs.publish == 'true' && steps.plan.outputs.action == 'prepare'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           node .github/scripts/plan-release.mjs --apply
-          version="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.version)')"
           tag="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.tag)')"
-          node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); fs.writeFileSync("release-notes.txt", p.summary);'
+          node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); const body = `Review and merge this pull request.\n\nAfter the merge reaches main, the release workflow tags that commit and publishes the GitHub Release. This workflow does not merge the pull request.\n\n${p.summary}\n`; fs.writeFileSync("release-notes.txt", body);'
           message="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.commitMessage)')"
           branch="release/$tag"
 
@@ -53,8 +54,16 @@ jobs:
           git push origin "HEAD:$branch"
 
           gh pr create --base main --head "$branch" --title "$message" --body-file release-notes.txt
-          gh pr merge --merge --delete-branch
-          git fetch origin main
-          git tag "$tag" origin/main
+
+      - name: Publish merged release
+        if: steps.plan.outputs.publish == 'true' && steps.plan.outputs.action == 'tag'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="$(node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); process.stdout.write(p.tag)')"
+          node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("release-plan.json","utf8")); fs.writeFileSync("release-notes.txt", p.summary + "\n");'
+          git tag "$tag"
           git push origin "$tag"
           gh release create "$tag" --target main --title "$tag" --notes-file release-notes.txt

@@ -2,12 +2,21 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 Last updated by: Claudia
-User check-in: 2026-09-29 — fix the self-learning workflow; local implementation and focused verification authorized.
-Verification: learning-cycle skill validation, offline update/state preservation, sync, independent review and four final-version agent executions passed. Earlier iteration results remain in their own records.
-Local integration approved: 2026-09-29 — user requested merge and publish.
-Remote acts approved: 2026-09-29 — push the verified repair to origin/main and publish its stable GitHub Release through the existing workflow.
+User check-in: 2026-09-30 — change the release workflow so it opens a pull request, stops for review, and publishes only after that pull request is merged. Local implementation and focused verification authorized.
+Verification: focused release-planner tests passed 3/3 in `task/release-after-review`. Diff check passed. Not committed.
+Local integration approved: 2026-09-30 — user asked to commit and push this workflow change.
+Remote acts approved: 2026-09-30 — push the workflow change to origin/main. Do not tag or publish v0.2.3 from this push.
+
+## Active iteration — release waits for review, 2026-09-30
+
+- User direction: keep a human review on the release pull request. The workflow must stop and ask for that review, then publish the tag and GitHub Release after the pull request is merged. It must not merge the pull request itself.
+- Why: run 36749112593 opened `release/v0.2.3` and then failed because Actions cannot create pull requests (`can_approve_pull_request_reviews` is false). PR #15 was merged by hand. The follow-up run skipped publication with `already-at-release-version`, so v0.2.3 has version metadata on `main` and no tag or GitHub Release.
+- Controller: Claudia. Traffic CLEAR for this lane. Primary stays on dirty local `main` at `f8a8905` and is not the edit target. Integration `codex/release-after-review` is clean at `2603e98`. Worker lane: `task/release-after-review`.
+- Contract: [Augustus](tasks/augustus.md). One worker. No second queue.
+- Scope: release planner and workflow only. A product push still opens `release/vX.Y.Z` and stops. A later main push publishes only when its tip is that release commit, or a merge from `release/vX.Y.Z`, and the tag is still missing. Any other push while v0.2.3 is untagged must not publish it.
+- Approval boundary: user approved commit and push to origin/main on 2026-09-30. This push must not tag or publish v0.2.3.
 
 ## Active iteration — learning cycle repair, 2026-09-29
 
@@ -31,7 +40,7 @@ Remote acts approved: 2026-09-29 — push the verified repair to origin/main and
 - Installed harnesses should discover new releases through a default-on, anonymous check no more than weekly, notify only once a newer actionable release is available, and never auto-apply updates.
 - Update discovery must preserve the existing boundary: stable scaffold files may refresh, while project-authored planning, context, design, queues, handoffs, lessons, archives, and Human content remain untouched.
 - Update Beacon version `0.2.0` is on `main` and was never published. Installed receipts are already `0.2.0`, so publishing `v0.2.0` would look current and would not announce newer method files.
-- A push to origin `main` publishes the release. The user does not run a separate release step. Installed projects still only receive a notice; they do not auto-apply.
+- A product push to origin `main` opens a release pull request and stops for review. After that pull request is merged, the workflow tags and publishes the GitHub Release. It does not merge the pull request. Installed projects still only receive a notice; they do not auto-apply.
 - An unnamed user message starts the session as Claudia. The limited no-role read path is superseded by this 2026-09-29 direction. Explicitly naming Augustus, Julius, Athena, or Hephaestus still selects that role. A child contract that names a worker role stays in that role. Users do not need to name Claudia to start, and the harness does not ask them to pick a role.
 
 ## Completed Iteration — 2026-08-02 reusable harness extraction
