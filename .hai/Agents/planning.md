@@ -2,13 +2,20 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-05 — scoped session collaboration rehearsal and project verification policy
+Last updated: 2026-10-05 — verified human-sync task-owned storage migration
 Last updated by: Claudia
 User check-in: 2026-09-30 — change the release workflow so it opens a pull request, stops for review, and publishes only after that pull request is merged. Local implementation and focused verification authorized.
 Verification: focused release-planner tests passed 3/3 in `task/release-after-review`. Diff check passed. Not committed.
 Local integration approved: 2026-09-30 — user asked to commit and push this workflow change.
 Remote acts approved: 2026-09-30 — push the workflow change to origin/main. Do not tag or publish v0.2.3 from this push.
 
+
+## Current iteration — human-sync migration, 2026-10-05
+
+- Status: implementation, outer sync, focused tests, independent source review and two-agent handoff replay complete. Commit and release explicitly authorized; publication in progress.
+- Authority: the user selected migration and retirement of superseded storage. Current task-owned storage supersedes older Agents-placement plans. Earlier dated queues below are historical; no worker should execute them without a new contract.
+- Evidence and limits: [release closeout](handoffs/2026-10-05-human-sync-release.md). Native session attachment, submission fencing and distributed coordination remain pending. No Human backfill batch is approved.
+- Traffic: all source writers released. One controller owns commit, integration and publication; unrelated local history is preserved outside the candidate.
 
 ## Confirmed direction — session collaboration, 2026-10-05
 
