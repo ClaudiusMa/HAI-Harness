@@ -153,3 +153,15 @@ Archive or reset this file before changing the version header convention.
 - Why: The user wants testing to happen without repeatedly asking for it, while keeping tests small and relevant to the work.
 - Tradeoffs: Each change needs focused verification; this does not authorize broad or high-cost test runs and does not impose the rule on other projects.
 - Follow-up: Maintain the rule in `.hai/Agents/project_context.md` and record the tested scope and evidence at closeout.
+
+- Date: 2026-09-30
+- Decision: Agents maintain the Human folder and the public README for the user. Agents record why each planning, design, or context change was made and whether it came from the user. At session closeout, a cheap filter and drafter prepare entries, the user approves them in one batch, and a writer skill called human-scribe applies only the approved ones.
+- Why: The user does not write the Human folder in practice. The brief and open questions had gone stale, and existing decision entries read like agent notes.
+- Tradeoffs: Nothing reaches Human/ without approval, so unreviewed items wait in a queue. Capture reads the agent layer, not chat, so decisions that are never recorded there are caught only by a doctor drift check. Product, design, and process count as the user's decisions, and guesses agents made without asking become open questions. human-scribe replaces decision-logger and adapts humanize-writing (MIT) rules without depending on it. Reflections record only the user's quoted words.
+- Follow-up: After the release-review lane closes, plan and assign the implementation, then an independent review, then the first backfill run. The backfill covers the brief, open questions, plain-language rewrites of past decisions, and the README. Design: Agents/handoffs/human-sync.md.
+
+- Date: 2026-10-05
+- Decision: Migrate the existing human-sync pipeline to task-owned decision metadata, remove its superseded Agents storage after recording the conflict, and commit and release the verified result with clean code checkouts.
+- Why: The user wants the current collaboration and decision-storage choices to replace conflicting older work without leaving unfinished code.
+- Tradeoffs: Keep the existing capture, batch approval and writer behavior; preserve recoverable old work, and do not publish unrelated historical changes or unreviewed Human backfill drafts.
+- Follow-up: Complete the scoped migration, test and review it, integrate the accepted change and confirmed rationale, then verify the released version and clean local state.
