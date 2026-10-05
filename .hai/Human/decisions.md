@@ -135,3 +135,21 @@ Archive or reset this file before changing the version header convention.
 - Why: The user explicitly requested merge and publication after reviewing the local repair and verification summary.
 - Tradeoffs: The stable release distributes updated process instructions; field projects still require an explicit update and retain their own learning state.
 - Follow-up: Verify remote integration and the published release; record the result.
+
+- Date: 2026-10-05
+- Decision: Use one branch and worktree for each independently writable HAI task, retain it across session handoffs, and integrate accepted scoped changes into main through a verified merge queue.
+- Why: The user wants multiple humans and agents to collaborate while main stays clean and overlapping scopes receive traffic control.
+- Tradeoffs: Requires explicit task ownership, scope coordination and integration checks; this direction supersedes the mandatory non-main integration workflow when implemented.
+- Follow-up: Complete the session lifecycle and migration design, preserve existing work, and exercise destination, handoff and integration failure cases before claiming enforcement.
+
+- Date: 2026-10-05
+- Decision: Keep human decision context with each task's branch/worktree outside product code and the Agents folder, and log the confirmed decisions behind accepted changes in Human/decisions.md as part of commit-and-merge closeout.
+- Why: The user wants decisions preserved without filling product code or agent context with session history.
+- Tradeoffs: Supersedes the 2026-09-30 use of an Agents decision trail and inbox for session decisions; unfinished decision context must survive handoff, and the shared Human log needs serialized closeout.
+- Follow-up: Reconcile the human-sync capture design with this storage boundary; include the accepted decision entries and changes in the same integration, preserving provisional notes with unfinished work.
+
+- Date: 2026-10-05
+- Decision: Always run a quick test of the changed scope when working on this HAI-Harness repository, and keep this requirement in its project context rather than the general HAI-Harness templates.
+- Why: The user wants testing to happen without repeatedly asking for it, while keeping tests small and relevant to the work.
+- Tradeoffs: Each change needs focused verification; this does not authorize broad or high-cost test runs and does not impose the rule on other projects.
+- Follow-up: Maintain the rule in `.hai/Agents/project_context.md` and record the tested scope and evidence at closeout.

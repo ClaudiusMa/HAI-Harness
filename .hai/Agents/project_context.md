@@ -44,6 +44,13 @@ All substantive `.hai/` project context is version-controlled for transparency; 
 - `scaffold/AGENTS.md` is distributable product source and installs as target-root `AGENTS.md`; the repository redirect must never ship as that template.
 - Future sessions read outer onboarding, outer project context, the active role, outer planning, and only the task/handoff/lesson context routed from there.
 
+## Project-specific verification
+
+- For work on this HAI-Harness repository, always run a quick, meaningful test of the changed scope before claiming completion, committing, or publishing; do not wait for the user to request testing again.
+- For agent instruction or workflow changes, execute a short agent behavior replay with observable artifacts. For code or CLI changes, run the relevant focused behavior tests. For ordinary document edits, check the affected structure, links, and preservation requirements.
+- Record the tested scope, result, and limits in the task handoff. Interrupted or unrun checks remain pending. Broaden testing only when a failure, further change, or unresolved concern warrants it; full suites, builds, and other high-cost checks keep their separate approval gates.
+- This is a project-local development rule. Keep it in the outer `.hai/` context; do not copy it into the distributable `Agents/`, `Human/`, or `scaffold/` templates.
+
 ## Required inner-to-outer closeout
 
 An inner product change is incomplete until the same iteration performs all of the following:

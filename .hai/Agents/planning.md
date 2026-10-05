@@ -2,12 +2,22 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-09-30
+Last updated: 2026-10-05 — scoped session collaboration rehearsal and project verification policy
 Last updated by: Claudia
 User check-in: 2026-09-30 — change the release workflow so it opens a pull request, stops for review, and publishes only after that pull request is merged. Local implementation and focused verification authorized.
 Verification: focused release-planner tests passed 3/3 in `task/release-after-review`. Diff check passed. Not committed.
 Local integration approved: 2026-09-30 — user asked to commit and push this workflow change.
 Remote acts approved: 2026-09-30 — push the workflow change to origin/main. Do not tag or publish v0.2.3 from this push.
+
+
+## Confirmed direction — session collaboration, 2026-10-05
+
+- Request: evaluate consistent task isolation, same-lane handoff, scoped overlap control and accepted integration into main for multiple humans and agents.
+- Method: [session collaboration](handoffs/2026-10-05-session-collaboration-proposal.md). A durable writable task owns a branch/worktree; sessions attach or hand off through exclusive leases. A candidate queue checks scoped changes and current human authority before main advances.
+- Authority: the three 2026-10-05 entries in [Human decisions](../Human/decisions.md) record the confirmed direction, task-owned decision storage and project-only quick-testing policy. This plan references required behavior without duplicating decision history.
+- Verification: directed agent rehearsal and fresh independent read-only review passed for this bounded fixture. [Evaluation](handoffs/2026-10-05-session-collaboration-evaluation.md) records actual handoff/refusal/recovery/integration/retry evidence and limits. Runtime lifecycle enforcement and existing pending ownership/authority safeguards remain unimplemented and unverified.
+- Publication: user authorized commit and publication after the short scoped checks pass. Only this proposal/evaluation, the local verification rule, narrow planning and confirmed Human entries are included, in a clean branch/worktree from upstream main. No product release or source integration is included.
+- Traffic: CLEAR for this documentation closeout; SEQUENCE for human-sync storage reconciliation. The transferred handoff and draft were checked. Preserve its existing uncommitted lane and compatible capture/writer/batch-approval behavior; reconcile the superseded Agents trail/inbox paths before source integration. No competing capture pipeline or human-sync code publication. Detailed migration/implementation remains next work.
 
 ## Active iteration — release waits for review, 2026-09-30
 
