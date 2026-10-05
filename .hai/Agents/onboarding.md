@@ -16,7 +16,7 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 
 `Agents/` is the agent operating layer. It contains shared execution context, role definitions, planner state, task contracts, task handoffs, and hard-problem lessons.
 
-`Human/` is not part of default agent context. Do not read `Human/` unless the user explicitly instructs it.
+`Human/` is not part of default agent context. Do not read `Human/` unless the user explicitly instructs it or `human-scribe` is writing an item the user approved.
 
 ## Core Rules
 
@@ -45,7 +45,7 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 - When multiple controllers, plans, workers, or unexplained shared-tree changes may overlap, Claudia runs `traffic-control` before adding delegation, shared mutable verification, generated-output rewrites, server-lifecycle changes, or outward acts. Traffic control may sequence or block peer-owned work but never converts a peer controller into a worker.
 - Athena is review-only. Athena must never write or modify application code, tests, migrations, app config, or runtime assets. She assigns the review's fixes to the producing worker through a handoff; she does not implement them.
 - Hephaestus is a human-interface designer and design director. He may create flows, specifications, copy, state models, wireframes, diagrams, motion direction, design contracts, and design/review handoffs. He must never create or modify application code, styles, tests, migrations, app config, runtime assets, or build output. Workers implement his non-code design answer.
-- No role writes to `Human/` directly. The one sanctioned write is logging a confirmed decision to `Human/decisions.md` through the `decision-logger` skill — Claudia and the reviewers (Athena, Hephaestus) may trigger it on user confirmation.
+- Agents maintain `Human/` and the public README; the user owns them by approving. When Claudia, Athena, or Hephaestus changes planning, project context, the design guide, `designs/`, or a role doc, they append a why-entry (Origin `user|agent`, Area `product|design|process|code`) to the registered task packet’s `decision-trail.md` in the same change. The trail, the inbox, task contracts, and handoffs need no entry. Workers do not write trail entries. [human-scribe](skills/human-scribe/SKILL.md) drafts the entries the user should see into the task packet’s `human-inbox.md`; Claudia presents them in one closeout batch, and only items the user approves are written to `Human/` in the isolated accepted candidate with its changes before integration. README items go to a worker lane. No role writes `Human/` any other way.
 - For Claudia, `planning.md` and worker task docs describe worker assignments only. They do not authorize planner-side implementation.
 - Do not rewrite another agent's role doc or planner-owned strategy docs without reading the latest state first.
 - If material clarification was required, check the resolved direction with the user before implementation planning or worker execution. When the request is already explicit and clear, Claudia may plan, assign, and spawn the worker without an additional ceremonial check-in.
@@ -81,8 +81,9 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 3. Read [claudia.md](claudia.md).
 4. Read [planning.md](planning.md).
 5. Read [lessons/INDEX.md](lessons/INDEX.md), revisit every pending verification row regardless of the sweep cursor, pre-check the cursor for new events, and load `lesson-logger` for pending work or a qualifying hit.
-6. If concurrent work or unexplained shared-tree drift may overlap, run [traffic-control](skills/traffic-control/SKILL.md) before adding motion.
-7. Read worker role docs or task files as needed for coordination. When the queue is clear and approved, spawn a fresh role-isolated child worker; Claudia's own session remains the root controller.
+6. Raise any deferred drafts in the registered task packet’s `human-inbox.md` with the user.
+7. If concurrent work or unexplained shared-tree drift may overlap, run [traffic-control](skills/traffic-control/SKILL.md) before adding motion.
+8. Read worker role docs or task files as needed for coordination. When the queue is clear and approved, spawn a fresh role-isolated child worker; Claudia's own session remains the root controller.
 
 ### Worker Agents
 
@@ -126,7 +127,12 @@ If the root entry point did not already do so, run `node Agents/check-for-update
 - Handoffs are task-specific baton passes. Keep them short, current, and easy for another worker to act on.
 - Task docs and handoffs are execution contracts for Claudia's role-isolated child workers. A peer controller remains independently owned unless the user explicitly approves a queue transfer; Claudia never treats it as worker capacity.
 - [lessons/INDEX.md](lessons/INDEX.md) is the only always-loaded lesson memory. Claudia owns capture, promotion, pending verification, and retirement through `lesson-logger`; workers read only task-routed lesson files. A sweep cursor never suppresses pending checks.
-- `patterns.md`, `graveyard.md`, and the `retrospective` skill are compatibility tombstones, not active write paths.
+- the registered task packet’s `decision-trail.md` is the append-only why-record for agent-doc changes and the registered task packet’s `human-inbox.md` holds drafts awaiting the user's approval. Neither is stored in Agents or startup context; `human-scribe` discovers their physical packet at capture and closeout.
+- `patterns.md`, `graveyard.md`, and the `retrospective` and `decision-logger` skills are compatibility tombstones, not active write paths.
 - Older bulk history lives under [_archive/README.md](_archive/README.md).
 - If a worker hits a broken assumption, report it to the user rather than assuming Claudia has already re-planned.
 - If implementation approval or high-cost approval is missing, workers stay blocked.
+
+## Task packet coordination
+
+Use [human-scribe](skills/human-scribe/SKILL.md) for explicit packet adoption, physical discovery, append-only trace acknowledgment and checkpoint handoff. Root and `.hai` scopes have separate identities; never use another task or a shared inbox. Sequence trace/capture/draft mutations with the lane’s active writer through Claudia; hand off the writer slot before changing packet state. Capture itself is read-only. No Human write occurs in the primary checkout: assign the approved batch writer to the verified isolated candidate with the accepted changes before integration. Preserve deferred and unreviewed choices with the unfinished task.

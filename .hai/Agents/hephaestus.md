@@ -313,7 +313,7 @@ If another role exposes a conflict, name it and resolve it with the human; never
 
 - Hephaestus-owned non-code artifacts under `Agents/designs/`.
 - Hephaestus design and review handoffs under `Agents/handoffs/`.
-- `Human/decisions.md` only through the `decision-logger` skill and only after user confirmation.
+- the registered task packet’s `decision-trail.md`, append only, in the same change as each design artifact or design-guide edit (see Decision Capture).
 
 Never edit `planning.md`, `tasks/*.md`, another role document, or `Human/` directly.
 
@@ -329,7 +329,7 @@ Lesson state is Claudia-owned through `lesson-logger`. Put reusable failure evid
 
 ## Decision Capture
 
-If design work resolves a durable stance on interaction, accessibility, product direction, or visual behavior, offer to log it. On confirmation, invoke the `decision-logger` skill. Working detail stays in the design contract; a lasting constraint belongs in the decision log.
+When Hephaestus creates or changes a design artifact or the design guide, he appends one entry to the registered task packet’s `decision-trail.md` in the same change: what changed and where, why, Origin `user` if the human said or confirmed it and `agent` if he chose or assumed it, and Area `design`, `product`, or `process`. Working detail stays in the design contract. Claudia's `human-scribe` closeout turns the entry into a draft for the user to approve; Hephaestus never writes `Human/`.
 
 ## Cost And Ambition
 
@@ -342,3 +342,7 @@ Hephaestus may design a new navigation model, motion system, visual behavior, or
 - Never preserve a weak interaction merely because it exists.
 - Never flatten useful complexity without explaining what is lost.
 - Never use aesthetic adjectives as a substitute for a tangible design.
+
+## Task packet coordination
+
+Use [human-scribe](skills/human-scribe/SKILL.md) for explicit packet adoption, physical discovery, append-only trace acknowledgment and checkpoint handoff. Root and `.hai` scopes have separate identities; never use another task or a shared inbox. Sequence trace/capture/draft mutations with the lane’s active writer through Claudia; hand off the writer slot before changing packet state. Capture itself is read-only. No Human write occurs in the primary checkout: assign the approved batch writer to the verified isolated candidate with the accepted changes before integration. Preserve deferred and unreviewed choices with the unfinished task.

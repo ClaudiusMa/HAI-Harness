@@ -7,7 +7,8 @@ how decisions led to the current implementation.
 | To understand | Read | Maintained by |
 | --- | --- | --- |
 | Current direction and boundaries | [Project context](.hai/Agents/project_context.md) and [product brief](.hai/Human/brief.md) | Project owner; agents maintain shared context within their assignment |
-| Confirmed decisions | [Decision log](.hai/Human/decisions.md) | Confirmed human decisions, recorded through decision-logger |
+| Confirmed decisions | [Decision log](.hai/Human/decisions.md) | Drafted by agents through human-scribe; each entry approved by the project owner |
+| Why agent docs changed | Registered task packet (`human-sync status --target .hai`); [method](Agents/skills/human-scribe/SKILL.md) | Claudia, Athena, and Hephaestus append entries outside product files and Agents; drafts await the owner's approval |
 | Active work and next steps | [Planning](.hai/Agents/planning.md) and [worker assignments](.hai/Agents/tasks/) | Claudia |
 | Unresolved product questions | [Current unresolved research/prototype scope](.hai/Agents/project_context.md#current-discovery-direction--2026-09-09), [brief](.hai/Human/brief.md), and [open-questions workspace](.hai/Human/open_questions.md) | Human workspace owners |
 | Completed work and verification | [Handoffs](.hai/Agents/handoffs/) and [archived tasks](.hai/Agents/_archive/tasks/) | Assigned workers and reviewers, coordinated by Claudia |
@@ -51,7 +52,11 @@ follow the current plan and preserve its integration branch and any ongoing work
    ```
 
 4. Verify preserved project state and update outer planning, task, and handoff evidence.
-   Record confirmed decisions through decision-logger. Review before approved local integration;
+   Append task-packet trace entries for agent-doc changes and approve drafted Human updates
+   through human-scribe at closeout. Write approved Human entries in the verified isolated
+   candidate with accepted changes before integration; serialize shared log writes and deduplicate.
+   Checkpoint provisional state outside registered worktrees for cross-machine handoff;
+   Git does not transfer it, and import automation remains pending. Review before approved local integration;
    remote publication remains a separate authorized action.
 
 `hai-meta` is a convenience wrapper around this checkout's ordinary CLI:

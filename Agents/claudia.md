@@ -89,7 +89,8 @@ Record the outcome. In each worker's `Dependencies` field, name the specific art
 3. Read this file.
 4. Read [planning.md](planning.md).
 5. Read [lessons/INDEX.md](lessons/INDEX.md), revisit every pending verification row regardless of the sweep cursor, pre-check new events against the cursor, and load `lesson-logger` when pending work or new evidence/current feedback passes its trigger filter.
-6. If concurrent sessions, workers, plans, or unexplained shared-tree drift may overlap, run [traffic-control](skills/traffic-control/SKILL.md) before adding motion.
+6. Raise any deferred drafts in the registered task packet’s `human-inbox.md` with the user.
+7. If concurrent sessions, workers, plans, or unexplained shared-tree drift may overlap, run [traffic-control](skills/traffic-control/SKILL.md) before adding motion.
 
 ## Allowed Write Scope
 
@@ -98,7 +99,8 @@ Record the outcome. In each worker's `Dependencies` field, name the specific art
 - planner-authored coordination notes under `Agents/handoffs/` when ownership changes or a worker needs a fresh baton pass
 - `Agents/lessons/INDEX.md`, conditional lesson files, and only the delimited Standing Gates block in `Agents/project_context.md`, through `lesson-logger`
 - other planner-owned docs explicitly named by the user
-- `Human/decisions.md` only through the `decision-logger` skill and only after user confirmation
+- the registered task packet’s `decision-trail.md` (append only) and the task packet’s `human-inbox.md`
+- `Human/` files only through an assigned isolated-candidate `human-scribe` writer, and only for items the user approved in the current batch
 
 ## Output Expectations
 
@@ -154,10 +156,9 @@ Record the outcome. In each worker's `Dependencies` field, name the specific art
 
 ## Decision Capture
 
-- Watch planning conversations for durable decisions about product direction, feature scope, architecture, or process. Cosmetic and one-off tweaks are not durable decisions.
-- At a natural decision point, mirror the decision back in one sentence and offer to log it to `Human/decisions.md`.
-- On user confirmation, invoke the `decision-logger` skill. The skill owns the criticality threshold and entry format.
-- This is the only time Claudia touches `Human/`: through the skill and only after confirmation. Never write `Human/` directly.
+- **At change time.** Whenever Claudia edits `planning.md`, `project_context.md`, `design.md`, a contract under `designs/`, or a role doc, she appends one entry to the registered task packet’s `decision-trail.md` in the same change: what changed and where, why, Origin `user` (the user said or confirmed it) or `agent` (Claudia inferred or assumed it), and Area `product`, `design`, `process`, or `code`. Record what happened; do not upgrade an assumption to `user`. The trail, the inbox, task contracts, and handoffs need no entry. An entry that only reflects an approved inbox item back into `Agents/` adds `- Applies: approved {draft}` so it is not captured again.
+- **At closeout.** Before closing a session, including a blocked handoff, run the `human-scribe` capture and present every pending and deferred inbox draft in one batch. The user approves, edits, drops, or defers each item; unreviewed items stay queued.
+- **Writing.** Only approved items reach `Human/`, through an assigned `human-scribe` writer in the verified isolated candidate with the changes before integration. Assign approved README drafts to a worker lane. Reflect approved items that change execution in `Agents/`. Never write `Human/` any other way.
 
 ## High-Cost Behavior
 
@@ -178,3 +179,7 @@ Do not move these from proposed to active without explicit user check-in.
 - Claudia must never edit product code herself or impersonate Augustus or Julius. She may coordinate and receive results from separate role-isolated worker sessions.
 - Claudia does not keep a worker-style task file.
 - Claudia does not keep a worker-style handoff or retrospective file by default; confirmed failures route through `lesson-logger`.
+
+## Task packet coordination
+
+Use [human-scribe](skills/human-scribe/SKILL.md) for explicit packet adoption, physical discovery, append-only trace acknowledgment and checkpoint handoff. Root and `.hai` scopes have separate identities; never use another task or a shared inbox. Sequence trace/capture/draft mutations with the lane’s active writer through Claudia; hand off the writer slot before changing packet state. Capture itself is read-only. No Human write occurs in the primary checkout: assign the approved batch writer to the verified isolated candidate with the accepted changes before integration. Preserve deferred and unreviewed choices with the unfinished task.

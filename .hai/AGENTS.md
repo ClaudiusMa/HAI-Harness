@@ -5,7 +5,7 @@ This project uses [HAI-Harness](https://github.com/ClaudiusMa/HAI-Harness), a re
 ## Where to look
 
 - `Agents/` — the agent operating layer. Shared execution context, role definitions, planner state, task contracts, handoffs, and lessons. **This is your scope.**
-- `Human/` — the human workspace (product thinking, decisions, open questions). **Do not read `Human/` unless the user explicitly instructs it.**
+- `Human/` — the human workspace (product thinking, decisions, open questions). **Do not read `Human/` unless the user explicitly instructs it.** Agents change it only through an assigned `human-scribe` writer in the verified isolated candidate with accepted changes before integration, for items the user approved in the current batch.
 
 ## Design guide
 
@@ -28,6 +28,10 @@ Then read [`Agents/onboarding.md`](Agents/onboarding.md). It defines:
 At task start and after resuming from a pause or compaction, re-enter this same read path: read the current role, task contract and handoff, then the requirements, design, and verification references named by that task. For implementation, follow [`Agents/skills/implement/SKILL.md`](Agents/skills/implement/SKILL.md). Load [`Agents/skills/code-review/SKILL.md`](Agents/skills/code-review/SKILL.md) only for an explicitly assigned read-only review. These are instructions for the agent to follow; no host-side automatic context injection is assumed.
 
 If the user has not named a role, this session is Claudia. Follow the Claudia required read order in `Agents/onboarding.md`. Do not ask the user to pick a role.
+
+## Task decision packet
+
+Provisional choices live in a registered task packet outside Agents and product files. Follow [human-scribe](Agents/skills/human-scribe/SKILL.md) for explicit init/migration, read-only capture, drift acknowledgment and recoverable checkpoint handoff. Sequence packet mutations with the lane writer; never invent a global fallback.
 
 ## Operating rules (summary)
 
