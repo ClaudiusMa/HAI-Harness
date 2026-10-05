@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import { execFile } from "node:child_process";
@@ -51,6 +52,7 @@ const scaffoldPaths = [
   "Agents/lessons/README.md",
   "Agents/lessons/TEMPLATE.md",
   "Agents/skills/decision-logger/SKILL.md",
+  "Agents/skills/human-scribe/SKILL.md",
   "Agents/skills/code-review/SKILL.md",
   "Agents/skills/guardian/SKILL.md",
   "Agents/skills/handoff/SKILL.md",
@@ -64,6 +66,27 @@ const scaffoldPaths = [
 // These files hold project-owned state after installation. `update` creates
 // them only when absent.
 const createOnlyPaths = ["Agents/lessons/INDEX.md"];
+
+const decisionTrailPath = "decision-trail.md";
+const humanInboxPath = "human-inbox.md";
+const captureAreas = new Set(["product", "design", "process"]);
+// Same set the trail duty covers. Role docs are the ones named in the
+// onboarding role index. The trail, the inbox, task contracts, and handoffs
+// are excluded on purpose.
+const roleDocs = [
+  "Agents/claudia.md",
+  "Agents/augustus.md",
+  "Agents/julius.md",
+  "Agents/athena.md",
+  "Agents/hephaestus.md"
+];
+const tracedPaths = [
+  "Agents/planning.md",
+  "Agents/project_context.md",
+  "Agents/design.md",
+  "Agents/designs",
+  ...roleDocs
+];
 
 // Mandatory startup context should stay current and scannable. These budgets
 // are intentionally generous; they catch history dumps without constraining
@@ -80,6 +103,10 @@ Usage:
   hai-harness init              [--target <dir>] [--force] [--dry-run]
   hai-harness update            [--target <dir>] [--dry-run]
   hai-harness doctor            [--target <dir>]
+  hai-harness human-sync        [capture|status|init|acknowledge|checkpoint] [--target <dir>]
+    init [--migrate]
+    acknowledge --through T<n> --head <HEAD> --snapshot <digest>
+    checkpoint --output <file>
   hai-harness worktree create   <task-slug> [--integration <branch>] [--target <dir>]
   hai-harness worktree status   [--target <dir>]
   hai-harness worktree approve  --approved <message> [--target <dir>]
@@ -90,6 +117,8 @@ Commands:
   update     Refresh stable method files and create missing generic infrastructure.
              Never overwrite project-owned planning, context, task, handoff, or lesson state.
   doctor     Check whether the target project has the expected harness files.
+  human-sync List decision-trail entries after the inbox cursor that the user should review.
+             Read-only; makes no model or network call.
   worktree   Create, inspect, or explicitly approve a native Git task lane.
 
 Options:
@@ -118,6 +147,10 @@ async function main() {
     return;
   }
 
+  if (command === "human-sync") {
+    await humanSyncCommand(args);
+    return;
+  }
   const options = parseOptions(args, new Set(["--target", "--force", "--dry-run"]));
   if (command === "init") {
     await init(options);
@@ -149,14 +182,18 @@ function parseOptions(args, allowed) {
   const valueOptions = new Map([
     ["--target", "target"],
     ["--integration", "integration"],
-    ["--approved", "approved"]
+    ["--approved", "approved"],
+    ["--through", "through"],
+    ["--head", "head"],
+    ["--snapshot", "snapshot"],
+    ["--output", "output"]
   ]);
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (arg === "--force" || arg === "--dry-run") {
+    if (arg === "--force" || arg === "--dry-run" || arg === "--migrate") {
       if (!allowed.has(arg)) throw new Error(`Unknown option "${arg}".`);
-      options[arg === "--force" ? "force" : "dryRun"] = true;
+      options[arg === "--force" ? "force" : arg === "--migrate" ? "migrate" : "dryRun"] = true;
       continue;
     }
     if (valueOptions.has(arg)) {
@@ -304,6 +341,7 @@ async function doctor(options) {
     "Agents/skills/implement/SKILL.md",
     "Agents/skills/traffic-control/SKILL.md",
     "Agents/skills/lesson-logger/SKILL.md",
+    "Agents/skills/human-scribe/SKILL.md",
     "Human/onboarding.md",
     "Human/brief.md",
     "Human/decisions.md"
@@ -330,8 +368,13 @@ async function doctor(options) {
       if (stdout.trim()) updateStatus = stdout.trim();
     } catch {}
   }
+  const warnings = await humanSyncWarnings(options.target);
   if (missing.length === 0 && oversized.length === 0) {
     console.log(`HAI-Harness looks installed in ${options.target}`);
+    if (warnings.length > 0) {
+      printWarnings(warnings);
+      console.log("");
+    }
     console.log(updateStatus);
     return;
   }
@@ -347,8 +390,362 @@ async function doctor(options) {
     }
     console.log("Move completed queues and historical evidence to Agents/handoffs/ or Agents/_archive/; keep live planning and task files current-only.");
   }
+  printWarnings(warnings);
   console.log(`\n${updateStatus}`);
   process.exitCode = 1;
+}
+
+function printWarnings(warnings) {
+  if (warnings.length === 0) return;
+  console.log("\nWarnings:");
+  for (const warning of warnings) console.log(`  - ${warning}`);
+}
+
+// Packets are local task metadata, not tracked harness or Human content.
+function digest(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+async function taskPacket(target) {
+  const root = await gitOptional(target, ["rev-parse", "--show-toplevel"]);
+  const branch = await gitOptional(target, ["branch", "--show-current"]);
+  const keys = metadataKeysForBranch(branch);
+  if (!root || !keys || !(await gitExitZero(root, ["check-ref-format", "--branch", branch]))) {
+    throw new Error("Human sync requires a recognized task lane with task metadata; main, detached and non-task checkouts have no packet.");
+  }
+  const base = await gitOptional(root, ["config", "--get", `branch.${branch}.${keys.base}`]);
+  const integration = await gitOptional(root, ["config", "--get", `branch.${branch}.${keys.integration}`]);
+  assertSafeBranch(integration, "Human sync task metadata has no integration branch.");
+  if (integration === branch || !/^[0-9a-f]{40,64}$/.test(base) || !(await gitExitZero(root, ["merge-base", "--is-ancestor", base, "HEAD"]))) {
+    throw new Error("Human sync task metadata has an invalid base or integration identity. Restore the recorded lane metadata; do not adopt another task packet.");
+  }
+  const common = await fs.realpath(await git(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+  const harnessRoot = await fs.realpath(target);
+  const physicalRoot = await fs.realpath(root);
+  const scope = path.relative(physicalRoot, harnessRoot);
+  if (scope === ".." || scope.startsWith(`..${path.sep}`) || path.isAbsolute(scope)) throw new Error("Harness target resolves outside its Git task checkout.");
+  const id = digest(`${branch}\n${base}\n${scope}`);
+  const directory = path.join(common, "hai-harness", "tasks", id);
+  await validatePacketPaths(common, directory);
+  const identity = { branch, base, integration, scope };
+  return { root: harnessRoot, physicalRoot, common, directory, identity, metadata: path.join(directory, "packet.json") };
+}
+
+// Reject redirects at every namespaced component, including existing files.
+// The common directory itself has already been resolved physically by Git.
+async function validatePacketPaths(common, directory) {
+  const relative = path.relative(common, directory);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error("Task packet escapes physical Git common metadata.");
+  let current = common;
+  for (const part of relative.split(path.sep)) {
+    current = path.join(current, part);
+    const stat = await fs.lstat(current).catch((error) => { if (error.code === "ENOENT") return null; throw error; });
+    if (stat && (!stat.isDirectory() || stat.isSymbolicLink())) throw new Error("Task packet namespace must contain physical directories, never symlink redirects.");
+  }
+  for (const name of ["packet.json", decisionTrailPath, humanInboxPath]) {
+    const stat = await fs.lstat(path.join(directory, name)).catch((error) => { if (error.code === "ENOENT") return null; throw error; });
+    if (stat && (!stat.isFile() || stat.isSymbolicLink())) throw new Error(`Task packet ${name} must be a regular file, never a symlink redirect.`);
+  }
+}
+
+// Legacy migration may retire only regular files in this physical harness.
+// Validate the selected harness parent chain as well as the Agents directory.
+async function legacyPacketPaths(lane) {
+  let current = lane.physicalRoot;
+  const parents = [current];
+  for (const part of [...(lane.identity.scope ? lane.identity.scope.split(path.sep) : []), "Agents"]) {
+    current = path.join(current, part);
+    parents.push(current);
+  }
+  for (const parent of parents) {
+    const stat = await fs.lstat(parent).catch((error) => { if (error.code === "ENOENT") return null; throw error; });
+    if (stat && (!stat.isDirectory() || stat.isSymbolicLink() || await fs.realpath(parent) !== parent)) {
+      throw new Error("Legacy migration requires physical directories within the selected task harness; parent symlink redirects are refused.");
+    }
+  }
+  const files = [decisionTrailPath, humanInboxPath].map((name) => path.join(lane.root, "Agents", name));
+  for (const file of files) {
+    const stat = await fs.lstat(file).catch((error) => { if (error.code === "ENOENT") return null; throw error; });
+    if (stat && (!stat.isFile() || stat.isSymbolicLink() || await fs.realpath(file) !== file)) {
+      throw new Error("Legacy migration requires regular files physically within the selected task harness, never redirects.");
+    }
+  }
+  return files;
+}
+
+async function readPacket(lane) {
+  if (!(await exists(lane.metadata))) throw new Error('Missing task packet. Run "hai-harness human-sync init" in this recognized task lane (use --migrate for legacy Agents files).');
+  const packet = await readJson(lane.metadata);
+  if (packet.schemaVersion !== 1 || JSON.stringify(packet.identity) !== JSON.stringify(lane.identity) || !/^[0-9a-f]{40,64}$/.test(packet.acknowledged?.head ?? "") || tracedPaths.some((name) => !/^[0-9a-f]{64}$/.test(packet.acknowledged?.paths?.[name] ?? "")) || digest(JSON.stringify(packet.acknowledged?.paths)) !== packet.acknowledged?.digest || typeof packet.trail !== "string") {
+    throw new Error("Invalid task packet identity or baseline; preserve it and restore this lane's verified checkpoint.");
+  }
+  for (const name of [decisionTrailPath, humanInboxPath]) {
+    if (!(await exists(path.join(lane.directory, name)))) throw new Error(`Missing task packet ${name}; restore the verified checkpoint.`);
+  }
+  return packet;
+}
+
+async function tracedSnapshot(root) {
+  const paths = {};
+  const gitRoot = await git(root, ["rev-parse", "--show-toplevel"]);
+  const scope = path.relative(gitRoot, root);
+  for (const name of tracedPaths) {
+    // Last touching commit catches committed changes even when their contents
+    // are subsequently reverted. Index and physical content catch dirty edits.
+    const gitPath = scope ? `${scope}/${name}` : name;
+    const commit = await gitOptional(gitRoot, ["log", "-1", "--format=%H", "--", gitPath]);
+    const index = await git(gitRoot, ["ls-files", "--stage", "--", gitPath]);
+    const files = [];
+    async function visit(relative) {
+      const absolute = path.join(root, relative);
+      const stat = await fs.lstat(absolute).catch((error) => { if (error.code === "ENOENT") return null; throw error; });
+      if (!stat) { files.push([relative, "missing"]); return; }
+      if (stat.isSymbolicLink()) { files.push([relative, "symlink", await fs.readlink(absolute)]); return; }
+      if (stat.isDirectory()) {
+        files.push([relative, "directory"]);
+        for (const child of (await fs.readdir(absolute)).sort()) await visit(`${relative}/${child}`);
+      } else if (stat.isFile()) files.push([relative, stat.mode & 0o777, digest(await fs.readFile(absolute))]);
+    }
+    await visit(name);
+    paths[name] = digest(JSON.stringify({ commit, index, files }));
+  }
+  return { head: await git(root, ["rev-parse", "HEAD"]), paths, digest: digest(JSON.stringify(paths)) };
+}
+
+async function savePacket(lane, packet) {
+  await validatePacketPaths(lane.common, lane.directory);
+  const temporary = `${lane.metadata}.${process.pid}.tmp`;
+  await fs.writeFile(temporary, `${JSON.stringify(packet, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+  await fs.rename(temporary, lane.metadata);
+}
+
+async function humanSyncCommand(args) {
+  const options = parseOptions(args, new Set(["--target", "--migrate", "--through", "--head", "--snapshot", "--output"]));
+  const [action = "capture"] = options.positional;
+  if (options.positional.length > 1) throw new Error("human-sync accepts one lifecycle action.");
+  if (!["capture", "status", "init", "acknowledge", "checkpoint"].includes(action)) throw new Error(`Unknown human-sync action: ${action}`);
+  if (options.migrate && action !== "init") throw new Error("--migrate requires human-sync init.");
+  if ((options.through || options.head || options.snapshot) && action !== "acknowledge") throw new Error("--through, --head and --snapshot require acknowledge.");
+  if (options.output && action !== "checkpoint") throw new Error("--output requires checkpoint.");
+  const lane = await taskPacket(options.target);
+  if (action === "init") {
+    if (await exists(lane.directory)) throw new Error("Task packet already exists; preserve it and use status or restore its checkpoint.");
+    const legacy = await legacyPacketPaths(lane);
+    const present = await Promise.all(legacy.map(exists));
+    if (present.some(Boolean) && !options.migrate) throw new Error("Legacy Agents storage exists. Use human-sync init --migrate to verify and retire it explicitly.");
+    if (options.migrate && !present.every(Boolean)) throw new Error("Migration requires both legacy Agents files; preserve partial storage and reconcile it before migration.");
+    const contents = await Promise.all([decisionTrailPath, humanInboxPath].map(async (name, index) => {
+      const source = options.migrate ? legacy[index] : path.join(packageRoot, "scaffold", "task-packet", name);
+      if (options.migrate && !(await fs.lstat(source)).isFile()) throw new Error("Legacy migration requires regular files, not symlinks.");
+      return fs.readFile(source, "utf8");
+    }));
+    readCaptureCursor(contents[1]);
+    const packet = { schemaVersion: 1, identity: lane.identity, createdAt: new Date().toISOString(), acknowledged: await tracedSnapshot(lane.root), trail: contents[0] };
+    if (options.migrate) packet.supersession = { recordedAt: new Date().toISOString(), reason: "Task-owned packet supersedes Agents provisional storage; copied and verified before retirement.", files: legacy.map((source, index) => ({ source, sha256: digest(contents[index]), content: contents[index] })) };
+    if (options.migrate) await legacyPacketPaths(lane);
+    await fs.mkdir(lane.directory, { recursive: true, mode: 0o700 });
+    for (const [index, name] of [decisionTrailPath, humanInboxPath].entries()) {
+      const destination = path.join(lane.directory, name);
+      await fs.writeFile(destination, contents[index], { mode: 0o600, flag: "wx" });
+      if (await fs.readFile(destination, "utf8") !== contents[index]) throw new Error("Packet copy verification failed; legacy files retained.");
+    }
+    await savePacket(lane, packet); // Durable supersession receipt precedes deletion.
+    if (options.migrate) {
+      await legacyPacketPaths(lane);
+      for (const [index, source] of legacy.entries()) {
+        if (!(await fs.lstat(source)).isFile() || await fs.readFile(source, "utf8") !== contents[index]) throw new Error("Legacy storage changed during migration; packet and remaining legacy files preserved.");
+      }
+      for (const source of legacy) {
+        await legacyPacketPaths(lane);
+        await fs.unlink(source);
+      }
+    }
+    console.log(`Task packet initialized: ${lane.directory}`);
+    return;
+  }
+  const packet = await readPacket(lane);
+  if (action === "capture") return humanSync({ ...options, target: lane.directory });
+  const snapshot = await tracedSnapshot(lane.root);
+  if (action === "status") {
+    console.log(JSON.stringify({ packet: lane.directory, identity: lane.identity, head: snapshot.head, snapshot: snapshot.digest }, null, 2));
+    return;
+  }
+  if (action === "checkpoint") {
+    if (!options.output) throw new Error("checkpoint requires --output <file>; Git pushes do not carry task packets.");
+    const requested = path.resolve(options.output);
+    const output = path.join(await fs.realpath(path.dirname(requested)), path.basename(requested));
+    for (const worktree of await listWorktrees(lane.root)) {
+      const physical = await fs.realpath(worktree.root).catch(() => null);
+      if (!physical) throw new Error("Cannot verify checkpoint destination against a missing registered worktree; preserve the packet and reconcile worktrees first.");
+      const relative = path.relative(physical, output);
+      if (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative)) throw new Error("Keep packet checkpoints outside every tracked worktree and Agents storage in this repository.");
+    }
+    const files = {};
+    for (const name of [decisionTrailPath, humanInboxPath]) files[name] = await fs.readFile(path.join(lane.directory, name), "utf8");
+    await fs.writeFile(output, `${JSON.stringify({ packet, files, observed: snapshot }, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+    console.log(`Recoverable local checkpoint: ${output}. Transfer explicitly; Git does not transfer it.`);
+    return;
+  }
+  if (!/^T[1-9]\d*$/.test(options.through ?? "") || options.head !== snapshot.head || options.snapshot !== snapshot.digest) throw new Error("Acknowledgment requires --through T<n> and the exact --head/--snapshot from human-sync status; re-observe changed state.");
+  const trail = await fs.readFile(path.join(lane.directory, decisionTrailPath), "utf8");
+  const appended = trail.startsWith(packet.trail) ? trail.slice(packet.trail.length) : "";
+  const priorIds = parseTrailEntries(packet.trail).map((entry) => entry.id).filter(Number.isInteger);
+  const entry = parseTrailEntries(`## Entries\n${appended}`).find((item) => item.id === Number(options.through.slice(1)));
+  if (!entry || entry.id <= Math.max(0, ...priorIds) || !["date", "change", "why", "origin", "area"].every((field) => entry.fields[field]) || !["user", "agent"].includes(normalizeField(entry.fields.origin)) || !(captureAreas.has(normalizeField(entry.fields.area)) || normalizeField(entry.fields.area) === "code")) throw new Error("Acknowledgment requires a newly appended valid trace entry; edits to old trail entries or inbox drafts do not acknowledge drift.");
+  const changed = tracedPaths.filter((name) => packet.acknowledged.paths[name] !== snapshot.paths[name]);
+  if (changed.some((name) => !entry.fields.change.includes(name))) throw new Error("The new trace Change must name every changed traced path before acknowledging its snapshot.");
+  const rechecked = await tracedSnapshot(lane.root);
+  if (rechecked.head !== snapshot.head || rechecked.digest !== snapshot.digest || await fs.readFile(path.join(lane.directory, decisionTrailPath), "utf8") !== trail) throw new Error("Task state changed during acknowledgment; re-observe before retrying.");
+  packet.acknowledged = { ...snapshot, through: options.through, recordedAt: new Date().toISOString() };
+  packet.trail = trail;
+  await savePacket(lane, packet);
+  console.log(`Acknowledged ${options.through} at ${snapshot.head}, snapshot ${snapshot.digest}. No Human item was approved.`);
+}
+
+// Advisory only. Non-task projects retain normal installation doctor behavior.
+async function humanSyncWarnings(target) {
+  const warnings = [];
+  const branch = await gitOptional(target, ["branch", "--show-current"]);
+  if (!metadataKeysForBranch(branch)) return warnings;
+  try {
+    const lane = await taskPacket(target);
+    const packet = await readPacket(lane);
+    const counts = countInboxDrafts(await fs.readFile(path.join(lane.directory, humanInboxPath), "utf8"));
+    if (counts.pending + counts.deferred > 0) warnings.push(`Task packet ${humanInboxPath} has ${counts.pending} pending and ${counts.deferred} deferred draft(s) awaiting the user's closeout review.`);
+    const snapshot = await tracedSnapshot(lane.root);
+    const changed = tracedPaths.filter((name) => packet.acknowledged.paths[name] !== snapshot.paths[name]);
+    if (changed.length) warnings.push(`Changed with no new entry: ${changed.join(", ")}. Append the why to the task trail and explicitly acknowledge the observed HEAD/snapshot.`);
+  } catch (error) { warnings.push(error.message); }
+  return warnings;
+}
+
+async function humanSync(options) {
+  await assertDirectory(options.target);
+  const trailFile = path.join(options.target, decisionTrailPath);
+  const inboxFile = path.join(options.target, humanInboxPath);
+  for (const [relativePath, filePath] of [[decisionTrailPath, trailFile], [humanInboxPath, inboxFile]]) {
+    if (!(await exists(filePath))) throw new Error(`Missing task packet ${relativePath}; restore the verified checkpoint.`);
+  }
+  const cursor = readCaptureCursor(await fs.readFile(inboxFile, "utf8"));
+  const entries = entriesAfterCursor(parseTrailEntries(await fs.readFile(trailFile, "utf8")), cursor);
+  const after = cursor === 0 ? "since the trail began" : `after T${cursor}`;
+  if (entries.length === 0) {
+    console.log(`Human sync: no new trail entries ${after}.`);
+    return;
+  }
+  const numericIds = entries.map((entry) => entry.id).filter((id) => Number.isInteger(id));
+  const latest = numericIds.length > 0 ? Math.max(...numericIds) : null;
+  const kept = entries.map((entry) => ({ entry, kind: captureKind(entry) })).filter((item) => item.kind);
+  const advance = latest === null
+    ? `number the malformed trail heading, then set "Captured through:" in ${humanInboxPath}.`
+    : `set "Captured through: T${latest}" in ${humanInboxPath}.`;
+  if (kept.length === 0) {
+    console.log(`Human sync: nothing to capture ${after}.`);
+    console.log(`${nothingToCaptureReason(entries)}; no draft is needed.`);
+    console.log(`Next: ${advance}`);
+    return;
+  }
+  console.log(`Human sync: ${kept.length} of ${entries.length} new trail entries to capture ${after}.\n`);
+  for (const { entry, kind } of kept) {
+    const { date = "", change = "", why = "", origin = "", area = "" } = entry.fields;
+    console.log(`${entryLabel(entry)} · ${kind} · ${origin || "?"}/${area || "?"}${date ? ` · ${date}` : ""}`);
+    console.log(`  Change: ${change}`);
+    console.log(`  Why: ${why}`);
+  }
+  console.log(`\nNext: draft each entry into ${humanInboxPath}, then ${advance}`);
+}
+
+function entriesAfterCursor(entries, cursor) {
+  if (cursor === 0) return entries;
+  const index = entries.findIndex((entry) => entry.id === cursor);
+  return entries.filter((entry, entryIndex) => {
+    if (entry.malformed) return index !== -1 && entryIndex > index;
+    return Number.isInteger(entry.id) && entry.id > cursor;
+  });
+}
+
+function entryLabel(entry) {
+  if (Number.isInteger(entry.id)) return `T${entry.id}`;
+  return entry.heading.replace(/^#+\s*/, "") || "malformed heading";
+}
+
+function nothingToCaptureReason(entries) {
+  const approved = entries.filter((entry) => reflectsApproved(entry)).length;
+  const code = entries.length - approved;
+  if (approved === 0) {
+    return `${entries.length} new trail entr${entries.length === 1 ? "y was an agent-origin code change" : "ies were agent-origin code changes"}`;
+  }
+  if (code === 0) {
+    return `${entries.length} new trail entr${entries.length === 1 ? "y reflects an already approved item" : "ies reflect already approved items"}`;
+  }
+  return `${code} agent-origin code entr${code === 1 ? "y" : "ies"} and ${approved} already approved entr${approved === 1 ? "y" : "ies"}`;
+}
+
+function reflectsApproved(entry) {
+  return /^approved\b/.test(normalizeField(entry.fields.applies));
+}
+
+// Keep user-origin entries and agent assumptions about product, design, or
+// process. Unrecognized values are kept for review rather than silently dropped.
+function captureKind(entry) {
+  if (entry.malformed) return "review";
+  if (reflectsApproved(entry)) return null;
+  const origin = normalizeField(entry.fields.origin);
+  const area = normalizeField(entry.fields.area);
+  if (!["user", "agent"].includes(origin) || !(captureAreas.has(area) || area === "code")) return "review";
+  if (origin === "user") return "decision";
+  if (captureAreas.has(area)) return 'open question ("Agents assumed ... Confirm or change?")';
+  return null;
+}
+
+function normalizeField(value = "") {
+  return value.replaceAll("`", "").trim().toLowerCase();
+}
+
+function parseTrailEntries(content) {
+  const entries = [];
+  let current;
+  for (const line of sectionLines(content, "## Entries")) {
+    if (line.startsWith("###")) {
+      const heading = line.match(/^### T(\d+)\b/);
+      current = heading
+        ? { id: Number(heading[1]), malformed: false, heading: line.trim(), fields: {} }
+        : { id: null, malformed: true, heading: line.trim(), fields: {} };
+      entries.push(current);
+      continue;
+    }
+    const field = current && line.match(/^- (Date|Change|Why|Origin|Area|Applies):\s*(.*)$/);
+    if (field) current.fields[field[1].toLowerCase()] = field[2].trim();
+  }
+  return entries;
+}
+
+function readCaptureCursor(content) {
+  const match = stripComments(content).match(/^Captured through:\s*(?:`?T(\d+)`?|`?none`?)\s*$/im);
+  if (!match) throw new Error(`${humanInboxPath} has no "Captured through: T<n>" or "Captured through: none" line.`);
+  return match[1] ? Number(match[1]) : 0;
+}
+
+function countInboxDrafts(content) {
+  const counts = { pending: 0, deferred: 0 };
+  for (const line of sectionLines(content, "## Drafts")) {
+    const status = line.match(/^\s*- Status:\s*`?(pending|deferred)\b`?/i);
+    if (status) counts[status[1].toLowerCase()] += 1;
+  }
+  return counts;
+}
+
+function sectionLines(content, heading) {
+  const lines = stripComments(content).split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === heading);
+  if (start === -1) return [];
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((line) => line.startsWith("## "));
+  return end === -1 ? rest : rest.slice(0, end);
+}
+
+function stripComments(content) {
+  return content.replace(/<!--[\s\S]*?-->/g, "");
 }
 
 function countLines(content) {
@@ -661,7 +1058,7 @@ function printUpdateSummary(target, options, results) {
   printCount("Created", results.created);
   printCount("Preserved project state", results.preserved);
   if (results.missingSource.length > 0) printCount("Missing in package (skipped)", results.missingSource);
-  console.log("\nProject-authored planning, context, design, task queues, handoff entries, lesson state, archive entries, and Human workspace content were left untouched.");
+  console.log("\nProject-authored planning, context, design, task queues, handoff entries, lesson state, decision trail, human inbox, archive entries, and Human workspace content were left untouched.");
   console.log("Stable scaffold methods, templates, README files, and Human/onboarding.md were refreshed.");
   console.log("Run `hai-harness init --force` only when you intentionally want to overwrite everything.");
 }

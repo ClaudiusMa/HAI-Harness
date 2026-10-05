@@ -26,7 +26,7 @@ The collaboration harness is built on one simple idea: humans and AI don’t nee
 
 The foundational architecture for durable memory, context control, planning, and task routing is in place.
 
-- `Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents don't read this unless explicitly instructed.
+- `Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents keep it current for you and change it only with your approval; they don't read it unless explicitly instructed.
 - `Agents/`: The operating layer for current product truth, planning, task contracts, design contracts, handoffs, lessons, and archived history.
 - When the user names no role, the session is Claudia; follow the Claudia required read order in `Agents/onboarding.md`.
 - Claudia plans and orchestrates without editing product code. Augustus and Julius execute planner-assigned queues.
@@ -124,7 +124,7 @@ npx github:ClaudiusMa/HAI-Harness update
 
 `update` refreshes stable method files and generic infrastructure: the root entry point, onboarding and role methods, task/handoff/lesson/archive templates and README files, reusable skills, and `Human/onboarding.md`. It creates a missing lesson index or generated worker task file but never replaces populated project state.
 
-Project-authored planning, context, design, worker queues, handoff entries, lesson index/content, archive entries, and Human workspace content remain untouched. Preview the refresh with `--dry-run`; reserve `init --force` for an intentional full reset.
+Project-authored planning, context, design, worker queues, handoff entries, lesson index/content, legacy decision trail and inbox entries, archive entries, and Human workspace content remain untouched. Preview the refresh with `--dry-run`; reserve `init --force` for an intentional full reset.
 
 ### Update Beacon
 
@@ -156,6 +156,33 @@ npx github:ClaudiusMa/HAI-Harness worktree approve --approved "Complete my task"
 ```
 
 Create runs from the primary checkout against one clean, checked-out, named non-`main`/non-`master` integration branch and creates `task/<task-slug>`. Approval runs from the task lane, preserves Git hooks, commits and merges locally without adding provider attribution, and performs no push, PR, deployment, or publication.
+
+### Keeping Human/ current
+
+Agents keep Human records current through [human-scribe](Agents/skills/human-scribe/SKILL.md), and you approve every batch. Provisional why-entries and pending/deferred drafts live outside Agents and product files in task-owned Git common metadata. The packet identity binds the canonical task branch, base, integration and physical harness scope. Root and `--target .hai` are separate scopes; there is no global inbox fallback.
+
+In a recognized task lane, explicitly adopt the scope once:
+
+```sh
+npx github:ClaudiusMa/HAI-Harness human-sync init --target .
+npx github:ClaudiusMa/HAI-Harness human-sync status --target .
+npx github:ClaudiusMa/HAI-Harness human-sync --target .
+```
+
+Use `init --migrate` instead when both legacy Agents trail/inbox files exist. It verifies exact copies, saves a supersession receipt, then retires the sources; partial or populated storage is never blindly overwritten. Initialization adopts the current state as baseline and cannot reconstruct earlier history. `status` returns the physical packet directory, identity, HEAD and snapshot. Append trace entries and drafts only there, serialized with the task lane writer.
+
+Default capture is offline, deterministic and read-only: no model or network call occurs in the CLI. It filters entries after the inbox cursor, preserving malformed-item review and duplicate suppression. The skill drafts user decisions and agent assumptions, and Claudia presents pending and deferred items in one batch. An assigned writer deduplicates and applies only approved Human items in the verified isolated candidate with accepted changes before integration. Approved README drafts go to a worker lane. Unreviewed and deferred choices remain provisional.
+
+`doctor` warns about waiting drafts and dirty or committed traced-path drift. After appending a valid new trace entry naming every changed traced path, use the exact observations from `status`:
+
+```sh
+npx github:ClaudiusMa/HAI-Harness human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
+npx github:ClaudiusMa/HAI-Harness human-sync checkpoint --output /private/checkpoints/task.json --target .
+```
+
+Replace the placeholders and use the actual new trace ID. Acknowledgment does not approve Human drafts; committing an acknowledged dirty change requires another trace and acknowledgment. The checkpoint parent must exist and its new file must be outside every registered repository worktree. Packets remain in Git common metadata after lane cleanup, but Git push/fetch never transfers them. Transfer the checkpoint explicitly for cross-machine recovery and reconcile the original identity; import automation is not implemented. Retain the lane and packet for unfinished work and record the physical packet/checkpoint in its handoff.
+
+Task creation still requires a clean named non-main integration branch. Automatic session attachment, submit freezing, full lifecycle/host write enforcement, generation fencing and distributed coordination remain pending.
 
 ### Prompt-hygiene diagnostics
 
@@ -201,9 +228,9 @@ A passive markdown file loses value when it becomes stale. This workflow combine
 
 When you sit down to work, follow this loop:
 
-1. **Draft the Intent:** Use `Human/brief.md`, `decisions.md`, and open questions to capture the human side of the project. Agents read `Human/` only when explicitly authorized.
+1. **Draft the Intent:** `Human/brief.md`, `decisions.md`, and open questions capture the human side of the project. Agents keep them current with your approval and read `Human/` only when explicitly authorized.
 2. **Plan With Claudia:** Claudia acts as the root controller, clarifies the request, maintains Current Product Truth, and records strategy in `Agents/planning.md`.
-3. **Log Durable Decisions:** After user confirmation, the **`decision-logger`** records only decisions that should matter to a fresh session weeks later.
+3. **Approve Human Updates:** Agents trace why they changed agent docs. At closeout, **`human-scribe`** shows the drafted decisions and open questions in one batch, and writes only what you approve.
 4. **Define Durable Context:** Keep architecture, boundaries, and non-negotiable rules in `Agents/project_context.md`; keep iteration state out of it.
 5. **Audit Alignment When Needed:** The read-only **`guardian`** compares authorized `Human/` intent with the agent operating layer and reports mismatches without resolving them.
 6. **Design When Needed:** Hephaestus creates a non-code contract under `Agents/designs/`; Claudia then assigns implementation. Athena can independently review enterprise design quality.

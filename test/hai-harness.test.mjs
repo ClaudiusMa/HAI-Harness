@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const installedVersion = JSON.parse(await fs.readFile(path.join(projectRoot, "package.json"), "utf8")).version;
 const cli = path.join(projectRoot, "bin/hai-harness.mjs");
 const checker = path.join(projectRoot, "Agents/check-for-update.mjs");
 
@@ -137,7 +138,7 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.equal(await fs.stat(path.join(target, "CLAUDE.md")).catch(() => null), null);
   const receipt = JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8"));
   assert.equal(receipt.schemaVersion, 1);
-  assert.equal(receipt.installedVersion, "0.2.0");
+  assert.equal(receipt.installedVersion, installedVersion);
   assert.equal(receipt.channel, "stable");
   assert.equal(receipt.checkEnabled, true);
   assert.deepEqual((await fs.readdir(path.join(projectRoot, "Agents/tasks"))).sort(), ["TEMPLATE.md"]);
@@ -209,6 +210,219 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(polluted.stdout, /handoffs\/ or Agents\/_archive\//);
 });
 
+function trailEntry(id, origin, area, change = `change ${id}`) {
+  return `### T${id}\n- Date: 2026-09-30\n- Change: ${change}\n- Why: reason ${id}\n- Origin: ${origin}\n- Area: ${area}\n`;
+}
+
+async function makePacketFixture(t, scope = "") {
+  const { repo } = await makeGitFixture(t);
+  const target = path.join(repo, scope);
+  await fs.mkdir(target, { recursive: true });
+  assert.equal(harness(target, "init", "--target", target).status, 0);
+  assert.equal(beacon(target, "--disable").status, 0);
+  git(repo, "add", "-A");
+  git(repo, "commit", "-m", "Install harness");
+  assert.equal(harness(repo, "worktree", "create", "capture", "--target", repo).status, 0);
+  const lane = `${repo}-worktrees/capture`;
+  t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
+  const root = path.join(lane, scope);
+  assert.equal(harness(root, "human-sync", "init", "--target", root).status, 0);
+  const status = harness(root, "human-sync", "status", "--target", root);
+  assert.equal(status.status, 0, status.stderr);
+  return { repo, lane, root, packet: JSON.parse(status.stdout).packet };
+}
+
+async function appendTrail(packet, entries) {
+  await fs.appendFile(path.join(packet, "decision-trail.md"), `\n${entries.join("\n")}`);
+}
+
+async function setCaptureCursor(packet, cursor) {
+  const file = path.join(packet, "human-inbox.md");
+  const inbox = await fs.readFile(file, "utf8");
+  await fs.writeFile(file, inbox.replace(/^Captured through: .*$/m, `Captured through: ${cursor}`));
+}
+
+function observed(root) {
+  const result = harness(root, "human-sync", "status", "--target", root);
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout);
+}
+
+function acknowledge(root, through, state = observed(root)) {
+  return harness(root, "human-sync", "acknowledge", "--target", root, "--through", through, "--head", state.head, "--snapshot", state.snapshot);
+}
+
+test("human-sync task packet filters, cursor, malformed review and approved suppression remain read-only", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  assert.match(harness(root, "human-sync", "--target", root).stdout, /no new trail entries since the trail began/);
+  await appendTrail(packet, [trailEntry(1, "agent", "code"), trailEntry(2, "agent", "`code`")]);
+  const code = harness(root, "human-sync", "--target", root);
+  assert.equal(code.status, 0, code.stderr);
+  assert.match(code.stdout, /nothing to capture/);
+  assert.match(code.stdout, /Captured through: T2/);
+  await setCaptureCursor(packet, "T2");
+  await appendTrail(packet, [trailEntry(3, "user", "code"), trailEntry(4, "agent", "design"), trailEntry(5, "agent", "process"), trailEntry(6, "agent", "code"), trailEntry(7, "someone", "product"), `${trailEntry(8, "user", "product")}- Applies: approved draft\n`, "### malformed heading\n"]);
+  const files = ["decision-trail.md", "human-inbox.md", "packet.json"];
+  const before = await Promise.all(files.map((name) => fs.readFile(path.join(packet, name), "utf8")));
+  const kept = harness(root, "human-sync", "--target", root);
+  assert.equal(kept.status, 0, kept.stderr);
+  assert.match(kept.stdout, /5 of 7 new trail entries/);
+  assert.match(kept.stdout, /^T3 · decision/m);
+  assert.match(kept.stdout, /^T4 · open question/m);
+  assert.match(kept.stdout, /^T7 · review/m);
+  assert.match(kept.stdout, /^malformed heading · review/m);
+  assert.doesNotMatch(kept.stdout, /^T6 ·|^T8 ·/m);
+  assert.deepEqual(await Promise.all(files.map((name) => fs.readFile(path.join(packet, name), "utf8"))), before);
+  await setCaptureCursor(packet, "`none`");
+  assert.equal(harness(root, "human-sync", "--target", root).status, 0);
+  await setCaptureCursor(packet, "T8");
+  assert.doesNotMatch(harness(root, "human-sync", "--target", root).stdout, /^T[1-8] ·/m);
+});
+
+test("human-sync refuses shared, detached, missing and invalid packets and isolates resumed tasks", async (t) => {
+  const { repo, root, packet } = await makePacketFixture(t);
+  assert.notEqual(harness(repo, "human-sync", "--target", repo).status, 0);
+  await appendTrail(packet, [trailEntry(1, "user", "product", "only task one")]);
+  assert.equal(harness(repo, "worktree", "create", "other", "--target", repo).status, 0);
+  const other = `${repo}-worktrees/other`;
+  assert.match(harness(other, "human-sync", "--target", other).stderr, /Missing task packet/);
+  assert.equal(harness(other, "human-sync", "init", "--target", other).status, 0);
+  assert.doesNotMatch(harness(other, "human-sync", "--target", other).stdout, /only task one/);
+  assert.match(harness(root, "human-sync", "--target", root).stdout, /only task one/);
+  assert.equal(observed(root).packet, packet);
+  git(other, "checkout", "--detach");
+  assert.notEqual(harness(other, "human-sync", "--target", other).status, 0);
+  const metadata = path.join(packet, "packet.json");
+  const content = JSON.parse(await fs.readFile(metadata, "utf8"));
+  content.identity.base = "bad";
+  await fs.writeFile(metadata, JSON.stringify(content));
+  assert.match(harness(root, "human-sync", "--target", root).stderr, /Invalid task packet/);
+});
+
+test("human-sync rejects physical packet file and namespace redirects", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  const trail = path.join(packet, "decision-trail.md");
+  const saved = `${trail}.saved`;
+  await fs.rename(trail, saved);
+  await fs.symlink(saved, trail);
+  assert.match(harness(root, "human-sync", "--target", root).stderr, /never a symlink redirect/);
+  await fs.unlink(trail);
+  await fs.rename(saved, trail);
+  const moved = `${packet}.saved`;
+  await fs.rename(packet, moved);
+  await fs.symlink(moved, packet);
+  assert.match(harness(root, "human-sync", "--target", root).stderr, /never symlink redirects/);
+});
+
+test("human-sync init and update omit provisional Agents storage; explicit migration verifies and logs supersession", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  assert.equal(await fs.stat(path.join(root, "Agents/decision-trail.md")).catch(() => null), null);
+  await appendTrail(packet, [trailEntry(1, "user", "product")]);
+  const before = await fs.readFile(path.join(packet, "decision-trail.md"), "utf8");
+  assert.equal(harness(root, "update", "--target", root).status, 0);
+  assert.equal(await fs.readFile(path.join(packet, "decision-trail.md"), "utf8"), before);
+  assert.equal(await fs.stat(path.join(root, "Agents/human-inbox.md")).catch(() => null), null);
+  // Simulate a pre-packet recognized lane without discarding populated files.
+  await fs.rm(packet, { recursive: true });
+  const trail = `# Trail\n\n## Entries\n${trailEntry(1, "user", "product")}`;
+  const inbox = "Captured through: T1\n\n## Drafts\n### draft\n- Status: deferred\n";
+  await fs.writeFile(path.join(root, "Agents/decision-trail.md"), trail);
+  await fs.writeFile(path.join(root, "Agents/human-inbox.md"), inbox);
+  assert.equal(harness(root, "update", "--target", root).status, 0);
+  assert.equal(await fs.readFile(path.join(root, "Agents/decision-trail.md"), "utf8"), trail);
+  assert.match(harness(root, "human-sync", "init", "--target", root).stderr, /Legacy Agents storage/);
+  const migrated = harness(root, "human-sync", "init", "--migrate", "--target", root);
+  assert.equal(migrated.status, 0, migrated.stderr);
+  assert.equal(await fs.readFile(path.join(packet, "decision-trail.md"), "utf8"), trail);
+  assert.equal(await fs.readFile(path.join(packet, "human-inbox.md"), "utf8"), inbox);
+  const receipt = JSON.parse(await fs.readFile(path.join(packet, "packet.json"), "utf8"));
+  assert.equal(receipt.supersession.files[0].content, trail);
+  assert.equal(receipt.supersession.files[1].content, inbox);
+  assert.equal(await fs.stat(path.join(root, "Agents/decision-trail.md")).catch(() => null), null);
+  assert.match(harness(root, "doctor", "--target", root).stdout, /0 pending and 1 deferred/);
+});
+
+test("human-sync migration refuses redirected legacy parents without adopting or retiring external state", async (t) => {
+  const { repo, lane, root, packet } = await makePacketFixture(t, ".hai");
+  await fs.rm(packet, { recursive: true });
+  const agents = path.join(root, "Agents");
+  const saved = `${agents}.saved`;
+  await fs.rename(agents, saved);
+  const destinations = [
+    path.join(path.dirname(repo), "external-human-state"),
+    path.join(repo, "other-harness", "Agents"),
+    path.join(lane, "other-harness", "Agents")
+  ];
+  const contents = {
+    "decision-trail.md": `# Trail\n\n## Entries\n${trailEntry(1, "user", "product", "preserve external choice")}`,
+    "human-inbox.md": "Captured through: T1\n\n## Drafts\n### waiting\n- Status: deferred\n"
+  };
+  for (const destination of destinations) {
+    await fs.mkdir(destination, { recursive: true });
+    for (const [name, content] of Object.entries(contents)) await fs.writeFile(path.join(destination, name), content);
+    await fs.symlink(destination, agents);
+    const result = harness(root, "human-sync", "init", "--migrate", "--target", root);
+    assert.notEqual(result.status, 0, result.stdout);
+    assert.match(result.stderr, /parent symlink redirects are refused/);
+    for (const [name, content] of Object.entries(contents)) assert.equal(await fs.readFile(path.join(destination, name), "utf8"), content);
+    assert.equal(await fs.stat(packet).catch(() => null), null, "refusal must not adopt a partial packet");
+    await fs.unlink(agents);
+  }
+  await fs.rename(saved, agents);
+});
+
+test("human-sync doctor and acknowledgment bind new traces to committed and dirty snapshots", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  const inbox = path.join(packet, "human-inbox.md");
+  await fs.appendFile(inbox, "\n### draft\n  - Status: pending note\n### later\n- Status: deferred\n");
+  assert.match(harness(root, "doctor", "--target", root).stdout, /1 pending and 1 deferred/);
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
+  await fs.appendFile(path.join(root, "Agents/planning.md"), "\nDirection.\n");
+  const stale = observed(root);
+  await appendTrail(packet, [trailEntry(1, "user", "process", "Agents/planning.md direction")]);
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/planning\.md/);
+  await fs.appendFile(path.join(root, "Agents/planning.md"), "\nMore direction.\n");
+  assert.notEqual(acknowledge(root, "T1", stale).status, 0);
+  assert.equal(acknowledge(root, "T1").status, 0);
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
+  git(root, "add", "Agents/planning.md");
+  git(root, "commit", "-m", "Commit direction");
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/planning\.md/);
+  assert.notEqual(acknowledge(root, "T1").status, 0);
+  await appendTrail(packet, [trailEntry(2, "user", "process", "unrelated choice")]);
+  assert.match(acknowledge(root, "T2").stderr, /name every changed traced path/);
+  await appendTrail(packet, [trailEntry(3, "user", "process", "Agents/planning.md committed direction")]);
+  assert.equal(acknowledge(root, "T3").status, 0);
+  await fs.appendFile(path.join(root, "Agents/claudia.md"), "\nRole change.\n");
+  git(root, "commit", "-am", "Role change");
+  await fs.appendFile(path.join(packet, "decision-trail.md"), "\nUnrelated dirty trail.\n");
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/claudia\.md/);
+});
+
+test("human-sync resolves .hai traced scope, physical common metadata and retained checkpoints through cleanup", async (t) => {
+  const { repo, lane, root, packet } = await makePacketFixture(t, ".hai");
+  const common = await fs.realpath(git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"));
+  assert.ok(packet.startsWith(`${common}${path.sep}hai-harness${path.sep}`));
+  await fs.appendFile(path.join(root, "Agents/design.md"), "\nToken.\n");
+  git(lane, "commit", "-am", "Design token");
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/design\.md/);
+  await appendTrail(packet, [trailEntry(1, "user", "design", "Agents/design.md token")]);
+  assert.equal(acknowledge(root, "T1").status, 0);
+  const output = path.join(path.dirname(repo), "packet-checkpoint.json");
+  assert.equal(harness(root, "human-sync", "checkpoint", "--target", root, "--output", output).status, 0);
+  assert.notEqual(harness(root, "human-sync", "checkpoint", "--target", root, "--output", path.join(repo, "checkpoint.json")).status, 0);
+  const exported = JSON.parse(await fs.readFile(output, "utf8"));
+  assert.match(exported.files["decision-trail.md"], /token/);
+  assert.notEqual(harness(root, "human-sync", "checkpoint", "--target", root, "--output", path.join(root, "packet.json")).status, 0);
+  assert.notEqual(harness(root, "human-sync", "checkpoint", "--target", root, "--output", path.join(lane, "checkpoint.json")).status, 0);
+  await fs.appendFile(path.join(packet, "human-inbox.md"), "\n### carry forward\n- Status: deferred\n");
+  const approved = harness(lane, "worktree", "approve", "--approved", "Design token fixture", "--target", lane);
+  assert.equal(approved.status, 0, approved.stderr);
+  assert.equal(await fs.stat(lane).catch(() => null), null);
+  assert.match(await fs.readFile(path.join(packet, "human-inbox.md"), "utf8"), /carry forward/);
+  assert.equal(JSON.parse(await fs.readFile(path.join(packet, "packet.json"), "utf8")).identity.branch, "task/capture");
+});
+
 test("update beacon is weekly, private, resilient, and notifies once per release", async (t) => {
   const target = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-beacon-"));
   t.after(() => fs.rm(target, { recursive: true, force: true }));
@@ -273,7 +487,7 @@ test("update beacon is weekly, private, resilient, and notifies once per release
 
   const due = beacon(target, "--now", "2026-08-18T00:00:00.000Z", "--manifest", availableManifest);
   assert.equal(due.status, 0, due.stderr);
-  assert.match(due.stdout, /HAI-Harness 0\.3\.0 is available \(installed: 0\.2\.0\)/);
+  assert.ok(due.stdout.includes(`HAI-Harness 0.3.0 is available (installed: ${installedVersion})`));
   assert.match(due.stdout, /update --dry-run/);
   assert.match(due.stdout, /https:\/\/example\.invalid\/v0\.3\.0/);
   const notifiedState = JSON.parse(await fs.readFile(cachePath, "utf8"));
