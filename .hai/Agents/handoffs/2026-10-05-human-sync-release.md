@@ -2,7 +2,7 @@
 
 Date: 2026-10-05
 Controller: Claudia
-Status: verified; authorized commit and release in progress.
+Status: source committed and published; stable release awaits required GitHub reviews.
 
 ## Accepted scope and supersession
 
@@ -23,3 +23,9 @@ The replay exercised an already-captured draft, not novel filtering; filtering h
 ## Remaining scope
 
 Automatic session attachment, main submission queues, distributed leases, generation fencing, host write prevention and cross-host recovery remain pending. No first Human backfill batch is approved. Unrelated unpublished local role/host-root history is preserved separately and excluded from this release. No private field diagnosis is published.
+
+## Publication and clean checkout
+
+Reviewed task commit: 6bfb2152386cf13b272fdda9b46be3f70343b985. Accepted source merge: d654b7fa468d0efb9628e499b26a6eadfa9672e5, verified on origin/main. All 22 source hashes match the frozen reviewed tree. The old task worktree is removed; its private packet and recovery checkpoint survive. Primary main is clean; unrelated local history is retained on a separate branch.
+
+[Release PR #17](https://github.com/ClaudiusMa/HAI-Harness/pull/17) changes only package.json and release.json to v0.2.5. Five focused checks passed against that versioned candidate. GitHub rejected normal merge because main requires two approving reviews; none were present. Auto-merge is disabled. No administrator bypass was used. The stable tag/release remains pending reviews and PR merge; it has not been published.

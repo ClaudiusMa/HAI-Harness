@@ -12,7 +12,7 @@ Remote acts approved: 2026-09-30 — push the workflow change to origin/main. Do
 
 ## Current iteration — human-sync migration, 2026-10-05
 
-- Status: implementation, outer sync, focused tests, independent source review and two-agent handoff replay complete. Commit and release explicitly authorized; publication in progress.
+- Status: implementation, outer sync, focused tests, independent source review and two-agent handoff replay complete. Commit and release explicitly authorized. Source published; v0.2.5 release PR #17 awaits two required GitHub approvals. Auto-merge is disabled.
 - Authority: the user selected migration and retirement of superseded storage. Current task-owned storage supersedes older Agents-placement plans. Earlier dated queues below are historical; no worker should execute them without a new contract.
 - Evidence and limits: [release closeout](handoffs/2026-10-05-human-sync-release.md). Native session attachment, submission fencing and distributed coordination remain pending. No Human backfill batch is approved.
 - Traffic: all source writers released. One controller owns commit, integration and publication; unrelated local history is preserved outside the candidate.
