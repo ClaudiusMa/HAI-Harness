@@ -27,6 +27,6 @@ Each session works on its own branch from clean `main`, records decisions there,
 
 ## Leftovers
 
-- Remote branches `release/v0.2.5` and `release/v0.2.6` are merged but not deleted; deleting them needs the user's permission.
+- Remote branches `release/v0.2.5` and `release/v0.2.6` were deleted by the user after both releases published.
 - The lane's original human-sync packet (`.git/hai-harness/tasks/43882402…c06`, trail T1–T4) is kept in local Git metadata by design; its only approved draft is in `Human/decisions.md`.
 - Field remediation of existing projects stays with the user.
