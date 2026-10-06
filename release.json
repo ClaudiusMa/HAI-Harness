@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "version": "0.2.5",
-  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.5",
-  "summary": "HAI-Harness 0.2.5: Merge task/human-sync: feat: keep human-sync decisions in task-owned packets; feat: keep human-sync decisions in task-owned packets; docs: close verified human-sync migration and superseded queues; docs: record approved human-sync migration and storage supersession; docs: validate session collaboration design and project testing policy"
+  "version": "0.2.6",
+  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.6",
+  "summary": "HAI-Harness 0.2.6: Merge task/trunk-lanes: feat: task lanes merge into a clean main; feat: task lanes merge into a clean main"
 }
