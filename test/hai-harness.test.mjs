@@ -73,15 +73,8 @@ test("worktree lifecycle succeeds and unsafe requests are rejected", async (t) =
   await fs.writeFile(path.join(repo, "dirty.txt"), "dirty\n");
   const dirty = harness(repo, "worktree", "create", "dirty-reject", "--target", repo);
   assert.notEqual(dirty.status, 0);
-  assert.match(dirty.stderr, /integration worktree is dirty/i);
+  assert.match(dirty.stderr, /develop checkout has uncommitted changes[\s\S]*review and commit/i);
   await fs.unlink(path.join(repo, "dirty.txt"));
-
-  for (const protectedBranch of ["main", "master"]) {
-    git(repo, "branch", protectedBranch);
-    const protectedResult = harness(repo, "worktree", "create", `${protectedBranch}-reject`, "--integration", protectedBranch, "--target", repo);
-    assert.notEqual(protectedResult.status, 0);
-    assert.match(protectedResult.stderr, /never integrate directly/i);
-  }
 
   const pending = harness(repo, "worktree", "create", "approval-required", "--target", repo);
   assert.equal(pending.status, 0, pending.stderr);
@@ -109,6 +102,103 @@ test("worktree lifecycle succeeds and unsafe requests are rejected", async (t) =
   assert.equal((await fs.stat(legacyRoot).catch(() => null)), null);
   assert.equal(git(repo, "log", "-1", "--format=%B", "HEAD^2"), "Complete legacy fixture");
   assert.doesNotMatch(git(repo, "log", "-2", "--format=%B"), /co-authored-by|openai/i);
+});
+
+test("main lanes refresh in the lane, stop for re-test, hand conflicts back, and keep main clean", async (t) => {
+  const { repo } = await makeGitFixture(t);
+  git(repo, "branch", "-m", "develop", "main");
+  await fs.writeFile(path.join(repo, "shared.txt"), "one\ntwo\nthree\n");
+  git(repo, "add", "shared.txt");
+  git(repo, "commit", "-m", "Add shared file");
+  const commitOnMain = async (file, content, message) => {
+    await fs.writeFile(path.join(repo, file), content);
+    git(repo, "add", file);
+    git(repo, "commit", "-m", message);
+  };
+
+  // Main must be clean before a lane starts.
+  await fs.writeFile(path.join(repo, "stray.txt"), "stray\n");
+  const dirtyCreate = harness(repo, "worktree", "create", "early", "--target", repo);
+  assert.notEqual(dirtyCreate.status, 0);
+  assert.match(dirtyCreate.stderr, /main checkout has uncommitted changes[\s\S]*review and commit[\s\S]*stray\.txt/);
+  const doctorDirty = harness(repo, "doctor", "--target", repo);
+  assert.match(doctorDirty.stdout, /primary checkout \(main\) has uncommitted changes: stray\.txt/);
+  await fs.unlink(path.join(repo, "stray.txt"));
+
+  for (const slug of ["grid", "hover", "theme"]) {
+    const created = harness(repo, "worktree", "create", slug, "--target", repo);
+    assert.equal(created.status, 0, created.stderr);
+    assert.equal(git(repo, "config", "--get", `branch.task/${slug}.haiIntegrationBranch`), "main");
+  }
+  const lane = (slug) => `${repo}-worktrees/${slug}`;
+  await fs.writeFile(path.join(lane("grid"), "shared.txt"), "ONE\ntwo\nthree\n");
+  await fs.writeFile(path.join(lane("hover"), "shared.txt"), "one\ntwo\nTHREE\n");
+  await fs.writeFile(path.join(lane("theme"), "shared.txt"), "uno\ntwo\nthree\n");
+  const overview = harness(repo, "worktree", "status", "--all", "--target", repo);
+  assert.equal(overview.status, 0, overview.stderr);
+  assert.match(overview.stdout, /task\/grid\n[\s\S]*integrates:  main \(0 commit\(s\) behind\)[\s\S]*also changed by task\/hover: shared\.txt/);
+
+  // First lane fast-forwards main to a merge commit; main stays clean.
+  const grid = harness(lane("grid"), "worktree", "approve", "--approved", "Grid order", "--target", lane("grid"));
+  assert.equal(grid.status, 0, grid.stderr);
+  assert.equal(git(repo, "log", "-1", "--format=%s"), "Merge task/grid: Grid order");
+  assert.equal(git(repo, "status", "--porcelain"), "");
+  assert.equal(git(repo, "branch", "--list", "task/grid"), "");
+
+  // A lane behind main gets main merged in and stops so its test can rerun.
+  const mainBefore = git(repo, "rev-parse", "HEAD");
+  const hover = harness(lane("hover"), "worktree", "approve", "--approved", "Hover video", "--target", lane("hover"));
+  assert.notEqual(hover.status, 0);
+  assert.match(hover.stdout, /Merged the latest main into task\/hover; nothing was integrated yet[\s\S]*Re-run the quick test/);
+  assert.equal(git(repo, "rev-parse", "HEAD"), mainBefore);
+  assert.equal(await fs.readFile(path.join(lane("hover"), "shared.txt"), "utf8"), "ONE\ntwo\nTHREE\n");
+
+  // A dirty main blocks integration and keeps the lane.
+  await fs.writeFile(path.join(repo, "stray.txt"), "stray\n");
+  const blocked = harness(lane("hover"), "worktree", "approve", "--approved", "Hover video", "--target", lane("hover"));
+  assert.notEqual(blocked.status, 0);
+  assert.match(blocked.stderr, /main checkout has uncommitted changes[\s\S]*task worktree is preserved/);
+  assert.equal(git(repo, "rev-parse", "HEAD"), mainBefore);
+  await fs.unlink(path.join(repo, "stray.txt"));
+
+  const hoverAgain = harness(lane("hover"), "worktree", "approve", "--approved", "Hover video", "--target", lane("hover"));
+  assert.equal(hoverAgain.status, 0, hoverAgain.stderr);
+  assert.equal(await fs.readFile(path.join(repo, "shared.txt"), "utf8"), "ONE\ntwo\nTHREE\n");
+  assert.equal(git(repo, "rev-parse", "HEAD^1"), mainBefore);
+
+  // A real conflict changes nothing and is handed back with the file list.
+  await commitOnMain("other.txt", "unrelated\n", "Unrelated main change");
+  const mainAtConflict = git(repo, "rev-parse", "HEAD");
+  const theme = harness(lane("theme"), "worktree", "approve", "--approved", "Theme", "--target", lane("theme"));
+  assert.notEqual(theme.status, 0);
+  assert.match(theme.stderr, /latest main conflicts with this lane in: shared\.txt[\s\S]*Ask the user/);
+  assert.equal(git(repo, "rev-parse", "HEAD"), mainAtConflict);
+  assert.equal(git(lane("theme"), "status", "--porcelain"), "");
+  assert.equal(git(lane("theme"), "branch", "--show-current"), "task/theme");
+  assert.equal(git(lane("theme"), "log", "-1", "--format=%s"), "Theme");
+});
+
+test("approve survives a failing checkout hook and cleans up a lane on a secondary integration worktree", async (t) => {
+  const { repo, tempRoot } = await makeGitFixture(t);
+  git(repo, "branch", "-m", "develop", "main");
+  git(repo, "branch", "develop");
+  const developRoot = path.join(tempRoot, "develop");
+  git(repo, "worktree", "add", developRoot, "develop");
+  const hooks = path.join(tempRoot, "hooks");
+  await fs.mkdir(hooks);
+  await fs.writeFile(path.join(hooks, "post-checkout"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+
+  const created = harness(repo, "worktree", "create", "secondary", "--integration", "develop", "--target", repo);
+  assert.equal(created.status, 0, created.stderr);
+  git(repo, "config", "core.hooksPath", hooks);
+  const laneRoot = `${repo}-worktrees/secondary`;
+  await fs.writeFile(path.join(laneRoot, "result.txt"), "approved\n");
+  const approved = harness(laneRoot, "worktree", "approve", "--approved", "Secondary fixture", "--target", laneRoot);
+  assert.equal(approved.status, 0, approved.stderr);
+  assert.match(approved.stdout, /Temporary task worktree removed/);
+  assert.equal(git(developRoot, "log", "-1", "--format=%s"), "Merge task/secondary: Secondary fixture");
+  assert.equal(git(repo, "branch", "--list", "task/secondary"), "");
+  assert.equal(git(repo, "rev-parse", "main"), git(repo, "rev-parse", "develop^1"));
 });
 
 test("init, update, and doctor preserve state and flag polluted startup context", async (t) => {

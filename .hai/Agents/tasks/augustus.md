@@ -4,4 +4,4 @@ Updated 2026-10-05 by Claudia.
 
 ## Assigned Queue
 
-None. Human-sync implementation and independent review are complete. See [release closeout](../handoffs/2026-10-05-human-sync-release.md). Older release and lean-harness assignments are historical and are not executable queues. New work requires a current scoped contract.
+- Status: idle. The registry/lock trunk-lanes implementation was superseded by the user's simpler model and replaced in the same lane by the controller session. See [controller handoff](../handoffs/2026-10-05-trunk-lanes-controller.md).

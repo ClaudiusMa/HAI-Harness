@@ -165,3 +165,9 @@ Archive or reset this file before changing the version header convention.
 - Why: The user wants the current collaboration and decision-storage choices to replace conflicting older work without leaving unfinished code.
 - Tradeoffs: Keep the existing capture, batch approval and writer behavior; preserve recoverable old work, and do not publish unrelated historical changes or unreviewed Human backfill drafts.
 - Follow-up: Complete the scoped migration, test and review it, integrate the accepted change and confirmed rationale, then verify the released version and clean local state.
+
+- Date: 2026-10-05
+- Decision: Every agent session works on its own task branch created from a clean `main`, records its decisions there, and merges into `main` through `worktree approve`. Approve first brings the latest `main` into the branch: if that changes anything, the session re-runs its quick test; if it conflicts, the session asks the user, except that shared notes keep both sides. `main` must always be clean; uncommitted edits there go to the user to review and commit first.
+- Why: Three sessions on one project each invented private integration branches and hand-merged into `main`. The user rejected a registry-and-lock redesign as over-engineered and asked for the simplest model that still handles these cases.
+- Tradeoffs: No registry, locks or path claims; overlapping work is caught at merge time instead. Refines the earlier 2026-10-05 merge-queue decision: scope coordination happens at merge time, not through a registry.
+- Follow-up: Release the change; remediation of existing field projects stays with the user.

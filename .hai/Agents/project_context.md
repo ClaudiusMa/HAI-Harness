@@ -67,7 +67,7 @@ An inner product change is incomplete until the same iteration performs all of t
 
 ## Current product capabilities and rules
 
-- Native CLI task lanes create sibling `task/<task-slug>` worktrees from a clean, named, checked-out non-main integration branch and store provider-neutral branch metadata.
+- Native CLI task lanes create sibling `task/<task-slug>` worktrees from the clean primary checkout's branch (normally `main`) and store provider-neutral branch metadata. Approve merges the latest integration tip into the lane first and then fast-forwards it; a dirty primary blocks create and approve.
 - Task-lane approval preserves compatibility for lanes created under the retired naming convention, but all new lanes use the neutral convention and commits receive no forced provider attribution.
 - Local commit/merge requires explicit approval and preserves Git hooks; push, PR, deploy, and publication remain separate acts.
 - `traffic-control` reconciles overlapping controllers, writers, generated outputs, mutable verification, and outward targets.
