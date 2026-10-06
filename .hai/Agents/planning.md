@@ -2,7 +2,7 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-05 — trunk lanes approved for merge and release
+Last updated: 2026-10-06 — trunk lanes released as v0.2.6
 Last updated by: Claudia
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
@@ -11,7 +11,7 @@ Remote acts approved: 2026-10-05 — push `main` so the release workflow opens t
 
 ## Current iteration — trunk lanes, 2026-10-05
 
-- Status: simplified implementation complete and uncommitted in `task/trunk-lanes`. Independent review (Julius, fast model): two confirmed findings fixed — a failing checkout hook could leave the lane detached, and `branch -d` ran against the wrong checkout for a secondary integration worktree; regression test added. Advisory: human-sync drift after a refresh merge is documented in human-scribe. Controller handoff: [2026-10-05-trunk-lanes-controller](handoffs/2026-10-05-trunk-lanes-controller.md).
+- Status: **released**. Merged to `main` as `7911a03` through the new `worktree approve` (lane repointed to `main`; no re-test stop because `main` had not moved). Release PR #18 merged by the user; stable `v0.2.6` published 2026-10-06. Lane and private `codex/trunk-lanes` branch removed; this closeout ran in its own lane. Independent review (Julius, fast model): two confirmed findings fixed — a failing checkout hook could leave the lane detached, and `branch -d` ran against the wrong checkout for a secondary integration worktree; regression test added. Advisory: human-sync drift after a refresh merge is documented in human-scribe. Controller handoff: [2026-10-05-trunk-lanes-controller](handoffs/2026-10-05-trunk-lanes-controller.md).
 - Field diagnosis (portfolio, three peer Claudias): the ban on integrating into `main` made every Claudia invent a private `codex/<task>-integration` branch and hand-merge into `main` unchecked; planner files were edited directly in the `main` checkout.
 - Delivered: `create` branches from the primary's checked-out branch, including `main`; `approve` merges the latest `main` into the lane first (stops for re-test, or aborts and lists files on conflict), then fast-forwards `main` to a hook-checked merge commit built in the lane; dirty primary blocks both; read-only `status --all`; doctor warns on a dirty primary. Instructions updated in scaffold, onboarding, Claudia, traffic-control, human-scribe, README and CONTRIBUTING.
 - Superseded and removed before commit: Augustus's lane registry, path claims, `--sequence-after`, lock file, temporary candidate worktree, `trunk` config key and `worktree refresh` (backup patch kept outside the repo).

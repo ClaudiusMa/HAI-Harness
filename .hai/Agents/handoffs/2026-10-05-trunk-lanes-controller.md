@@ -2,7 +2,7 @@
 
 Date: 2026-10-05
 From: Claudia (session that simplified the trunk-lanes fix with the user)
-Status: approved by the user for merge into `main` and release; integrated through `worktree approve`.
+Status: complete. Merged to `main` (`7911a03`) through `worktree approve`; stable `v0.2.6` published 2026-10-06 after the user merged release PR #18.
 
 ## Lane
 
@@ -25,8 +25,8 @@ Each session works on its own branch from clean `main`, records decisions there,
 - Tests: `node --test test/hai-harness.test.mjs` 17/17, including a grid/hover/theme replay of the field incident. `git diff --check` clean. `./hai-meta sync` done.
 - Instructions updated; outer planning, project context and task files updated. Augustus's superseded design is backed up as a patch outside the repo; its handoff is marked superseded.
 
-## Not done
+## Leftovers
 
-1. Repoint `branch.task/trunk-lanes.haiIntegrationBranch` to `main`, carry the packet over, and ask the user to approve `worktree approve` into `main`.
-2. human-scribe closeout: present the T4 draft; write `Human/decisions.md` only after approval, inside the lane before approve.
-3. Delete `codex/trunk-lanes` after a successful approve. Push/release need new authorization.
+- Remote branches `release/v0.2.5` and `release/v0.2.6` are merged but not deleted; deleting them needs the user's permission.
+- The lane's original human-sync packet (`.git/hai-harness/tasks/43882402…c06`, trail T1–T4) is kept in local Git metadata by design; its only approved draft is in `Human/decisions.md`.
+- Field remediation of existing projects stays with the user.
