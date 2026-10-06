@@ -30,19 +30,17 @@ are reusable product templates. The checked-in [`.hai/` installation](.hai/READM
 holds this project's live context. Begin agent work through the repository root
 [`AGENTS.md`](AGENTS.md), then follow outer onboarding and the assigned task.
 
-For a clean fresh clone checked out on `main`, create and check out a local
-integration branch before the first task lane:
+From a clean checkout on `main`, create a task lane:
 
 ```sh
-git switch -c local-integration
-node bin/hai-harness.mjs worktree create my-task --integration local-integration
+node bin/hai-harness.mjs worktree create my-task
 ```
 
 Use the worktree path printed by the CLI for implementation. In an existing checkout,
-follow the current plan and preserve its integration branch and any ongoing work.
+follow the current plan and preserve any ongoing lanes.
 
-1. Start an isolated native task lane from the clean local integration branch as
-   directed by outer onboarding. Keep implementation in the assigned product files.
+1. Start an isolated native task lane from clean `main` as directed by outer
+   onboarding. Keep implementation in the assigned product files.
 2. Improve the reusable source first. Do not copy project records back into templates.
 3. Run focused checks (`npm test` for CLI or helper changes), then from the repository root:
 

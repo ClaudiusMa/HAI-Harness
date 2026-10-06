@@ -35,7 +35,7 @@ Provisional choices live in a registered task packet outside Agents and product 
 
 ## Operating rules (summary)
 
-- Start implementation changes in an isolated native Git task lane with `hai-harness worktree create <task-slug> --integration <branch>`. Run it from the primary checkout against one clean, checked-out, named non-`main`/non-`master` local integration branch.
+- Every session works in its own native Git task lane: run `hai-harness worktree create <task-slug>` from the primary checkout, which branches from whatever it has checked out (normally `main`). Code, plans, handoffs, and decision notes are all committed in the lane, never in the primary checkout. The primary checkout stays clean; if it has uncommitted changes, stop and have the user review and commit them. Integrate only through `hai-harness worktree approve`; never hand-merge or create a private integration branch.
 - Run the project's own preview or dev command from the task worktree and review that exact lane. The harness does not assume an application stack, route, or port.
 - Local commit and merge require `hai-harness worktree approve --approved "<message>"` from the unchanged approved task worktree. The command preserves hooks and performs no push, PR, deployment, or publication.
 - The repo is the durable source of truth. A user's live direction governs the current session; confirmed durable decisions must be reflected back into the repo.

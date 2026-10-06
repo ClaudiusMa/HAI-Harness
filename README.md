@@ -155,7 +155,7 @@ npx github:ClaudiusMa/HAI-Harness worktree status
 npx github:ClaudiusMa/HAI-Harness worktree approve --approved "Complete my task"
 ```
 
-Create runs from the primary checkout against one clean, checked-out, named non-`main`/non-`master` integration branch and creates `task/<task-slug>`. Approval runs from the task lane, preserves Git hooks, commits and merges locally without adding provider attribution, and performs no push, PR, deployment, or publication.
+Create runs from the clean primary checkout and creates `task/<task-slug>` from the branch it has checked out, normally `main`. `worktree status --all` lists lanes and the files they share. Approval runs from the task lane and preserves Git hooks. It first merges the latest `main` into the lane. If that brought changes, it stops so you can re-test. If it conflicts, it changes nothing and lists the files. Otherwise it fast-forwards `main` to a local merge commit. A dirty primary checkout blocks both create and approve. No push, PR, deployment, or publication is performed.
 
 ### Keeping Human/ current
 
@@ -182,7 +182,7 @@ npx github:ClaudiusMa/HAI-Harness human-sync checkpoint --output /private/checkp
 
 Replace the placeholders and use the actual new trace ID. Acknowledgment does not approve Human drafts; committing an acknowledged dirty change requires another trace and acknowledgment. The checkpoint parent must exist and its new file must be outside every registered repository worktree. Packets remain in Git common metadata after lane cleanup, but Git push/fetch never transfers them. Transfer the checkpoint explicitly for cross-machine recovery and reconcile the original identity; import automation is not implemented. Retain the lane and packet for unfinished work and record the physical packet/checkpoint in its handoff.
 
-Task creation still requires a clean named non-main integration branch. Automatic session attachment, submit freezing, full lifecycle/host write enforcement, generation fencing and distributed coordination remain pending.
+Automatic session attachment, submit freezing, full lifecycle/host write enforcement, generation fencing and distributed coordination remain pending.
 
 ### Prompt-hygiene diagnostics
 
@@ -235,7 +235,7 @@ When you sit down to work, follow this loop:
 5. **Audit Alignment When Needed:** The read-only **`guardian`** compares authorized `Human/` intent with the agent operating layer and reports mismatches without resolving them.
 6. **Design When Needed:** Hephaestus creates a non-code contract under `Agents/designs/`; Claudia then assigns implementation. Athena can independently review enterprise design quality.
 7. **Assign the Queue:** Claudia records dependencies, write scopes, approvals, stop conditions, verification, capability profile, and effort in `Agents/planning.md` and the Augustus/Julius task files. Parallel work is allowed only when the Parallel Split Gate passes.
-8. **Isolate and Execute:** Claudia spawns a fresh role-isolated child worker and creates a native task worktree from the clean named integration branch. Run implementation and the project's own preview/dev command in that exact lane.
+8. **Isolate and Execute:** Claudia spawns a fresh role-isolated child worker and creates a native task worktree from the clean primary checkout. Run implementation and the project's own preview/dev command in that exact lane.
 9. **Control Traffic:** When controllers, child workers, or mutable scopes may overlap, use **`traffic-control`** to return `CLEAR`, `SEQUENCE`, `TRANSFER_REQUIRED`, or `BLOCKED` before adding motion. Use Fast Resume only for the same settled controller/child/worktree lane without scope growth or drift.
 10. **Evaluate and Approve:** Athena or Hephaestus can issue design-review handoffs. After focused checks and review, explicit `worktree approve` commits and merges locally; remote acts remain separate.
 11. **Learn and Archive:** Claudia uses **`lesson-logger`** only for confirmed preventable failures, routing them to checks, Standing Gates, or capped conditional lessons. Move superseded task/handoff history under `Agents/_archive/`.

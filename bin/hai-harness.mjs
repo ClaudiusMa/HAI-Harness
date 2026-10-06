@@ -108,7 +108,7 @@ Usage:
     acknowledge --through T<n> --head <HEAD> --snapshot <digest>
     checkpoint --output <file>
   hai-harness worktree create   <task-slug> [--integration <branch>] [--target <dir>]
-  hai-harness worktree status   [--target <dir>]
+  hai-harness worktree status   [--all] [--target <dir>]
   hai-harness worktree approve  --approved <message> [--target <dir>]
   hai-harness help
 
@@ -125,7 +125,10 @@ Options:
   --target <dir>       Project or worktree directory. Defaults to the current directory.
   --force              (init only) Overwrite existing harness files.
   --dry-run            (init/update only) Show what would change without writing files.
-  --integration <name> (worktree create only) Named local integration branch.
+  --integration <name> (worktree create only) Local branch to integrate into. Defaults to the
+                       branch checked out in the primary checkout, including main.
+  --all                (worktree status only) List every task lane, how far behind it is,
+                       and which changed files it shares with other lanes.
   --approved <message> (worktree approve only) Explicit approval and commit message.
 `;
 
@@ -175,6 +178,7 @@ function parseOptions(args, allowed) {
     target: process.cwd(),
     force: false,
     dryRun: false,
+    all: false,
     integration: undefined,
     approved: undefined,
     positional: []
@@ -191,9 +195,9 @@ function parseOptions(args, allowed) {
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (arg === "--force" || arg === "--dry-run" || arg === "--migrate") {
+    if (arg === "--force" || arg === "--dry-run" || arg === "--migrate" || arg === "--all") {
       if (!allowed.has(arg)) throw new Error(`Unknown option "${arg}".`);
-      options[arg === "--force" ? "force" : arg === "--migrate" ? "migrate" : "dryRun"] = true;
+      options[{ "--force": "force", "--migrate": "migrate", "--all": "all" }[arg] || "dryRun"] = true;
       continue;
     }
     if (valueOptions.has(arg)) {
@@ -368,7 +372,7 @@ async function doctor(options) {
       if (stdout.trim()) updateStatus = stdout.trim();
     } catch {}
   }
-  const warnings = await humanSyncWarnings(options.target);
+  const warnings = [...await humanSyncWarnings(options.target), ...await primaryCheckoutWarnings(options.target)];
   if (missing.length === 0 && oversized.length === 0) {
     console.log(`HAI-Harness looks installed in ${options.target}`);
     if (warnings.length > 0) {
@@ -603,6 +607,17 @@ async function humanSyncCommand(args) {
 }
 
 // Advisory only. Non-task projects retain normal installation doctor behavior.
+// The primary checkout is the integration target, so uncommitted edits there block lanes.
+async function primaryCheckoutWarnings(target) {
+  const root = await gitOptional(target, ["rev-parse", "--show-toplevel"]);
+  if (!root) return [];
+  const primary = (await listWorktrees(root).catch(() => []))[0];
+  if (!primary || !samePath(root, primary.root) || !primary.branch) return [];
+  const dirty = await dirtyPaths(root);
+  if (dirty.length === 0) return [];
+  return [`The primary checkout (${primary.branch}) has uncommitted changes: ${dirty.slice(0, 5).join(", ")}${dirty.length > 5 ? ", ..." : ""}. Have the user review and commit them; worktree create and approve refuse until it is clean.`];
+}
+
 async function humanSyncWarnings(target) {
   const warnings = [];
   const branch = await gitOptional(target, ["branch", "--show-current"]);
@@ -762,9 +777,9 @@ async function worktree(args) {
     return;
   }
   if (action === "status") {
-    const options = parseOptions(rest, new Set(["--target"]));
+    const options = parseOptions(rest, new Set(["--target", "--all"]));
     if (options.positional.length !== 0) throw new Error("worktree status accepts no positional arguments.");
-    await worktreeStatus(options);
+    await (options.all ? worktreeStatusAll(options) : worktreeStatus(options));
     return;
   }
   if (action === "approve") {
@@ -776,6 +791,8 @@ async function worktree(args) {
   }
   throw new Error("worktree requires create, status, or approve.");
 }
+
+const dirtyIntegrationMessage = "has uncommitted changes. It must stay clean: have the user review and commit them first.";
 
 async function createWorktree(options, slug) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
@@ -801,7 +818,7 @@ async function createWorktree(options, slug) {
   if ((await git(integrationRoot, ["branch", "--show-current"])) !== integrationBranch) {
     throw new Error("Integration worktree branch changed during inspection.");
   }
-  await assertClean(integrationRoot, "The integration worktree is dirty. Finish or commit its current work first.");
+  await assertClean(integrationRoot, `The ${integrationBranch} checkout ${dirtyIntegrationMessage}`);
 
   const taskBranch = `${taskBranchPrefix}${slug}`;
   if (await localBranchExists(controlRoot, taskBranch)) throw new Error(`Task branch already exists: ${taskBranch}`);
@@ -851,6 +868,50 @@ async function worktreeStatus(options) {
   }
 }
 
+// Read-only lane overview built from Git alone: no registry to drift from reality.
+async function worktreeStatusAll(options) {
+  const currentRoot = await git(options.target, ["rev-parse", "--show-toplevel"]);
+  const worktrees = await listWorktrees(currentRoot);
+  const controlRoot = worktrees[0]?.root;
+  const lanes = [];
+  for (const item of worktrees.slice(1)) {
+    const keys = metadataKeysForBranch(item.branch);
+    if (!keys) continue;
+    const integration = await gitOptional(controlRoot, ["config", "--get", `branch.${item.branch}.${keys.integration}`]);
+    const tip = integration ? await gitOptional(controlRoot, ["rev-parse", "--verify", `refs/heads/${integration}`]) : "";
+    const forkPoint = tip ? await gitOptional(controlRoot, ["merge-base", tip, item.branch]) : "";
+    const committed = forkPoint ? (await git(controlRoot, ["diff", "--name-only", forkPoint, item.branch])).split("\n") : [];
+    const files = [...new Set([...committed, ...await dirtyPaths(item.root)].filter(Boolean))].sort();
+    const behind = forkPoint ? await git(controlRoot, ["rev-list", "--count", `${item.branch}..${tip}`]) : "unknown";
+    lanes.push({ ...item, integration, behind, files });
+  }
+  if (lanes.length === 0) {
+    console.log("No task lanes.");
+    return;
+  }
+  for (const lane of lanes) {
+    const shared = lanes
+      .filter((other) => other !== lane)
+      .map((other) => ({ branch: other.branch, files: lane.files.filter((file) => other.files.includes(file)) }))
+      .filter((other) => other.files.length > 0);
+    console.log(lane.branch);
+    console.log(`  worktree:    ${lane.root}`);
+    console.log(`  integrates:  ${lane.integration || "missing"} (${lane.behind} commit(s) behind)`);
+    console.log(`  changed:     ${lane.files.length ? lane.files.join(", ") : "nothing yet"}`);
+    for (const other of shared) console.log(`  also changed by ${other.branch}: ${other.files.join(", ")}`);
+  }
+}
+
+async function dirtyPaths(root) {
+  const tracked = await gitOptional(root, ["diff", "--name-only", "HEAD"]);
+  const untracked = await gitOptional(root, ["ls-files", "--others", "--exclude-standard"]);
+  return [...new Set(`${tracked}\n${untracked}`.split("\n").filter(Boolean))].sort();
+}
+
+// Approval brings the latest integration branch into the lane first, so the lane
+// is where conflicts surface and where the combined result gets tested. The
+// integration branch only ever fast-forwards to a merge commit built on its
+// current tip; if it moves meanwhile, Git refuses and nothing lands.
 async function approveWorktree(options) {
   const taskRoot = await git(options.target, ["rev-parse", "--show-toplevel"]);
   const worktrees = await listWorktrees(taskRoot);
@@ -869,7 +930,8 @@ async function approveWorktree(options) {
   if (integrationMatches.length !== 1) throw new Error(`The integration branch must have exactly one checked-out worktree: ${integrationBranch}`);
   const integrationRoot = integrationMatches[0].root;
   if ((await git(integrationRoot, ["branch", "--show-current"])) !== integrationBranch) throw new Error("Integration worktree branch changed.");
-  await assertClean(integrationRoot, "The integration worktree is dirty. The task worktree is preserved.");
+  const dirtyIntegration = `The ${integrationBranch} checkout ${dirtyIntegrationMessage} The task worktree is preserved.`;
+  await assertClean(integrationRoot, dirtyIntegration);
 
   await git(taskRoot, ["diff", "--check"], { inherit: true });
   await git(taskRoot, ["diff", "--cached", "--check"], { inherit: true });
@@ -891,25 +953,62 @@ async function approveWorktree(options) {
   if (await gitExitZero(integrationRoot, ["merge-base", "--is-ancestor", taskCommit, "HEAD"])) {
     throw new Error("There is no unintegrated task commit to merge.");
   }
-  await assertClean(integrationRoot, "The integration worktree changed during approval. The task worktree is preserved.");
 
-  const mergeMessage = `Merge ${taskBranch}: ${options.approved.trim()}`;
-  try {
-    await git(integrationRoot, ["merge", "--no-ff", "--no-commit", taskCommit], { inherit: true });
-    await git(integrationRoot, ["commit", "-m", mergeMessage], { inherit: true });
-  } catch (error) {
-    await git(integrationRoot, ["merge", "--abort"]).catch(() => {});
-    throw new Error(`${error.message} The task worktree and branch were preserved.`);
+  const integrationTip = await git(integrationRoot, ["rev-parse", "HEAD"]);
+  if (!(await gitExitZero(taskRoot, ["merge-base", "--is-ancestor", integrationTip, taskCommit]))) {
+    try {
+      await git(taskRoot, ["merge", "--no-ff", "-m", `Merge ${integrationBranch} into ${taskBranch}`, integrationTip], { inherit: true });
+    } catch (error) {
+      const conflicts = (await gitOptional(taskRoot, ["diff", "--name-only", "--diff-filter=U"])).split("\n").filter(Boolean);
+      await git(taskRoot, ["merge", "--abort"]).catch(() => {});
+      if (conflicts.length === 0) throw new Error(`${error.message} The lane was left unchanged.`);
+      throw new Error([
+        `The latest ${integrationBranch} conflicts with this lane in: ${conflicts.join(", ")}.`,
+        "The lane was left unchanged and nothing was integrated.",
+        "Ask the user how to resolve code conflicts. For shared notes such as Agents/ planning and Human/ logs, keep both sides.",
+        `Then run "git merge ${integrationBranch}" in this worktree, resolve, commit, re-run the quick test, and approve again.`
+      ].join("\n"));
+    }
+    console.log(`Merged the latest ${integrationBranch} into ${taskBranch}; nothing was integrated yet.`);
+    console.log("Re-run the quick test in this worktree, then run approve again.");
+    process.exitCode = 1;
+    return;
   }
 
-  const mergeCommit = await git(integrationRoot, ["rev-parse", "HEAD"]);
-  const secondParent = await git(integrationRoot, ["rev-parse", "HEAD^2"]);
-  if (secondParent !== taskCommit) throw new Error("Local merge did not record the exact approved task commit.");
+  // Build the merge commit in the lane itself, on the integration tip, then fast-forward.
+  const mergeMessage = `Merge ${taskBranch}: ${options.approved.trim()}`;
+  let mergeCommit = "";
+  const restoreLane = `Run "git switch ${taskBranch}" in the task worktree to restore it.`;
+  try {
+    await switchLane(taskRoot, ["--detach", integrationTip], async () => (
+      (await gitOptional(taskRoot, ["rev-parse", "HEAD"])) === integrationTip
+      && !(await gitOptional(taskRoot, ["branch", "--show-current"]))
+    ));
+    await git(taskRoot, ["merge", "--no-ff", "--no-commit", taskCommit], { inherit: true });
+    await git(taskRoot, ["commit", "-m", mergeMessage], { inherit: true });
+    mergeCommit = await git(taskRoot, ["rev-parse", "HEAD"]);
+    const parents = (await git(taskRoot, ["rev-list", "--parents", "-n", "1", mergeCommit])).split(" ").slice(1);
+    if (parents[0] !== integrationTip || parents[1] !== taskCommit) {
+      throw new Error("Local merge did not record the integration tip and the exact approved task commit.");
+    }
+    await assertClean(integrationRoot, dirtyIntegration);
+    if ((await git(integrationRoot, ["rev-parse", "HEAD"])) !== integrationTip) {
+      throw new Error(`${integrationBranch} moved during approval. Run approve again.`);
+    }
+    await git(integrationRoot, ["merge", "--ff-only", mergeCommit], { inherit: true });
+  } catch (error) {
+    await git(taskRoot, ["merge", "--abort"]).catch(() => {});
+    const restored = await switchLane(taskRoot, [taskBranch], laneOnBranch(taskRoot, taskBranch)).then(() => true, () => false);
+    throw new Error(`${error.message} The task branch was preserved.${restored ? "" : ` ${restoreLane}`}`);
+  }
 
   let removed = false;
+  let restored = false;
   try {
+    await switchLane(taskRoot, [taskBranch], laneOnBranch(taskRoot, taskBranch));
+    restored = true;
     await git(controlRoot, ["worktree", "remove", taskRoot]);
-    await git(controlRoot, ["branch", "-d", taskBranch]);
+    await git(integrationRoot, ["branch", "-d", taskBranch]);
     removed = true;
   } catch {
     // Integration succeeded; preserve anything Git refuses to remove.
@@ -919,7 +1018,21 @@ async function approveWorktree(options) {
   console.log(`  task commit:        ${taskCommit}`);
   console.log(`  merge commit:       ${mergeCommit}`);
   console.log(removed ? "Temporary task worktree removed." : "Task worktree retained because Git did not remove it cleanly.");
+  if (!restored) console.log(restoreLane);
   console.log("No push, pull request, remote merge, deployment, or publication was performed.");
+}
+
+// A failing post-checkout hook makes `git switch` exit non-zero after it already switched.
+async function switchLane(root, target, landed) {
+  try {
+    await git(root, ["switch", ...target]);
+  } catch (error) {
+    if (!(await landed())) throw error;
+  }
+}
+
+function laneOnBranch(root, branch) {
+  return async () => (await gitOptional(root, ["branch", "--show-current"])) === branch;
 }
 
 function metadataKeysForBranch(branch) {
@@ -931,7 +1044,6 @@ function metadataKeysForBranch(branch) {
 
 function assertSafeBranch(branch, missingMessage) {
   if (!branch) throw new Error(missingMessage);
-  if (branch === "main" || branch === "master") throw new Error("Agents never integrate directly into main or master.");
   if (branch.startsWith("-") || branch.includes("..") || /[\s~^:?*[\\]/.test(branch)) {
     throw new Error(`Unsafe integration branch name: ${branch}`);
   }

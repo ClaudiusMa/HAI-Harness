@@ -46,7 +46,7 @@ Inventory both control planes:
 
 Peer-task communication is not part of the normal census. If a peer collision needs human attention, report it to the user in the current task instead of steering the peer task.
 
-Include a task only when its checkout, worktree, generated target, mutable runtime, or outward target can affect the current request. Treat titles and summaries as hints; confirm state from recent task messages, current coordination documents, Git state, and the filesystem.
+Include a task only when its checkout, worktree, generated target, mutable runtime, or outward target can affect the current request. Treat titles and summaries as hints; confirm state from recent task messages, current coordination documents, Git state, and the filesystem. Run `hai-harness worktree status --all` for the actual lanes and the files each has changed; peer prose is a hint.
 
 ## 3. Build the Traffic Ledger
 
