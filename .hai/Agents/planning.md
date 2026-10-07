@@ -2,12 +2,28 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-06 — trunk lanes released as v0.2.6
+Last updated: 2026-10-06 — task completion cleanup complete and approved for local integration
 Last updated by: Claudia
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
+
+## Current iteration — task completion cleanup, 2026-10-06
+
+- Status: implementation, method sync, focused checks, independent review/recheck and approved Human decision write complete. User approved the concrete decision entry and local commit/merge on 2026-10-06 ("approve"). Both review findings corrected with regression coverage. Native integration and automatic lane cleanup are authorized; Git history and the command receipt record their exact commits. No push or release authorized.
+- Authority: user accepted the scoped automatic task-completion cleanup improvement ("let's do the improvement"). Implementation and local commit/merge approved; push and release are not authorized.
+- Outcome: agents clean completed task resources without another routine approval prompt; uncertain ownership, useful leftover work, unfinished decisions and active peer use are preserved and reported.
+- Lane: `task/task-cleanup`, sibling `HAI-Harness-worktrees/task-cleanup`, base `3a7bdbb`; primary remains clean on `main`.
+- Traffic: CLEAR. Controller is current parent chat `01a1139b-cf3f-7b30-b91f-f64e0110fa23` (Claudia). Census: primary plus this new task lane only, no overlapping active HAI-Harness peer in visible inventory, no owned children before assignment. One lane writer at a time; no shared server/build or outward act.
+- Queue: Augustus implements lifecycle instructions and focused CLI cleanup, runs focused tests/replay and sync; Julius reviews read-only; Augustus fixes confirmed findings; Claudia records completion evidence and presents the Human batch.
+- Contract: [task-cleanup](tasks/task-cleanup.md); evidence: [task-cleanup](handoffs/task-cleanup.md).
+- Evidence: 9 initial focused fixtures passed; affected reruns passed after refinements; fresh reviewer independently ran 7 checks and 4 final regressions. Process replay observed owned SIGTERM/peer survival and safe retention/retry. Four source/method mirrors match; sync preserved 54 initial and 59 final outer-state files. No broad suite, actual deployment, Windows or concurrent-mutation verification.
+- Reviewed fixes: select packets by branch plus base so historical reused-slug packets remain preserved without blocking current cleanup; reject missing/duplicate required packet sections before empty-draft cleanup.
+- Completion boundary: the exact approved decision was written once to outer Human/decisions.md by the isolated assigned writer, preserving the prior log. Its pending draft is retired. Approve retains the lane briefly for committed-state packet acknowledgment; cleanup then removes the completed merged lane automatically. No task-owned preview process was started outside isolated test fixtures, whose teardown completed.
+- Dependencies: sequential single worker and fresh review of the same behavior. No registry, background service, process scanner or broad deletion.
+- Verification: focused offline Git fixtures for completed/unfinished/retained lanes and useful leftovers, instruction replay with observable actions, syntax/diff check, `./hai-meta sync` and source/outer parity. No full suite, dependency installation or network verification.
+- Packet: physical Git common `hai-harness/tasks/850cde22f1408210088c9a2412f107376547d3b1d0e96e876ed074970ed5d4c2`, outer `.hai` identity. Controller owns packet/planning mutations while worker is idle; worker reports any synchronized role trace changes before closeout.
 
 ## Current iteration — trunk lanes, 2026-10-05
 

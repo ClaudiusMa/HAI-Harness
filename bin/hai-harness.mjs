@@ -109,7 +109,8 @@ Usage:
     checkpoint --output <file>
   hai-harness worktree create   <task-slug> [--integration <branch>] [--target <dir>]
   hai-harness worktree status   [--all] [--target <dir>]
-  hai-harness worktree approve  --approved <message> [--target <dir>]
+  hai-harness worktree approve  --approved <message> [--keep-worktree] [--target <dir>]
+  hai-harness worktree cleanup  <task-branch> [--target <dir>]
   hai-harness help
 
 Commands:
@@ -130,6 +131,8 @@ Options:
   --all                (worktree status only) List every task lane, how far behind it is,
                        and which changed files it shares with other lanes.
   --approved <message> (worktree approve only) Explicit approval and commit message.
+  --keep-worktree      (worktree approve only) Retain the lane for authorized outward work,
+                       ongoing preview, or follow-up; run cleanup after verified completion.
 `;
 
 main().catch((error) => {
@@ -195,9 +198,9 @@ function parseOptions(args, allowed) {
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (arg === "--force" || arg === "--dry-run" || arg === "--migrate" || arg === "--all") {
+    if (arg === "--force" || arg === "--dry-run" || arg === "--migrate" || arg === "--all" || arg === "--keep-worktree") {
       if (!allowed.has(arg)) throw new Error(`Unknown option "${arg}".`);
-      options[{ "--force": "force", "--migrate": "migrate", "--all": "all" }[arg] || "dryRun"] = true;
+      options[{ "--force": "force", "--migrate": "migrate", "--all": "all", "--keep-worktree": "keepWorktree" }[arg] || "dryRun"] = true;
       continue;
     }
     if (valueOptions.has(arg)) {
@@ -783,13 +786,20 @@ async function worktree(args) {
     return;
   }
   if (action === "approve") {
-    const options = parseOptions(rest, new Set(["--target", "--approved"]));
+    const options = parseOptions(rest, new Set(["--target", "--approved", "--keep-worktree"]));
     if (options.positional.length !== 0) throw new Error("worktree approve accepts no positional arguments.");
     if (!options.approved?.trim()) throw new Error("worktree approve requires --approved <message>.");
     await approveWorktree(options);
     return;
   }
-  throw new Error("worktree requires create, status, or approve.");
+  if (action === "cleanup") {
+    const options = parseOptions(rest, new Set(["--target"]));
+    if (options.positional.length !== 1) throw new Error("worktree cleanup requires one task branch.");
+    const result = await cleanupWorktree(options.target, options.positional[0]);
+    if (!result) process.exitCode = 1;
+    return;
+  }
+  throw new Error("worktree requires create, status, approve, or cleanup.");
 }
 
 const dirtyIntegrationMessage = "has uncommitted changes. It must stay clean: have the user review and commit them first.";
@@ -1002,24 +1012,117 @@ async function approveWorktree(options) {
     throw new Error(`${error.message} The task branch was preserved.${restored ? "" : ` ${restoreLane}`}`);
   }
 
-  let removed = false;
-  let restored = false;
-  try {
-    await switchLane(taskRoot, [taskBranch], laneOnBranch(taskRoot, taskBranch));
-    restored = true;
-    await git(controlRoot, ["worktree", "remove", taskRoot]);
-    await git(integrationRoot, ["branch", "-d", taskBranch]);
-    removed = true;
-  } catch {
-    // Integration succeeded; preserve anything Git refuses to remove.
-  }
+  const restored = await switchLane(taskRoot, [taskBranch], laneOnBranch(taskRoot, taskBranch)).then(() => true, () => false);
   console.log("Approved result merged locally.");
   console.log(`  integration branch: ${integrationBranch}`);
   console.log(`  task commit:        ${taskCommit}`);
   console.log(`  merge commit:       ${mergeCommit}`);
-  console.log(removed ? "Temporary task worktree removed." : "Task worktree retained because Git did not remove it cleanly.");
-  if (!restored) console.log(restoreLane);
+  if (!restored) {
+    console.log(`Cleanup retained: lane could not return to ${taskBranch}. ${restoreLane}`);
+  } else if (options.keepWorktree) {
+    console.log(`Task worktree retained by --keep-worktree: ${taskRoot}`);
+    console.log(`After verified task completion: hai-harness worktree cleanup ${taskBranch} --target ${controlRoot}`);
+  } else {
+    await cleanupWorktree(controlRoot, taskBranch);
+  }
   console.log("No push, pull request, remote merge, deployment, or publication was performed.");
+}
+
+// No process ownership is inferred here. The agent stops its own preview sessions
+// before calling cleanup, and retains the lane while outward work remains pending.
+async function cleanupWorktree(target, branch) {
+  const keys = metadataKeysForBranch(branch);
+  if (!keys || !(await gitExitZero(target, ["check-ref-format", "--branch", branch]))) throw new Error("Cleanup requires a recognized task-lane branch.");
+  const root = await git(target, ["rev-parse", "--show-toplevel"]);
+  let worktrees = await listWorktrees(root);
+  const controlRoot = await fs.realpath(worktrees[0].root);
+  const slug = branch.slice(branch.indexOf("/") + 1);
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) throw new Error("Cleanup cannot establish the canonical task lane path; preserve and inspect it manually.");
+  const laneRoot = path.join(`${controlRoot}-worktrees`, slug);
+  const retained = (reason) => {
+    console.log(`Cleanup retained ${branch}: ${reason}`);
+    console.log(`  task path: ${laneRoot}`);
+    console.log(`  retry: hai-harness worktree cleanup ${branch} --target ${controlRoot}`);
+    return false;
+  };
+  if (!(await localBranchExists(root, branch))) {
+    if (await exists(laneRoot)) return retained("Task branch is absent but a folder remains; ownership cannot be verified. No files were removed.");
+    if (worktrees.some((item) => samePath(item.root, laneRoot))) return retained("Task branch is absent but a worktree registration remains.");
+    console.log(`Cleanup already complete: ${branch}; task branch and folder are absent.`);
+    return true;
+  }
+  try {
+    const integration = await gitOptional(root, ["config", "--get", `branch.${branch}.${keys.integration}`]);
+    const base = await gitOptional(root, ["config", "--get", `branch.${branch}.${keys.base}`]);
+    assertSafeBranch(integration, "Task metadata has no integration branch.");
+    if (integration === branch || !/^[0-9a-f]{40,64}$/.test(base)) throw new Error("Task metadata has an invalid base or integration identity.");
+    const tip = await git(root, ["rev-parse", "--verify", `refs/heads/${branch}`]);
+    if (!(await gitExitZero(root, ["merge-base", "--is-ancestor", base, tip]))) throw new Error("Task tip no longer descends from its recorded base.");
+    if (!(await gitExitZero(root, ["merge-base", "--is-ancestor", tip, `refs/heads/${integration}`]))) throw new Error(`Exact task tip ${tip} is not integrated into ${integration}; a push alone is not completion.`);
+    const integrationWorktrees = worktrees.filter((item) => item.branch === integration);
+    if (integrationWorktrees.length !== 1) throw new Error(`Integration branch ${integration} must have exactly one checked-out worktree for safe branch deletion.`);
+    const integrationRoot = integrationWorktrees[0].root;
+    const matches = worktrees.filter((item) => item.branch === branch || samePath(item.root, laneRoot));
+    if (matches.length > 1 || (matches[0] && (matches[0].branch !== branch || !samePath(matches[0].root, laneRoot)))) throw new Error("Task path or branch is owned by another worktree; preserve it.");
+    if (matches[0]?.locked) throw new Error(`Worktree is locked: ${matches[0].locked}`);
+    const common = await fs.realpath(await git(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+    // Check all registered scopes of this task, not peer packets. Never delete packets.
+    const tasks = path.join(common, "hai-harness", "tasks");
+    await validatePacketPaths(common, tasks);
+    for (const entry of await fs.readdir(tasks).catch((error) => { if (error.code === "ENOENT") return []; throw error; })) {
+      const directory = path.join(tasks, entry);
+      const metadata = path.join(directory, "packet.json");
+      // Discover identity through physical metadata only. Do not inspect peer
+      // inboxes or trails; their closeout belongs to their own controller.
+      const dirStat = await fs.lstat(directory);
+      const metaStat = await fs.lstat(metadata).catch(() => null);
+      if (!dirStat.isDirectory() || dirStat.isSymbolicLink() || !metaStat?.isFile() || metaStat.isSymbolicLink()) throw new Error(`Cannot safely identify task packet namespace: ${directory}`);
+      const packet = await readJson(metadata);
+      if (packet.identity?.branch !== branch) continue;
+      if (!/^[0-9a-f]{40,64}$/.test(packet.identity.base ?? "")) throw new Error(`Invalid task packet base: ${directory}`);
+      // A completed slug may be reused. Older branch/base incarnations stay
+      // recoverable, but do not govern this lane's closeout.
+      if (packet.identity.base !== base) continue;
+      await validatePacketPaths(common, directory);
+      console.log(`Task packet retained: ${directory}`);
+      if (packet.schemaVersion !== 1 || packet.identity.base !== base || packet.identity.integration !== integration || typeof packet.identity.scope !== "string" || entry !== digest(`${branch}\n${base}\n${packet.identity.scope}`)) throw new Error(`Invalid task packet identity: ${directory}`);
+      const inbox = await fs.readFile(path.join(directory, humanInboxPath), "utf8");
+      const trail = await fs.readFile(path.join(directory, decisionTrailPath), "utf8");
+      for (const [content, heading] of [[inbox, "## Drafts"], [trail, "## Entries"]]) {
+        const headings = stripComments(content).split(/\r?\n/).filter((line) => line.trim() === heading);
+        if (headings.length !== 1) throw new Error(`Task packet requires exactly one ${heading} section; found ${headings.length}: ${directory}`);
+      }
+      const counts = countInboxDrafts(inbox);
+      if (counts.pending + counts.deferred) throw new Error(`Task packet has ${counts.pending} pending and ${counts.deferred} deferred draft(s): ${directory}`);
+      if (sectionLines(inbox, "## Drafts").some((line) => line.startsWith("###"))) throw new Error(`Task packet has unresolved draft entries: ${directory}`);
+      const cursor = readCaptureCursor(inbox);
+      const uncaptured = entriesAfterCursor(parseTrailEntries(trail), cursor).filter((entry) => captureKind(entry));
+      if (uncaptured.length) throw new Error(`Task packet has uncaptured review items: ${directory}`);
+    }
+    if (!matches.length && await exists(laneRoot)) throw new Error("Git has unregistered the task folder. Preserve remaining contents for inspection; no arbitrary folder deletion is performed.");
+    if (matches.length) {
+      if (await fs.realpath(laneRoot) !== laneRoot || (await fs.lstat(laneRoot)).isSymbolicLink()) throw new Error("Task lane resolves through a symlink redirect.");
+      await assertClean(laneRoot, "Task lane has staged, tracked, or untracked work.");
+      const ignored = await git(laneRoot, ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory"]);
+      if (ignored) throw new Error(`Ignored files may contain valuable work; preserve them for inspection:\n${ignored}`);
+      if ((await git(laneRoot, ["rev-parse", "HEAD"])) !== tip) throw new Error("Task checkout tip changed during inspection.");
+      // Native Git removal keeps its final dirty/submodule protection enabled.
+      await git(controlRoot, ["worktree", "remove", laneRoot]);
+    }
+    worktrees = await listWorktrees(controlRoot);
+    if (worktrees.some((item) => samePath(item.root, laneRoot))) throw new Error("Task worktree registration remains.");
+    console.log(`Temporary task worktree removed from Git registration (or already absent): ${laneRoot}`);
+    if (await exists(laneRoot)) throw new Error("Git unregistered the worktree but its folder remains. Branch retained; inspect the exact folder before retrying.");
+    if ((await git(controlRoot, ["rev-parse", `refs/heads/${branch}`])) !== tip) throw new Error("Task branch moved during cleanup; its newer work is retained.");
+    if (!(await gitExitZero(controlRoot, ["merge-base", "--is-ancestor", tip, `refs/heads/${integration}`]))) throw new Error("Integration target changed during cleanup; task branch retained.");
+    // -d keeps Git's final merged/checkout safety check; never force deletion.
+    if ((await git(integrationRoot, ["branch", "--show-current"])) !== integration) throw new Error("Integration checkout changed; task branch retained.");
+    await git(integrationRoot, ["branch", "-d", branch]);
+    console.log(`Merged local task branch removed: ${branch}`);
+    return true;
+  } catch (error) {
+    return retained(error.message);
+  }
 }
 
 // A failing post-checkout hook makes `git switch` exit non-zero after it already switched.
@@ -1062,6 +1165,8 @@ async function listWorktrees(root) {
     if (line.startsWith("worktree ")) {
       current = { root: path.resolve(line.slice(9)), branch: "" };
       result.push(current);
+    } else if (current && line.startsWith("locked")) {
+      current.locked = line.slice(6).trim() || "locked";
     } else if (current && line.startsWith("branch refs/heads/")) {
       current.branch = line.slice("branch refs/heads/".length);
     }
