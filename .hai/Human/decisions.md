@@ -171,3 +171,9 @@ Archive or reset this file before changing the version header convention.
 - Why: Three sessions on one project each invented private integration branches and hand-merged into `main`. The user rejected a registry-and-lock redesign as over-engineered and asked for the simplest model that still handles these cases.
 - Tradeoffs: No registry, locks or path claims; overlapping work is caught at merge time instead. Refines the earlier 2026-10-05 merge-queue decision: scope coordination happens at merge time, not through a registry.
 - Follow-up: Release the change; remediation of existing field projects stays with the user.
+
+- Date: 2026-10-06
+- Decision: Routine task cleanup is part of verified task completion and does not require separate cleanup approval. Stop task-owned previews and clean merged local task resources after the requested workflow is complete; preserve unfinished work and uncertain ownership.
+- Why: Users should not need to request routine cleanup after completing a task.
+- Tradeoffs: Not stated.
+- Follow-up: Not stated.

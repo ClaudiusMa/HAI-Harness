@@ -74,7 +74,7 @@ Assign the current approved batch to a verified isolated candidate together with
 
 ## Handoff and recovery limits
 
-Retain the unfinished lane and packet, including deferred and unreviewed drafts. Current approval cleanup retains packet metadata in Git common storage, but after branch/worktree removal primary capture cannot discover that retired identity. Record its physical path and identity before cleanup.
+Retain the unfinished lane and packet, including deferred and unreviewed drafts. Completion cleanup retains packet metadata in Git common storage and refuses lane removal while pending/deferred drafts or uncaptured review items remain. Use `worktree approve --keep-worktree` while closeout is unfinished. After branch/worktree removal primary capture cannot discover that retired identity. Record its physical path and identity before cleanup.
 
 For cross-machine handoff, create an explicit recoverable checkpoint:
 

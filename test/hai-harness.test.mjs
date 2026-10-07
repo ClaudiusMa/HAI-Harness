@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { once } from "node:events";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const installedVersion = JSON.parse(await fs.readFile(path.join(projectRoot, "package.json"), "utf8")).version;
@@ -199,6 +200,144 @@ test("approve survives a failing checkout hook and cleans up a lane on a seconda
   assert.equal(git(developRoot, "log", "-1", "--format=%s"), "Merge task/secondary: Secondary fixture");
   assert.equal(git(repo, "branch", "--list", "task/secondary"), "");
   assert.equal(git(repo, "rev-parse", "main"), git(repo, "rev-parse", "develop^1"));
+});
+
+async function makeHeldLane(t, slug = "retained") {
+  const fixture = await makeGitFixture(t);
+  const { repo } = fixture;
+  assert.equal(harness(repo, "worktree", "create", slug, "--target", repo).status, 0);
+  const lane = `${repo}-worktrees/${slug}`;
+  await fs.writeFile(path.join(lane, "result.txt"), "approved\n");
+  const approved = harness(lane, "worktree", "approve", "--keep-worktree", "--approved", "Hold for outward work", "--target", lane);
+  assert.equal(approved.status, 0, approved.stderr);
+  assert.match(approved.stdout, /retained by --keep-worktree/);
+  assert.ok(await fs.stat(lane));
+  return { ...fixture, lane, branch: `task/${slug}` };
+}
+
+test("cleanup retries completed lanes and protects ignored, dirty, locked and newer work", async (t) => {
+  const { repo, lane, branch } = await makeHeldLane(t);
+  const cleanup = () => harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  const expectRetained = (result, pattern) => {
+    assert.notEqual(result.status, 0);
+    assert.match(result.stdout, pattern);
+    assert.ok(git(repo, "branch", "--list", branch));
+  };
+  await fs.writeFile(path.join(lane, ".gitignore"), "private.txt\n");
+  git(lane, "add", ".gitignore");
+  expectRetained(cleanup(), /staged, tracked, or untracked work/);
+  git(lane, "commit", "-m", "Ignore private artifact");
+  expectRetained(cleanup(), /Exact task tip .* is not integrated/);
+  git(repo, "merge", "--no-ff", "-m", "Integrate follow-up fixture", branch);
+  await fs.writeFile(path.join(lane, "private.txt"), "valuable unpublished artifact\n");
+  expectRetained(cleanup(), /Ignored files may contain valuable work[\s\S]*private.txt/);
+  assert.equal(await fs.readFile(path.join(lane, "private.txt"), "utf8"), "valuable unpublished artifact\n");
+  await fs.unlink(path.join(lane, "private.txt"));
+  git(repo, "worktree", "lock", "--reason", "active peer review", lane);
+  expectRetained(cleanup(), /Worktree is locked: active peer review/);
+  git(repo, "worktree", "unlock", lane);
+  await fs.writeFile(path.join(lane, "notes.txt"), "unfinished\n");
+  expectRetained(cleanup(), /untracked work/);
+  await fs.unlink(path.join(lane, "notes.txt"));
+  assert.equal(cleanup().status, 0);
+  assert.equal(cleanup().status, 0);
+  assert.equal(await fs.stat(lane).catch(() => null), null);
+  assert.match(harness(repo, "help").stdout, /worktree cleanup[\s\S]*--keep-worktree/);
+});
+
+test("cleanup handles partial removal, orphans and other worktree ownership without force", async (t) => {
+  const { repo, lane, branch } = await makeHeldLane(t, "partial");
+  git(repo, "worktree", "remove", lane);
+  await fs.mkdir(lane);
+  await fs.writeFile(path.join(lane, "keep.txt"), "valuable leftover\n");
+  const orphan = harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  assert.notEqual(orphan.status, 0);
+  assert.match(orphan.stdout, /Git has unregistered the task folder/);
+  assert.equal(await fs.readFile(path.join(lane, "keep.txt"), "utf8"), "valuable leftover\n");
+  await fs.unlink(path.join(lane, "keep.txt"));
+  await fs.rmdir(lane);
+  const moved = path.join(path.dirname(lane), "peer-location");
+  git(repo, "worktree", "add", moved, branch);
+  const peer = harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  assert.notEqual(peer.status, 0);
+  assert.match(peer.stdout, /owned by another worktree/);
+  assert.ok(await fs.stat(moved));
+  git(repo, "worktree", "remove", moved);
+  const branchOnly = harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  assert.equal(branchOnly.status, 0, branchOnly.stdout);
+  assert.match(branchOnly.stdout, /Merged local task branch removed/);
+  await fs.mkdir(lane);
+  await fs.writeFile(path.join(lane, "keep.txt"), "unknown owner\n");
+  const absentBranch = harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  assert.notEqual(absentBranch.status, 0);
+  assert.match(absentBranch.stdout, /Task branch is absent but a folder remains/);
+  assert.equal(await fs.readFile(path.join(lane, "keep.txt"), "utf8"), "unknown owner\n");
+});
+
+test("cleanup preserves lane symlinks, nested repositories and valuable ignored files during approve", async (t) => {
+  const { repo, lane, branch } = await makeHeldLane(t, "links");
+  const realLane = `${lane}-saved`;
+  await fs.rename(lane, realLane);
+  await fs.symlink(realLane, lane, "dir");
+  const redirected = harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  assert.notEqual(redirected.status, 0);
+  assert.match(redirected.stdout, /symlink redirect/);
+  assert.equal(await fs.readFile(path.join(realLane, "result.txt"), "utf8"), "approved\n");
+  await fs.unlink(lane);
+  await fs.rename(realLane, lane);
+  await fs.mkdir(path.join(lane, "nested"));
+  git(path.join(lane, "nested"), "init");
+  const nested = harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  assert.notEqual(nested.status, 0);
+  assert.ok(await fs.stat(path.join(lane, "nested/.git")));
+  // A separate new lane exercises automatic approve cleanup without committing the nested repo.
+  assert.equal(harness(repo, "worktree", "create", "ignored", "--target", repo).status, 0);
+  const ignoredLane = `${repo}-worktrees/ignored`;
+  await fs.writeFile(path.join(ignoredLane, ".gitignore"), "valuable.bin\n");
+  await fs.writeFile(path.join(ignoredLane, "valuable.bin"), "unpublished\n");
+  const approved = harness(ignoredLane, "worktree", "approve", "--approved", "Ignored preservation", "--target", ignoredLane);
+  assert.equal(approved.status, 0, approved.stderr);
+  assert.match(approved.stdout, /Ignored files may contain valuable work/);
+  assert.equal(await fs.readFile(path.join(ignoredLane, "valuable.bin"), "utf8"), "unpublished\n");
+});
+
+test("cleanup instruction replay stops owned preview, retries generated cache, and retains uncertain artifacts", async (t) => {
+  const { repo, lane, branch } = await makeHeldLane(t, "replay");
+  const exclude = path.resolve(repo, git(repo, "rev-parse", "--git-path", "info/exclude"));
+  await fs.appendFile(exclude, "\nowned-cache.txt\n");
+  const childCode = 'process.stdout.write(JSON.stringify({pid:process.pid,cwd:process.cwd()})); setInterval(()=>{},1000);';
+  const owned = spawn(process.execPath, ["-e", childCode], { cwd: lane, stdio: ["ignore", "pipe", "pipe"] });
+  const peer = spawn(process.execPath, ["-e", childCode], { cwd: repo, stdio: ["ignore", "pipe", "pipe"] });
+  t.after(() => { owned.kill(); peer.kill(); });
+  const ownedState = JSON.parse((await once(owned.stdout, "data"))[0].toString());
+  assert.equal(await fs.realpath(ownedState.cwd), await fs.realpath(lane));
+  assert.equal(ownedState.pid, owned.pid);
+  assert.ok(peer.pid);
+  // This fixture records provenance by creating the exact cache itself.
+  await fs.writeFile(path.join(lane, "owned-cache.txt"), "generated fixture cache\n");
+  const initial = harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  assert.notEqual(initial.status, 0);
+  assert.match(initial.stdout, /Ignored files may contain valuable work[\s\S]*owned-cache.txt/);
+  const exited = once(owned, "exit");
+  owned.kill("SIGTERM");
+  await exited;
+  process.kill(peer.pid, 0); // Peer preview remains running.
+  const cache = path.join(lane, "owned-cache.txt");
+  assert.ok((await fs.lstat(cache)).isFile());
+  assert.equal(await fs.readFile(cache, "utf8"), "generated fixture cache\n");
+  await fs.unlink(cache); // Exact verified disposable file; no directory recursion.
+  await fs.writeFile(path.join(lane, "uncertain.txt"), "preserve until ownership known\n");
+  const retained = harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  assert.notEqual(retained.status, 0);
+  assert.equal(await fs.readFile(path.join(lane, "uncertain.txt"), "utf8"), "preserve until ownership known\n");
+  await fs.unlink(path.join(lane, "uncertain.txt")); // Fixture owner resolves its artifact.
+  const completed = harness(repo, "worktree", "cleanup", branch, "--target", repo);
+  assert.equal(completed.status, 0, completed.stdout);
+  process.kill(peer.pid, 0);
+  const evidence = { ownedState, ownedExitSignal: owned.signalCode, peerPid: peer.pid, peerSurvived: true, initial: initial.stdout, retained: retained.stdout, completed: completed.stdout };
+  const evidencePath = path.join(os.tmpdir(), `hai-cleanup-replay-${process.pid}.json`);
+  await fs.writeFile(evidencePath, JSON.stringify(evidence, null, 2));
+  console.log(`Cleanup instruction replay evidence: ${evidencePath}`);
 });
 
 test("init, update, and doctor preserve state and flag polluted startup context", async (t) => {
@@ -489,6 +628,96 @@ test("human-sync doctor and acknowledgment bind new traces to committed and dirt
   assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/claudia\.md/);
 });
 
+test("cleanup retains current-task pending and uncaptured packets but leaves peer packets alone", async (t) => {
+  const { repo, lane, root, packet } = await makePacketFixture(t);
+  await fs.writeFile(path.join(lane, "result.txt"), "approved\n");
+  await fs.appendFile(path.join(packet, "human-inbox.md"), "\n### current\n- Status: pending\n");
+  const approved = harness(lane, "worktree", "approve", "--approved", "Packet cleanup", "--target", lane);
+  assert.equal(approved.status, 0, approved.stderr);
+  assert.match(approved.stdout, /1 pending/);
+  assert.ok(await fs.stat(lane));
+  await fs.writeFile(path.join(packet, "human-inbox.md"), "Captured through: none\n\n## Drafts\n### unreviewed without status\n");
+  const malformed = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+  assert.notEqual(malformed.status, 0);
+  assert.match(malformed.stdout, /unresolved draft entries/);
+  await fs.writeFile(path.join(packet, "human-inbox.md"), "Captured through: none\n\n## Drafts\n");
+  await appendTrail(packet, [trailEntry(1, "user", "process", "completion rule")]);
+  const uncaptured = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+  assert.notEqual(uncaptured.status, 0);
+  assert.match(uncaptured.stdout, /uncaptured review items/);
+  await setCaptureCursor(packet, "T1");
+  assert.equal(harness(repo, "worktree", "create", "packet-peer", "--target", repo).status, 0);
+  const peerLane = `${repo}-worktrees/packet-peer`;
+  assert.equal(harness(peerLane, "human-sync", "init", "--target", peerLane).status, 0);
+  const peerPacket = JSON.parse(harness(peerLane, "human-sync", "status", "--target", peerLane).stdout).packet;
+  await fs.appendFile(path.join(peerPacket, "human-inbox.md"), "\n### peer\n- Status: pending\n");
+  const cleaned = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+  assert.equal(cleaned.status, 0, cleaned.stdout);
+  assert.ok(await fs.stat(peerLane));
+  assert.match(await fs.readFile(path.join(peerPacket, "human-inbox.md"), "utf8"), /pending/);
+  assert.ok(await fs.stat(path.join(packet, "packet.json")));
+});
+
+test("cleanup selects current packet incarnation when a completed task slug is reused", async (t) => {
+  const { repo, lane, root, packet } = await makePacketFixture(t);
+  await fs.writeFile(path.join(lane, "first.txt"), "first incarnation\n");
+  const first = harness(lane, "worktree", "approve", "--approved", "First incarnation", "--target", lane);
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(await fs.stat(lane).catch(() => null), null);
+  const oldFiles = Object.fromEntries(await Promise.all(["packet.json", "human-inbox.md", "decision-trail.md"].map(async (name) => [name, await fs.readFile(path.join(packet, name), "utf8")])));
+  assert.equal(harness(repo, "worktree", "create", "capture", "--target", repo).status, 0);
+  assert.equal(harness(root, "human-sync", "init", "--target", root).status, 0);
+  const currentPacket = JSON.parse(harness(root, "human-sync", "status", "--target", root).stdout).packet;
+  assert.notEqual(currentPacket, packet);
+  await fs.writeFile(path.join(lane, "second.txt"), "second incarnation\n");
+  const second = harness(lane, "worktree", "approve", "--keep-worktree", "--approved", "Second incarnation", "--target", lane);
+  assert.equal(second.status, 0, second.stderr);
+  await fs.appendFile(path.join(currentPacket, "human-inbox.md"), "\n### current unresolved decision\n- Status: pending\n");
+  const pending = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+  assert.notEqual(pending.status, 0);
+  assert.match(pending.stdout, /1 pending/);
+  await fs.writeFile(path.join(currentPacket, "human-inbox.md"), "Captured through: none\n\n## Drafts\n");
+  const completed = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+  assert.equal(completed.status, 0, completed.stdout);
+  assert.equal(await fs.stat(lane).catch(() => null), null);
+  for (const [name, content] of Object.entries(oldFiles)) assert.equal(await fs.readFile(path.join(packet, name), "utf8"), content);
+  assert.ok(await fs.stat(path.join(currentPacket, "packet.json")));
+});
+
+test("cleanup fails closed on missing or duplicate packet sections before draft and trail checks", async (t) => {
+  const { repo, lane, packet } = await makePacketFixture(t);
+  await fs.writeFile(path.join(lane, "result.txt"), "approved\n");
+  const inboxFile = path.join(packet, "human-inbox.md");
+  const trailFile = path.join(packet, "decision-trail.md");
+  const initialInbox = await fs.readFile(inboxFile, "utf8");
+  const initialTrail = await fs.readFile(trailFile, "utf8");
+  await fs.writeFile(inboxFile, initialInbox.replace("## Drafts", "## Draft") + "\n### needs decision\n- Status: pending\n");
+  const approved = harness(lane, "worktree", "approve", "--approved", "Malformed packet retention", "--target", lane);
+  assert.equal(approved.status, 0, approved.stderr);
+  assert.match(approved.stdout, /exactly one ## Drafts section; found 0/);
+  assert.ok(await fs.stat(lane));
+  assert.ok(git(repo, "branch", "--list", "task/capture"));
+  for (const [name, content, pattern] of [
+    ["human-inbox.md", initialInbox.replace("## Drafts", "## Draft"), /exactly one ## Drafts section; found 0/],
+    ["human-inbox.md", initialInbox + "\n## Drafts\n### needs decision\n- Status: pending\n", /exactly one ## Drafts section; found 2/],
+    ["decision-trail.md", initialTrail.replace("## Entries", "## Entry") + "\n" + trailEntry(1, "user", "process"), /exactly one ## Entries section; found 0/],
+    ["decision-trail.md", initialTrail + "\n## Entries\n" + trailEntry(1, "user", "process"), /exactly one ## Entries section; found 2/]
+  ]) {
+    await fs.writeFile(inboxFile, initialInbox);
+    await fs.writeFile(trailFile, initialTrail);
+    await fs.writeFile(path.join(packet, name), content);
+    const retained = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+    assert.notEqual(retained.status, 0);
+    assert.match(retained.stdout, pattern);
+    assert.equal(await fs.readFile(path.join(packet, name), "utf8"), content);
+    assert.ok(await fs.stat(lane));
+    assert.ok(git(repo, "branch", "--list", "task/capture"));
+  }
+  await fs.writeFile(inboxFile, initialInbox);
+  await fs.writeFile(trailFile, initialTrail);
+  assert.equal(harness(repo, "worktree", "cleanup", "task/capture", "--target", repo).status, 0);
+});
+
 test("human-sync resolves .hai traced scope, physical common metadata and retained checkpoints through cleanup", async (t) => {
   const { repo, lane, root, packet } = await makePacketFixture(t, ".hai");
   const common = await fs.realpath(git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"));
@@ -508,7 +737,8 @@ test("human-sync resolves .hai traced scope, physical common metadata and retain
   await fs.appendFile(path.join(packet, "human-inbox.md"), "\n### carry forward\n- Status: deferred\n");
   const approved = harness(lane, "worktree", "approve", "--approved", "Design token fixture", "--target", lane);
   assert.equal(approved.status, 0, approved.stderr);
-  assert.equal(await fs.stat(lane).catch(() => null), null);
+  assert.ok(await fs.stat(lane));
+  assert.match(approved.stdout, /1 deferred draft/);
   assert.match(await fs.readFile(path.join(packet, "human-inbox.md"), "utf8"), /carry forward/);
   assert.equal(JSON.parse(await fs.readFile(path.join(packet, "packet.json"), "utf8")).identity.branch, "task/capture");
 });
