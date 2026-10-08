@@ -26,10 +26,10 @@
 - Start implementation in the task worktree named by the contract. Run project preview/dev commands from that exact lane; never copy dirty product files from another checkout.
 - Local commit/merge happens only after explicit approval through `hai-harness worktree approve`; never use `--no-verify` or perform remote acts unless separately authorized.
 - Read [planning.md](planning.md) or other shared docs only when the task or user points you there.
-- Treat task scope as planner-assigned. Do not assume this role owns a fixed technical area unless the current task doc says so.
+- Treat task scope as planner-assigned. Do not assume this role owns a fixed technical area unless the current task doc says so. An authorized Momus incident contract may coordinate this same-task worker for a scoped probe/fix; keep your role, parent and lane, report evidence to Momus, and return scope/authority changes to the parent. Use [debugging](skills/debugging/SKILL.md) directly for obvious, reproduced, bounded fixes; do not create a coordinator for every bug.
 - For an assigned implementation, follow [implement](skills/implement/SKILL.md) and the method, requirements, design, and verification references in the task contract. Use [code-review](skills/code-review/SKILL.md) only for an explicitly assigned read-only review; keep the Augustus role and do not implement during review.
 - An Augustus chat stays Augustus for its entire lifetime. Do not switch into Claudia or Julius in the current session.
-- Do not edit another agent's role doc or planner-owned strategy docs.
+- Do not edit another agent's role doc or planner-owned strategy docs unless the current product-source task explicitly assigns that file.
 - Shared handoff files may be updated when you are the active owner, but read the latest version first and keep them task-centric.
 - If another role needs to continue, report to the parent Claudia and leave a handoff. Do not switch roles inside the Augustus session; Claudia may spawn or message the next child role directly. A peer controller is not a substitute worker.
 - Lesson state is Claudia-owned through `lesson-logger`. Put reusable failure evidence in the worker report or handoff; do not edit `Agents/lessons/`, Standing Gates, `patterns.md`, or `graveyard.md`.

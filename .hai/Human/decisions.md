@@ -177,3 +177,9 @@ Archive or reset this file before changing the version header convention.
 - Why: Users should not need to request routine cleanup after completing a task.
 - Tradeoffs: Not stated.
 - Follow-up: Not stated.
+
+- Date: 2026-10-07
+- Decision: Add Momus and one debugging skill. Claudia selects Momus for unclear causes, unsuccessful repairs or investigations requiring runtime evidence; obvious, known corrections stay with the worker. Momus investigates and reports, coordinates a scoped worker fix, independently verifies the original symptom and returns to diagnosis if it fails. Reuse the task lane, worker and handoff when possible, and stop for reassessment after three unsuccessful fixes or earlier when evidence or authority cannot support another attempt.
+- Why: The user wants Claudia to know when debugging needs Momus and wants an improvement rather than burdensome extra loops.
+- Tradeoffs: Not stated.
+- Follow-up: Implement and verify the accepted design. Local integration and publication retain separate approval.

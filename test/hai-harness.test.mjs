@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -374,7 +375,15 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), /^# Augustus Tasks/m);
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/julius.md"), "utf8"), /^# Julius Tasks/m);
   assert.doesNotMatch(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), /\{\{ROLE_/);
-  const shippedSkills = ["code-review", "implement"];
+  assert.equal(await fs.readFile(path.join(target, "Agents/momus.md"), "utf8"), await fs.readFile(path.join(projectRoot, "Agents/momus.md"), "utf8"));
+  assert.equal(await fs.stat(path.join(target, "Agents/tasks/momus.md")).catch(() => null), null);
+  const protectedRecords = new Map([
+    ["Agents/project_context.md", "populated project context\n"],
+    ["Human/decisions.md", "confirmed human decisions\n"],
+    ["Agents/handoffs/active-incident.md", "existing incident and attempt history\n"]
+  ]);
+  for (const [file, content] of protectedRecords) await fs.writeFile(path.join(target, file), content);
+  const shippedSkills = ["code-review", "implement", "debugging"];
   for (const skill of shippedSkills) {
     const skillFile = `Agents/skills/${skill}/SKILL.md`;
     assert.equal(
@@ -393,11 +402,17 @@ test("init, update, and doctor preserve state and flag polluted startup context"
     await fs.writeFile(path.join(target, `Agents/skills/${skill}/project-note.md`), `project-owned ${skill} note\n`);
   }
   await fs.writeFile(path.join(target, "Agents/handoffs/TEMPLATE.md"), "stale handoff template\n");
+  // Upgrade a populated installation that does not yet have Momus/debugging.
+  await fs.unlink(path.join(target, "Agents/momus.md"));
+  await fs.unlink(path.join(target, "Agents/skills/debugging/SKILL.md"));
   await fs.unlink(path.join(target, "Agents/tasks/julius.md"));
   const disabled = beacon(target, "--disable");
   assert.equal(disabled.status, 0, disabled.stderr);
   const updated = harness(target, "update", "--target", target);
   assert.equal(updated.status, 0, updated.stderr);
+  for (const [file, content] of protectedRecords) assert.equal(await fs.readFile(path.join(target, file), "utf8"), content);
+  assert.equal(await fs.readFile(path.join(target, "Agents/momus.md"), "utf8"), await fs.readFile(path.join(projectRoot, "Agents/momus.md"), "utf8"));
+  assert.equal(await fs.stat(path.join(target, "Agents/tasks/momus.md")).catch(() => null), null);
   assert.equal(await fs.readFile(path.join(target, "Agents/planning.md"), "utf8"), "project-owned planning\n");
   assert.equal(await fs.readFile(path.join(target, "Agents/design.md"), "utf8"), "project-owned design guide\n");
   assert.equal(await fs.readFile(path.join(target, "Agents/lessons/INDEX.md"), "utf8"), "project-owned lesson index\n");
@@ -416,10 +431,13 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/julius.md"), "utf8"), /^# Julius Tasks/m);
   assert.equal(JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8")).checkEnabled, false);
   for (const skill of shippedSkills) await fs.unlink(path.join(target, `Agents/skills/${skill}/SKILL.md`));
+  await fs.unlink(path.join(target, "Agents/momus.md"));
   const missingReviewSkill = harness(target, "doctor", "--target", target);
   assert.notEqual(missingReviewSkill.status, 0);
   assert.match(missingReviewSkill.stdout, /Agents\/skills\/code-review\/SKILL\.md/);
   assert.match(missingReviewSkill.stdout, /Agents\/skills\/implement\/SKILL\.md/);
+  assert.match(missingReviewSkill.stdout, /Agents\/skills\/debugging\/SKILL\.md/);
+  assert.match(missingReviewSkill.stdout, /Agents\/momus\.md/);
   const restoredReviewSkill = harness(target, "update", "--target", target);
   assert.equal(restoredReviewSkill.status, 0, restoredReviewSkill.stderr);
   for (const skill of shippedSkills) {
@@ -626,6 +644,69 @@ test("human-sync doctor and acknowledgment bind new traces to committed and dirt
   git(root, "commit", "-am", "Role change");
   await fs.appendFile(path.join(packet, "decision-trail.md"), "\nUnrelated dirty trail.\n");
   assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/claudia\.md/);
+});
+
+test("Momus role tracing preserves pre-Momus packet baselines until explicit acknowledgment", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  const file = path.join(packet, "packet.json");
+  const baseline = JSON.parse(await fs.readFile(file, "utf8"));
+  // The prior schemaVersion 1 baseline covers every old traced path, but not
+  // Momus. Its original digest remains valid for exactly that old path set.
+  delete baseline.acknowledged.paths["Agents/momus.md"];
+  const signed = (value) => {
+    value.acknowledged.digest = createHash("sha256").update(JSON.stringify(value.acknowledged.paths)).digest("hex");
+    return `${JSON.stringify(value, null, 2)}\n`;
+  };
+  const oldBytes = signed(baseline);
+  await fs.writeFile(file, oldBytes);
+  const continued = harness(root, "human-sync", "status", "--target", root);
+  assert.equal(continued.status, 0, continued.stderr);
+  assert.equal(await fs.readFile(file, "utf8"), oldBytes);
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/momus\.md/);
+  assert.equal(await fs.readFile(file, "utf8"), oldBytes);
+
+  for (const corrupt of [
+    (value) => { value.acknowledged.paths["Agents/momus.md"] = null; },
+    (value) => { value.acknowledged.paths["Agents/momus.md"] = "bad hash"; },
+    (value) => { delete value.acknowledged.paths["Agents/claudia.md"]; }
+  ]) {
+    const invalid = structuredClone(baseline);
+    corrupt(invalid);
+    await fs.writeFile(file, signed(invalid));
+    assert.match(harness(root, "human-sync", "status", "--target", root).stderr, /Invalid task packet/);
+  }
+  // A matching digest must not make a present array into a valid path hash.
+  // Cover both the newly traced role and a formerly mandatory path.
+  for (const name of ["Agents/momus.md", "Agents/claudia.md"]) {
+    await t.test(`${name} refuses a hash array with a matching digest`, async () => {
+      const invalid = structuredClone(baseline);
+      invalid.acknowledged.paths[name] = ["a".repeat(64)];
+      const invalidBytes = signed(invalid);
+      await fs.writeFile(file, invalidBytes);
+      const refused = harness(root, "human-sync", "status", "--target", root);
+      assert.notEqual(refused.status, 0, `${name} array must be refused`);
+      assert.match(refused.stderr, /Invalid task packet/);
+      assert.equal(await fs.readFile(file, "utf8"), invalidBytes, "refusal must preserve the malformed packet");
+    });
+  }
+  const badDigest = structuredClone(baseline);
+  badDigest.acknowledged.digest = "0".repeat(64);
+  await fs.writeFile(file, JSON.stringify(badDigest));
+  assert.match(harness(root, "human-sync", "status", "--target", root).stderr, /Invalid task packet/);
+  await fs.writeFile(file, oldBytes);
+
+  await appendTrail(packet, [trailEntry(1, "user", "process", "unrelated choice")]);
+  assert.match(acknowledge(root, "T1").stderr, /name every changed traced path/);
+  await appendTrail(packet, [trailEntry(2, "user", "process", "Agents/momus.md new stable role")]);
+  assert.equal(acknowledge(root, "T2").status, 0);
+  const adopted = JSON.parse(await fs.readFile(file, "utf8"));
+  assert.match(adopted.acknowledged.paths["Agents/momus.md"], /^[0-9a-f]{64}$/);
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
+  await fs.appendFile(path.join(root, "Agents/momus.md"), "\nScoped role change.\n");
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/momus\.md/);
+  await appendTrail(packet, [trailEntry(3, "user", "process", "Agents/momus.md scoped role change")]);
+  assert.equal(acknowledge(root, "T3").status, 0);
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
 });
 
 test("cleanup retains current-task pending and uncaptured packets but leaves peer packets alone", async (t) => {

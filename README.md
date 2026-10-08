@@ -29,7 +29,7 @@ The foundational architecture for durable memory, context control, planning, and
 - `Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents keep it current for you and change it only with your approval; they don't read it unless explicitly instructed.
 - `Agents/`: The operating layer for current product truth, planning, task contracts, design contracts, handoffs, lessons, and archived history.
 - When the user names no role, the session is Claudia; follow the Claudia required read order in `Agents/onboarding.md`.
-- Claudia plans and orchestrates without editing product code. Augustus and Julius execute planner-assigned queues.
+- Claudia plans and orchestrates without editing product code. Augustus and Julius execute planner-assigned queues. For unclear bug causes, failed repairs without an established cause, or investigations needing runtime/intermittent/cross-component evidence, Claudia selectively routes to [Momus](Agents/momus.md). Known, reproduced, bounded fixes stay with the current worker using [debugging](Agents/skills/debugging/SKILL.md); an ordinary bug does not add another agent or report cycle.
 - Hephaestus owns non-code human-interface design and design review. Athena independently reviews enterprise product design. Both work against `Agents/design.md`.
 - Active task authority lives in `Agents/planning.md` and `Agents/tasks/`; handoffs carry the contract across role boundaries, not chat memory.
 - Confirmed decisions, broken assumptions, high-cost behavior, and outward acts have explicit gates.
@@ -62,6 +62,7 @@ What exists now:
 - Athena performs read-only enterprise product-design review and assigns concrete fixes to the producing worker.
 - Hephaestus creates durable, build-ready interface contracts and can review the resulting implementation without modifying product code.
 - Review findings and implementation corrections move through explicit design artifacts and handoffs.
+- Momus owns bounded diagnosis, worker probes/fixes and independent verification of the original symptom on the final candidate. You can also name Momus directly. Existing repair authority carries through; diagnosis-only stays read-only. He reuses an authorized same-task worker and handoff, stops after three unsuccessful applied fixes by default, and can satisfy an assigned independent source review when he did not implement the change.
 
 What is not built yet:
 
@@ -69,7 +70,7 @@ What is not built yet:
 - An evaluator running in a harness-provided isolated sandbox.
 - A mandatory pass/fail evaluation gate that can block completion automatically.
 
-So the project has entered Layer 3, but only through design-specific evaluation; the general evaluator remains future work.
+Design review and bounded bug symptom verification are available; the general adversarial evaluator remains future work.
 
 ### 🟡 Layer 4: Agentic Infrastructure & Background Sweeping — Started
 

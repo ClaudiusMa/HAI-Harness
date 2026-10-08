@@ -41,6 +41,7 @@ const scaffoldPaths = [
   "Agents/julius.md",
   "Agents/athena.md",
   "Agents/hephaestus.md",
+  "Agents/momus.md",
   "Agents/designs/README.md",
   "Agents/handoffs/README.md",
   "Agents/handoffs/TEMPLATE.md",
@@ -49,6 +50,7 @@ const scaffoldPaths = [
   "Agents/_archive/tasks/README.md",
   "Agents/tasks/TEMPLATE.md",
   "Agents/skills/implement/SKILL.md",
+  "Agents/skills/debugging/SKILL.md",
   "Agents/lessons/README.md",
   "Agents/lessons/TEMPLATE.md",
   "Agents/skills/decision-logger/SKILL.md",
@@ -78,7 +80,8 @@ const roleDocs = [
   "Agents/augustus.md",
   "Agents/julius.md",
   "Agents/athena.md",
-  "Agents/hephaestus.md"
+  "Agents/hephaestus.md",
+  "Agents/momus.md"
 ];
 const tracedPaths = [
   "Agents/planning.md",
@@ -339,6 +342,7 @@ async function doctor(options) {
     "Agents/julius.md",
     "Agents/athena.md",
     "Agents/hephaestus.md",
+    "Agents/momus.md",
     "Agents/tasks/augustus.md",
     "Agents/tasks/julius.md",
     "Agents/lessons/INDEX.md",
@@ -346,6 +350,7 @@ async function doctor(options) {
     "Agents/lessons/TEMPLATE.md",
     "Agents/skills/code-review/SKILL.md",
     "Agents/skills/implement/SKILL.md",
+    "Agents/skills/debugging/SKILL.md",
     "Agents/skills/traffic-control/SKILL.md",
     "Agents/skills/lesson-logger/SKILL.md",
     "Agents/skills/human-scribe/SKILL.md",
@@ -483,7 +488,13 @@ async function legacyPacketPaths(lane) {
 async function readPacket(lane) {
   if (!(await exists(lane.metadata))) throw new Error('Missing task packet. Run "hai-harness human-sync init" in this recognized task lane (use --migrate for legacy Agents files).');
   const packet = await readJson(lane.metadata);
-  if (packet.schemaVersion !== 1 || JSON.stringify(packet.identity) !== JSON.stringify(lane.identity) || !/^[0-9a-f]{40,64}$/.test(packet.acknowledged?.head ?? "") || tracedPaths.some((name) => !/^[0-9a-f]{64}$/.test(packet.acknowledged?.paths?.[name] ?? "")) || digest(JSON.stringify(packet.acknowledged?.paths)) !== packet.acknowledged?.digest || typeof packet.trail !== "string") {
+  // Pre-Momus packets have no hash for this newly traced role. Keep their
+  // existing digest/history intact; snapshot comparison reports the absent
+  // hash as drift until an ordinary trace acknowledgment adopts it.
+  const validPathHash = (name) =>
+    (name === "Agents/momus.md" && packet.acknowledged?.paths && !Object.hasOwn(packet.acknowledged.paths, name)) ||
+    (typeof packet.acknowledged?.paths?.[name] === "string" && /^[0-9a-f]{64}$/.test(packet.acknowledged.paths[name]));
+  if (packet.schemaVersion !== 1 || JSON.stringify(packet.identity) !== JSON.stringify(lane.identity) || !/^[0-9a-f]{40,64}$/.test(packet.acknowledged?.head ?? "") || tracedPaths.some((name) => !validPathHash(name)) || digest(JSON.stringify(packet.acknowledged?.paths)) !== packet.acknowledged?.digest || typeof packet.trail !== "string") {
     throw new Error("Invalid task packet identity or baseline; preserve it and restore this lane's verified checkpoint.");
   }
   for (const name of [decisionTrailPath, humanInboxPath]) {
