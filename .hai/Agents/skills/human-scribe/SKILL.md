@@ -5,7 +5,7 @@ description: Capture task-owned why-entries into provisional packet drafts, pres
 
 # Human Scribe
 
-Agents maintain `Human/` and the public README; the user owns them by approving. Nothing reaches either without approval in the current batch. Claudia coordinates capture, review and the assigned writer. Provisional choices stay outside Agents and product files in the registered task packet.
+Agents maintain `Human/` and the public README; the user owns them by approving. Nothing reaches either without approval in the current batch. Claudia coordinates capture, review and the assigned writer. A direct Momus controller uses this method for its incident-specific choices; a delegated Momus reports them to its parent Claudia, who owns packet mutations. Neither entry authorizes global planning or direct Human writes by Momus. Provisional choices stay outside Agents and product files in the registered task packet.
 
 ## Packet adoption and discovery
 
@@ -24,7 +24,7 @@ If legacy `Agents/decision-trail.md` and `Agents/human-inbox.md` both exist, use
 
 ## Sources and trace duty
 
-- Packet `decision-trail.md`: append-only numbered `### T{n}` entries. Claudia, Athena and Hephaestus trace changes to planning, project context, design guide, `designs/`, or role docs. Workers provide code-level evidence through handoffs, not trail entries. Trail/inbox, task contracts and handoffs need no entry.
+- Packet `decision-trail.md`: append-only numbered `### T{n}` entries. Claudia, Athena, Hephaestus and direct Momus controllers trace changes to planning, project context, design guide, `designs/`, or role docs. Workers provide code-level evidence through handoffs, not trail entries. Trail/inbox, task contracts and handoffs need no entry.
 - Entry fields: `Date`, `Change` (what changed and every affected traced path, relative to this harness target), `Why`, `Origin: user | agent`, `Area: product | design | process | code`. Origin `user` requires the user's actual statement or confirmation; never upgrade an assumption. Correct earlier entries by appending a numbered correction, not editing old text.
 - Packet `human-inbox.md`: pending/deferred drafts and the `Captured through: none` or `Captured through: T{n}` cursor.
 - Open `Decision needed from user` items in `Agents/planning.md`.
@@ -39,7 +39,7 @@ After the traced change and its new entry, run `human-sync status` again and ack
 hai-harness human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
 ```
 
-Use the actual new trace ID and exact status values. Acknowledgment requires an unchanged prior trail prefix, a valid newly appended entry and a Change field naming every changed traced path; stale observations refuse. `doctor` compares touched commits, staged entries and physical contents/mode with the baseline and warns on pending/deferred drafts and untraced dirty or committed changes. Committing an acknowledged dirty change needs a fresh entry and acknowledgment of the committed state. Editing an unrelated trail/inbox item cannot clear drift. Initialization and acknowledgment never approve a Human draft.
+Use the actual new trace ID and exact status values. Acknowledgment requires an unchanged prior trail prefix, a valid newly appended entry and a Change field naming every changed traced path; stale observations refuse. `doctor` compares touched commits, staged entries and physical contents/mode with the baseline and warns on pending/deferred drafts and untraced dirty or committed changes. Committing an acknowledged dirty change needs a fresh entry and acknowledgment of the committed state. A packet created before Momus remains readable with only that new role hash absent; doctor reports `Agents/momus.md` as unacknowledged drift until a normal new trace and acknowledgment adopt it. Never reinitialize the packet to clear this warning. Editing an unrelated trail/inbox item cannot clear drift. Initialization and acknowledgment never approve a Human draft.
 
 ## 1. Capture (fast-worker profile, low effort)
 

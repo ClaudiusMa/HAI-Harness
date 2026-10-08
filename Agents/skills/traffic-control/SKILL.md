@@ -5,15 +5,15 @@ description: Reconcile concurrent controller sessions, child workers, write scop
 
 # Traffic Control
 
-Traffic control is a coordination gate, not a delegation engine. It decides whether the current root controller may safely spawn or resume its own child workers. It never implements product work, assigns work to a peer controller, or converts a peer controller into a worker.
+Traffic control is a coordination gate, not a delegation engine. It decides whether the current root controller or its bounded delegated Momus may safely coordinate the current task's workers. It never implements product work, assigns work to a peer controller, or converts a peer controller into a worker.
 
 The contract is runtime-neutral. A host may call the units tasks, threads, chats, sessions, agents, or subprocesses; map those names onto the identities below without changing their authority.
 
 ## Identity Model
 
-- **Root controller:** the planning/orchestration session that received the user's request. Claudia is the root controller in this harness.
+- **Root controller:** the planning/orchestration session that received the user's request. Claudia is the default root controller; an explicitly named Momus root owns its own bug task. A delegated Momus is an incident coordinator under the existing root, not a new peer controller.
 - **Parent task:** that exact root user task, identified by its task/session identity. It is not the repository, branch, worktree, task document, or product area.
-- **Child worker:** a fresh role-isolated execution session spawned by the root controller for that parent task. Augustus and Julius are the default worker roles.
+- **Child worker:** a role-isolated execution session belonging to that parent task. Augustus and Julius are the default worker roles. Bounded Momus may reuse the named authorized same-task worker or spawn at most one probe/repair child at a time; preserve root/parent provenance and the settled lane.
 - **Peer controller:** another root planning session with its own user request. It remains a controller even when it owns overlapping files or active workers.
 
 Role and parent-task provenance are immutable during ordinary traffic control. A handoff may transfer a queue only after an explicit user decision and an accepted handoff; file overlap alone never transfers authority.
