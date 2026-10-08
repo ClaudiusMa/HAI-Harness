@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
-import { createReadStream, readFileSync, constants as fsConstants } from "node:fs";
+import { createReadStream, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
@@ -24,11 +24,10 @@ const cliFile = { source: "bin/hai-harness.mjs", target: installedCliPath };
 // <package>/bin/hai-harness.mjs beside a package.json named hai-harness. Any
 // other location (Agents/hai-harness.mjs in a project, .hai in this repository,
 // a stray copy) is an installed copy and must never copy from its own parent.
-const runsFromPackage = (() => {
-  if (path.basename(scriptDirectory) !== "bin" || path.basename(scriptPath) !== "hai-harness.mjs") return false;
-  try { return JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8")).name === "hai-harness"; } catch { return false; }
+const runsFromProject = (() => {
+  if (path.basename(scriptDirectory) !== "bin" || path.basename(scriptPath) !== "hai-harness.mjs") return true;
+  try { return JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8")).name !== "hai-harness"; } catch { return true; }
 })();
-const runsFromProject = !runsFromPackage;
 // Hints name the command form actually being run, relative to the working
 // directory when the script is inside it (node Agents/hai-harness.mjs).
 const cliCommand = (() => {
@@ -99,8 +98,7 @@ const createOnlyPaths = ["Agents/lessons/INDEX.md"];
 const decisionTrailPath = "decision-trail.md";
 const humanInboxPath = "human-inbox.md";
 // Starting content for a new task packet. It is embedded so the project copy of
-// the CLI can run `human-sync init`; scaffold/task-packet/ holds the readable
-// reference and a test keeps the two identical.
+// the CLI can run `human-sync init` without any packaged template files.
 const packetTemplates = {
   [decisionTrailPath]: `# Decision Trail
 
@@ -172,6 +170,7 @@ const gitWorktreeCopy = /^worktrees\/[^/]+$/;
 const packetDirectoryCopy = /^hai-harness\/tasks\/[^/]+$/;
 const compareNext = "Compare the two and ask the user which one is right; nothing is moved or deleted for you.";
 const missingNext = "Ask the user before renaming it to the original name or moving it away; it may hold the only copy.";
+const quarantineAdvice = `only for a path the user explicitly approves, "${cliCommand} worktree sweep --quarantine <path>" moves that one copy to the same reversible quarantine`;
 
 const usage = `HAI-Harness
 
@@ -237,8 +236,7 @@ async function main() {
   }
 
   if (runsFromProject && (command === "init" || command === "update")) {
-    const own = path.basename(packageRoot) === ".hai" ? "\nIn the HAI-Harness repository itself, run ./hai-meta sync (or ./hai-meta bootstrap) from the repository root instead." : "";
-    throw new Error(`${command} copies the packaged templates, which this project copy of the CLI does not carry. Run it from the published package instead:\n  ${upstreamCommand} ${[command, ...args].map(shellWord).join(" ")}${own}`);
+    throw new Error(`${command} copies the packaged templates, which this project copy of the CLI does not carry. Run it from the published package instead:\n  ${upstreamCommand} ${[command, ...args].map(shellWord).join(" ")}`);
   }
 
   if (command === "worktree") {
@@ -898,7 +896,7 @@ async function worktree(args) {
     const options = parseOptions(rest, new Set(["--target", "--approved", "--keep-worktree"]));
     if (options.positional.length !== 0) throw new Error("worktree approve accepts no positional arguments.");
     if (!options.approved?.trim()) throw new Error("worktree approve requires --approved <message>.");
-    await sweepConflictCopies(options.target, { guardApprove: true });
+    await sweepConflictCopies(options.target);
     await approveWorktree(options);
     return;
   }
@@ -906,7 +904,7 @@ async function worktree(args) {
     const options = parseOptions(rest, new Set(["--target"]));
     if (options.positional.length !== 1) throw new Error("worktree cleanup requires one task branch.");
     // The lane being removed is swept too, so leftover duplicates do not read as unfinished work.
-    await sweepConflictCopies(options.target, { extraRoots: await registeredLaneRoots(options.target, options.positional[0]) });
+    await sweepConflictCopies(options.target, { laneBranch: options.positional[0] });
     const result = await cleanupWorktree(options.target, options.positional[0]);
     if (!result) process.exitCode = 1;
     return;
@@ -1064,6 +1062,7 @@ async function approveWorktree(options) {
   const dirtyIntegration = `The ${integrationBranch} checkout ${dirtyIntegrationMessage} The task worktree is preserved.`;
   await assertClean(integrationRoot, dirtyIntegration);
 
+  await assertNoCopiesToCommit(taskRoot);
   await git(taskRoot, ["diff", "--check"], { inherit: true });
   await git(taskRoot, ["diff", "--cached", "--check"], { inherit: true });
   await git(taskRoot, ["add", "-A"]);
@@ -1355,29 +1354,21 @@ function conflictOriginalName(name) {
   return match ? `${match[1]}${match[2] ?? ""}` : null;
 }
 
-async function conflictScope(target, extraRoots = []) {
+const lexists = (file) => fs.lstat(file).then(() => true, () => false);
+
+async function conflictScope(target, { laneBranch } = {}) {
   const top = await gitOptional(target, ["rev-parse", "--show-toplevel"]);
   if (!top) return null;
   const common = await gitOptional(top, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
   const worktrees = await listWorktrees(top).catch(() => []);
   if (!common || worktrees.length === 0) return null;
-  const roots = [];
-  for (const candidate of [worktrees[0].root, top, ...extraRoots]) {
-    const physical = await fs.realpath(candidate).catch(() => null);
-    if (physical && !roots.includes(physical)) roots.push(physical);
-  }
+  const lane = laneBranch ? worktrees.find((item) => item.branch === laneBranch) : undefined;
+  const physical = await Promise.all([worktrees[0].root, top, lane?.root].filter(Boolean).map((root) => fs.realpath(root).catch(() => null)));
   return {
     common: await fs.realpath(common),
-    control: await fs.realpath(worktrees[0].root).catch(() => worktrees[0].root),
-    top: await fs.realpath(top).catch(() => top),
-    roots
+    control: physical[0] ?? worktrees[0].root,
+    roots: [...new Set(physical.filter(Boolean))]
   };
-}
-
-async function registeredLaneRoots(target, branch) {
-  const top = await gitOptional(target, ["rev-parse", "--show-toplevel"]);
-  const lane = top ? (await listWorktrees(top).catch(() => [])).find((item) => item.branch === branch) : null;
-  return lane ? [lane.root] : [];
 }
 
 // Everything in the Git common directory: loose refs, HEAD, index caches, the
@@ -1409,42 +1400,16 @@ async function findTreeConflictCopies(root) {
   return listed.split("\0").filter((rel) => rel && conflictOriginalName(path.basename(rel)) !== null);
 }
 
-// Untracked directories named like a copy of an existing sibling directory. The
-// sweep never moves a directory out of a checkout; approve refuses to commit one unseen.
-async function findTreeConflictDirectories(root) {
-  const listed = await gitOptional(root, ["ls-files", "--others", "--exclude-standard", "--directory", "-z"]);
-  const found = [];
-  for (const entry of listed.split("\0")) {
-    if (!entry.endsWith("/")) continue;
-    const rel = entry.slice(0, -1);
-    const originalName = conflictOriginalName(path.basename(rel));
-    if (originalName === null) continue;
-    const sibling = await fs.lstat(path.join(root, path.dirname(rel), originalName)).catch(() => null);
-    if (sibling?.isDirectory()) found.push(rel);
-  }
-  return found;
-}
-
-function treeDirectoryItem(root, rel) {
-  const item = conflictItem("tree", root, rel, path.join(root, ...rel.split("/")));
-  item.directory = true;
-  item.originalExists = true;
-  return markKept(item, "It is an untracked directory beside an existing directory of the original name.", "Merge what is needed into the original, then rename or remove the copy yourself with the user; the sweep never moves a directory out of a checkout.");
-}
-
 async function planConflictSweep(scope) {
   const plan = [];
   // A concurrent sweep may take a copy while it is being judged; a copy that is
   // gone by then is handled, not "kept" and certainly not blocking.
   const consider = async (item) => {
-    if (!item) return;
-    if (item.action === "keep" && !(await fs.lstat(item.copy).then(() => true, () => false))) return;
-    plan.push(item);
+    if (item && (item.action !== "keep" || await lexists(item.copy))) plan.push(item);
   };
   for (const rel of await findGitConflictCopies(scope.common)) await consider(await decideGitCopy(scope, rel));
   for (const root of scope.roots) {
     for (const rel of await findTreeConflictCopies(root)) await consider(await decideTreeCopy(root, rel));
-    for (const rel of await findTreeConflictDirectories(root)) await consider(treeDirectoryItem(root, rel));
   }
   return plan;
 }
@@ -1463,8 +1428,8 @@ function readerOf(item) {
   if (item.area !== "git") return "";
   if (gitRefCopy.test(item.rel)) return "Git reads it as a ref (typically as \"bad object\").";
   if (gitHeadCopy.test(item.rel)) return "Git may read it as HEAD.";
-  if (item.directory && gitWorktreeCopy.test(item.rel)) return "Git lists a copy of a worktree admin directory as an extra worktree.";
-  if (item.directory && packetDirectoryCopy.test(item.rel)) return "Task-packet commands read every directory under hai-harness/tasks, so a copy fails them with \"Invalid task packet identity\".";
+  if (gitWorktreeCopy.test(item.rel)) return "Git lists a copy of a worktree admin directory as an extra worktree.";
+  if (packetDirectoryCopy.test(item.rel)) return "Task-packet commands read every directory under hai-harness/tasks, so a copy fails them with \"Invalid task packet identity\".";
   return "";
 }
 
@@ -1477,7 +1442,6 @@ async function decideGitCopy(scope, rel) {
   const item = conflictItem("git", scope.common, rel, path.join(scope.common, ...rel.split("/")));
   const stat = await fs.lstat(item.copy).catch(() => null);
   if (!stat) return null;
-  item.directory = stat.isDirectory();
   if (stat.isSymbolicLink()) return markKept(item, "It is a symbolic link.", compareNext);
   const original = await fs.lstat(item.original).catch(() => null);
   if (stat.isFile() && gitIndexCopy.test(rel)) {
@@ -1487,7 +1451,7 @@ async function decideGitCopy(scope, rel) {
   if (stat.isFile() && original?.isFile() && await sameContent(item.copy, item.original)) {
     return markRedundant(item, "byte-identical to the original");
   }
-  if (stat.isFile() && rel.startsWith("refs/")) return decideRefCopy(scope, item, rel);
+  if (stat.isFile() && rel.startsWith("refs/")) return decideRefCopy(scope, item);
   if (!original) return markKept(item, "The original does not exist.", missingNext);
   if (stat.isDirectory() && original.isDirectory() && await sameTree(item.copy, item.original)) {
     return markRedundant(item, "identical to the original directory");
@@ -1497,7 +1461,7 @@ async function decideGitCopy(scope, rel) {
 
 // A loose ref copy is redundant when its commit is already reachable from the
 // real ref; anything else could hold work the real ref lacks.
-async function decideRefCopy(scope, item, rel) {
+async function decideRefCopy(scope, item) {
   const refName = path.relative(scope.common, item.original).split(path.sep).join("/");
   const target = await gitOptional(scope.control, ["rev-parse", "--verify", "--quiet", `${refName}^{commit}`]);
   const copyId = (await fs.readFile(item.copy, "utf8").catch(() => "")).trim();
@@ -1516,9 +1480,8 @@ async function decideTreeCopy(root, rel) {
   const item = conflictItem("tree", root, rel, path.join(root, ...rel.split("/")));
   const stat = await fs.lstat(item.copy).catch(() => null);
   if (!stat) return null;
-  const original = await fs.lstat(item.original).catch(() => null);
-  item.originalExists = Boolean(original);
   if (!stat.isFile()) return markKept(item, "It is not a regular file.", compareNext);
+  const original = await fs.lstat(item.original).catch(() => null);
   if (!original) return markKept(item, "The original does not exist.", missingNext);
   if (!original.isFile()) return markKept(item, "The original is not a regular file.", compareNext);
   if (await sameContent(item.copy, item.original)) return markRedundant(item, "byte-identical to the original");
@@ -1569,10 +1532,12 @@ async function conflictCopyWarnings(target) {
   return warnings;
 }
 
-// `guardApprove` is set by approve: a kept copy in the lane it is about to
-// commit with `git add -A` must not be swept into the commit unseen.
-async function sweepConflictCopies(target, { extraRoots = [], reportClean = false, guardApprove = false } = {}) {
-  const scope = await conflictScope(target, extraRoots);
+function stop(headline, lines, footer) {
+  return new Error([`Stopped: ${headline}`, ...lines, footer].join("\n"));
+}
+
+async function sweepConflictCopies(target, { laneBranch, reportClean = false } = {}) {
+  const scope = await conflictScope(target, { laneBranch });
   if (!scope) {
     if (reportClean) throw new Error("worktree sweep needs a Git checkout.");
     return;
@@ -1595,31 +1560,45 @@ async function sweepConflictCopies(target, { extraRoots = [], reportClean = fals
     for (const item of moved) console.log(`  - ${item.copy}: ${item.reason}`);
   }
   const describe = (item) => `  - ${item.copy}\n    original: ${item.original}\n    why:      ${item.why}\n    next:     ${item.next}`;
-  const movedNote = `${moved.length} redundant cop${moved.length === 1 ? "y was" : "ies were"} moved to the quarantine as listed above`;
-  const laneRoot = guardApprove && scope.top !== scope.control ? scope.top : "";
-  const wouldCommit = (item) => laneRoot !== "" && item.area === "tree" && item.root === laneRoot && item.originalExists;
-  const open = unresolved.filter((item) => !item.blocking && !wouldCommit(item));
+  const open = unresolved.filter((item) => !item.blocking);
   if (open.length > 0) {
     console.log(`Conflict copies kept (${open.length}); they need a decision and were not changed:`);
     for (const item of open) console.log(describe(item));
   }
   const blocking = unresolved.filter((item) => item.blocking);
   if (blocking.length > 0) {
-    throw new Error([
-      `Stopped: a cloud-sync conflict copy in Git metadata is not provably redundant, and Git or the harness may read it. ${moved.length > 0 ? `${movedNote}; nothing else was changed.` : "Nothing was changed."}`,
-      ...blocking.map(describe),
-      `Settle it with the user, then re-run the command. Never delete it by hand. "${cliCommand} worktree sweep" moves what is provably redundant; only for a path the user explicitly approves, "${cliCommand} worktree sweep --quarantine <path>" moves that one copy to the same reversible quarantine.`
-    ].join("\n"));
-  }
-  const unsafe = unresolved.filter(wouldCommit);
-  if (unsafe.length > 0) {
-    throw new Error([
-      `Stopped: approve would commit what looks like a cloud-sync conflict copy. ${moved.length > 0 ? `${movedNote}; nothing was committed.` : "Nothing was committed."}`,
-      ...unsafe.map(describe),
-      `Each file is named like a sync duplicate of a file that exists and its content differs. Ask the user to merge what is needed into the original and rename or remove the copy, or, for a file path the user explicitly approves, run "${cliCommand} worktree sweep --quarantine <path>" to move that one copy out of the lane. If a listed path is intentional, renaming it or staging it explicitly with \`git add <path>\` lets approve proceed. Then run approve again.`
-    ].join("\n"));
+    const changed = moved.length > 0 ? `${moved.length} redundant cop${moved.length === 1 ? "y was" : "ies were"} moved to the quarantine as listed above; nothing else was changed.` : "Nothing was changed.";
+    throw stop(
+      `a cloud-sync conflict copy in Git metadata is not provably redundant, and Git or the harness may read it. ${changed}`,
+      blocking.map(describe),
+      `Settle it with the user, then re-run the command. Never delete it by hand. "${cliCommand} worktree sweep" moves what is provably redundant; ${quarantineAdvice}.`
+    );
   }
   if (reportClean && moved.length === 0 && unresolved.length === 0) console.log("No conflict copies found.");
+}
+
+// approve stages everything with `git add -A`, so it refuses to commit an
+// untracked file or directory named like a sync duplicate of one that exists.
+async function assertNoCopiesToCommit(lane) {
+  const listed = await gitOptional(lane, ["ls-files", "--others", "--exclude-standard", "-z"]);
+  const copies = new Map();
+  for (const entry of listed.split("\0").filter(Boolean)) {
+    const parts = entry.split("/");
+    for (let index = 0; index < parts.length; index += 1) {
+      const originalName = conflictOriginalName(parts[index]);
+      const original = originalName === null ? "" : path.join(lane, ...parts.slice(0, index), originalName);
+      if (original && await lexists(original)) {
+        copies.set(path.join(lane, ...parts.slice(0, index + 1)), original);
+        break; // the topmost copy-named component covers everything beneath it
+      }
+    }
+  }
+  if (copies.size === 0) return;
+  throw stop(
+    "approve would commit what looks like a cloud-sync conflict copy. Nothing was committed.",
+    [...copies].map(([copy, original]) => `  - ${copy}\n    original: ${original}`),
+    `Each path is named like a sync duplicate of one that exists. Ask the user to merge what is needed into the original and rename or remove the copy; for a file, ${quarantineAdvice}. If a listed path is intentional, renaming it or staging it explicitly with \`git add <path>\` lets approve proceed. Then run approve again.`
+  );
 }
 
 // Moves one copy the user has approved by path, whether or not the sweep would
@@ -1656,8 +1635,7 @@ async function quarantineNamedCopy(target, requested) {
     item = await decideTreeCopy(root, rel);
   }
   if (!item) throw new Error(`${copy} disappeared before it could be moved.`);
-  item.reason = `user-directed${item.action === "keep" ? `; the sweep had kept it: ${item.why}` : `; the sweep also judged it redundant: ${item.reason}`}`;
-  item.userDirected = true;
+  item.reason = `user-directed with worktree sweep --quarantine; the sweep ${item.action === "keep" ? `had kept it: ${item.why}` : `also judged it redundant: ${item.reason}`}`;
   const session = { directory: "" };
   if (await moveToQuarantine(scope, session, item) !== "moved") throw new Error(`${copy} disappeared before it could be moved.`);
   console.log(`Conflict copy moved to the reversible quarantine at the user's direction; nothing was deleted: ${item.copy}`);
@@ -1665,6 +1643,7 @@ async function quarantineNamedCopy(target, requested) {
 }
 
 // Returns "moved", or "gone" when the copy was already taken by a concurrent sweep.
+// A failed move (for example across volumes) throws and the copy stays where it is.
 async function moveToQuarantine(scope, session, item) {
   if (!session.directory) {
     // The process id keeps two sweeps in the same millisecond out of one folder.
@@ -1678,25 +1657,17 @@ async function moveToQuarantine(scope, session, item) {
   const area = item.area === "git" ? "git" : path.join("tree", path.basename(item.root));
   const base = path.join(session.directory, area, ...item.rel.split("/"));
   let destination = base;
-  for (let suffix = 1; await fs.lstat(destination).then(() => true, () => false); suffix += 1) destination = `${base}.${suffix}`;
+  for (let suffix = 1; await lexists(destination); suffix += 1) destination = `${base}.${suffix}`;
   await fs.mkdir(path.dirname(destination), { recursive: true });
-  const stillThere = () => fs.lstat(item.copy).then(() => true, () => false);
   try {
     await fs.rename(item.copy, destination);
   } catch (error) {
-    if (error.code === "ENOENT" && !(await stillThere())) return "gone";
-    if (error.code !== "EXDEV" || !(await fs.lstat(item.copy)).isFile()) throw error;
-    // Another volume: copy, verify, then remove only the verified original.
-    await fs.copyFile(item.copy, destination, fsConstants.COPYFILE_EXCL);
-    if (!(await sameContent(item.copy, destination))) {
-      await fs.rm(destination, { force: true });
-      throw new Error("the verification after copying failed");
-    }
-    await fs.unlink(item.copy);
+    if (error.code === "ENOENT" && !(await lexists(item.copy))) return "gone";
+    throw error;
   }
   // The file is already safe in the quarantine at its original relative path, so
   // a manifest write failure must not report the move as failed.
-  await fs.appendFile(path.join(session.directory, "manifest.txt"), `\n- from: ${item.copy}\n  original: ${item.original}\n  reason: ${item.reason}\n${item.userDirected ? "  directed: by the user, with worktree sweep --quarantine\n" : ""}  stored: ${destination}\n`).catch(() => {});
+  await fs.appendFile(path.join(session.directory, "manifest.txt"), `\n- from: ${item.copy}\n  original: ${item.original}\n  reason: ${item.reason}\n  stored: ${destination}\n`).catch(() => {});
   return "moved";
 }
 

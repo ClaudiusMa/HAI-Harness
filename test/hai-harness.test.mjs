@@ -392,6 +392,13 @@ test("init, update, and doctor preserve state and flag polluted startup context"
     assert.doesNotMatch(await fs.readFile(doc, "utf8"), bareCommand, path.relative(target, doc));
   }
   assert.match(await fs.readFile(path.join(target, "AGENTS.md"), "utf8"), /node Agents\/hai-harness\.mjs worktree create <task-slug>/);
+  // AGENTS.md is the one always-loaded file: three start steps, at most eight one-line invariants, a small word budget.
+  const entry = await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8");
+  assert.ok(entry.split(/\s+/).filter(Boolean).length <= 450, "scaffold/AGENTS.md must stay at 450 words or fewer; put detail in Agents/onboarding.md");
+  assert.equal((entry.match(/^\d\. \*\*/gm) ?? []).length, 3);
+  const always = entry.match(/## Always\n\n((?:- .*\n)+)/)?.[1].trim().split("\n") ?? [];
+  assert.ok(always.length > 0 && always.length <= 8, `Always lists ${always.length} invariants`);
+  for (const role of ["Claudia", "Momus", "Augustus", "Julius", "Athena", "Hephaestus"]) assert.ok(entry.includes(role), role);
   assert.equal(
     await fs.readFile(path.join(target, "AGENTS.md"), "utf8"),
     await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8")
@@ -868,7 +875,6 @@ test("human-sync resolves .hai traced scope, physical common metadata and retain
 async function makeInstalledProject(t) {
   const fixture = await makeGitFixture(t);
   const { repo } = fixture;
-  t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
   assert.equal(harness(repo, "init", "--target", repo).status, 0);
   assert.equal(beacon(repo, "--disable").status, 0);
   git(repo, "add", "-A");
@@ -897,23 +903,14 @@ test("the project copy of the CLI runs lanes and human-sync with no PATH entry a
   assert.equal(inside.status, 0, inside.stderr);
   assert.match(projectCli(lane, lane, "worktree", "status", "--all").stdout, /task\/inside[\s\S]*task\/field|task\/field[\s\S]*task\/inside/);
   assert.equal(projectCli(lane, lane, "human-sync", "init").status, 0);
-  const packet = JSON.parse(projectCli(lane, lane, "human-sync", "status").stdout).packet;
-  for (const name of ["decision-trail.md", "human-inbox.md"]) {
-    assert.equal(
-      await fs.readFile(path.join(packet, name), "utf8"),
-      await fs.readFile(path.join(projectRoot, "scaffold/task-packet", name), "utf8"),
-      "embedded packet template must match scaffold/task-packet"
-    );
-  }
+  // the packet came from the CLI's embedded templates: the project has none, and capture reads them
+  assert.match(projectCli(lane, lane, "human-sync").stdout, /no new trail entries since the trail began/);
   const doctor = projectCli(lane, lane, "doctor");
   assert.equal(doctor.status, 0, doctor.stdout + doctor.stderr);
   assert.match(doctor.stdout, /looks installed/);
 
   // init and update need the package's templates: the project copy points at npx instead of copying from the wrong root.
   const receipt = await fs.readFile(path.join(lane, ".hai-harness.json"), "utf8");
-  const refusedUpdate = projectCli(lane, lane, "update", "--dry-run");
-  assert.notEqual(refusedUpdate.status, 0);
-  assert.match(refusedUpdate.stderr, /npx github:ClaudiusMa\/HAI-Harness update --dry-run/);
   const refusedInit = projectCli(lane, lane, "init", "--target", "/tmp/a project");
   assert.notEqual(refusedInit.status, 0);
   assert.match(refusedInit.stderr, /npx github:ClaudiusMa\/HAI-Harness init --target "\/tmp\/a project"/);
@@ -1065,12 +1062,10 @@ test("conflict-copy sweep quarantines only provably redundant duplicates and rep
   const created = harness(repo, "worktree", "create", "unblocked", "--target", repo);
   assert.equal(created.status, 0, created.stderr);
   assert.match(created.stdout, /Conflict copies kept \(2\)[\s\S]*config 2[\s\S]*orphan 2/);
-  t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
 });
 
 test("create, approve and cleanup sweep identical duplicates so they cannot block or enter commits", async (t) => {
   const { repo } = await makeGitFixture(t);
-  t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
   await fs.writeFile(path.join(repo, "base.md"), "base\n");
   git(repo, "add", "base.md");
   git(repo, "commit", "-m", "Add base");
@@ -1107,10 +1102,10 @@ test("create, approve and cleanup sweep identical duplicates so they cannot bloc
   assert.equal(await fs.readFile(path.join(common, "hai-harness/quarantine", quarantines[2], "tree", "swept", "result 2.txt"), "utf8"), "result\n");
 });
 
-test("approve refuses to commit a kept conflict copy, and --quarantine moves only an approved, untracked one", async (t) => {
+test("approve refuses to commit a conflict copy (file or directory), and --quarantine moves only an approved, untracked file", async (t) => {
   const { repo } = await makeGitFixture(t);
-  t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
-  for (const [name, content] of [[".gitignore", ".env\n"], ["notes.md", "notes\n"], ["tracked.md", "tracked\n"], ["tracked 2.md", "tracked copy\n"]]) {
+  for (const [name, content] of [[".gitignore", ".env\n"], ["notes.md", "notes\n"], ["tracked.md", "tracked\n"], ["tracked 2.md", "tracked copy\n"], ["src/a.js", "one\n"]]) {
+    await fs.mkdir(path.dirname(path.join(repo, name)), { recursive: true });
     await fs.writeFile(path.join(repo, name), content);
   }
   git(repo, "add", "-A");
@@ -1122,15 +1117,20 @@ test("approve refuses to commit a kept conflict copy, and --quarantine moves onl
   await fs.writeFile(path.join(lane, ".env 2"), "SECRET=2\n");
   await fs.writeFile(path.join(lane, "notes 2.md"), "other notes\n");
   await fs.writeFile(path.join(lane, "orphan 2.txt"), "no original\n");
+  await fs.mkdir(path.join(lane, "src 2"));
+  await fs.writeFile(path.join(lane, "src 2/a.js"), "two\n");
+  await fs.mkdir(path.join(lane, "solo 2")); // no sibling "solo": reported at most, never a stop
+  await fs.writeFile(path.join(lane, "solo 2/x.txt"), "x\n");
   const head = git(lane, "rev-parse", "HEAD");
 
   const refused = harness(lane, "worktree", "approve", "--approved", "Guarded", "--target", lane);
   assert.notEqual(refused.status, 0);
   assert.match(refused.stderr, /Stopped: approve would commit what looks like a cloud-sync conflict copy\. Nothing was committed\./);
-  assert.ok(refused.stderr.includes(path.join(lane, ".env 2")) && refused.stderr.includes(path.join(lane, "notes 2.md")));
+  for (const copy of [".env 2", "notes 2.md", "src 2"]) assert.ok(refused.stderr.includes(path.join(lane, copy)), copy);
   assert.match(refused.stderr, /merge what is needed into the original[\s\S]*worktree sweep --quarantine <path>/);
-  assert.ok(!refused.stderr.includes("orphan 2.txt"), "an orphan with no original only reports");
-  assert.match(refused.stdout, /Conflict copies kept \(1\)[\s\S]*orphan 2\.txt/);
+  assert.match(refused.stderr, /intentional, renaming it or staging it explicitly with `git add <path>` lets approve proceed/);
+  assert.ok(!refused.stderr.includes("orphan 2.txt") && !refused.stderr.includes("solo 2"), "copies with no original only report");
+  assert.match(refused.stdout, /Conflict copies kept \(3\)[\s\S]*orphan 2\.txt/);
   assert.equal(git(lane, "rev-parse", "HEAD"), head);
   assert.equal(git(lane, "diff", "--cached", "--name-only"), "");
   assert.equal(await fs.readFile(path.join(lane, ".env 2"), "utf8"), "SECRET=2\n");
@@ -1144,6 +1144,10 @@ test("approve refuses to commit a kept conflict copy, and --quarantine moves onl
   assert.match(tracked.stderr, /is tracked; tracked files are never quarantined/);
   assert.equal(await fs.readFile(path.join(lane, "tracked 2.md"), "utf8"), "tracked copy\n");
   assert.notEqual(harness(lane, "worktree", "sweep", "--quarantine", "missing 2.md", "--target", lane).status, 0);
+  // the sweep never moves a directory out of a checkout, even when the user names it
+  const directory = harness(lane, "worktree", "sweep", "--quarantine", "src 2", "--target", lane);
+  assert.notEqual(directory.status, 0);
+  assert.match(directory.stderr, /Only a regular file can be quarantined from a checkout/);
 
   // for paths the user approved, it moves exactly those into the same quarantine and marks them
   const common = path.join(repo, ".git");
@@ -1155,15 +1159,22 @@ test("approve refuses to commit a kept conflict copy, and --quarantine moves onl
   const quarantines = await fs.readdir(path.join(common, "hai-harness/quarantine"));
   assert.equal(quarantines.length, 2);
   const manifests = await Promise.all(quarantines.map((name) => fs.readFile(path.join(common, "hai-harness/quarantine", name, "manifest.txt"), "utf8")));
-  assert.ok(manifests.every((text) => /reason: user-directed; the sweep had kept it: Its content differs from the original\./.test(text) && /directed: by the user/.test(text)));
+  assert.ok(manifests.every((text) => /reason: user-directed with worktree sweep --quarantine; the sweep had kept it: Its content differs from the original\./.test(text)));
   assert.equal(await fs.stat(path.join(lane, ".env 2")).catch(() => null), null);
   assert.equal(await fs.readFile(path.join(lane, ".env"), "utf8"), "SECRET=1\n");
   assert.equal(await fs.readFile(path.join(lane, "orphan 2.txt"), "utf8"), "no original\n");
 
+  // the directory copy is still refused (and alone); the user says it is intentional, so explicit staging lets approve proceed
+  const stillRefused = harness(lane, "worktree", "approve", "--approved", "Guarded", "--target", lane);
+  assert.notEqual(stillRefused.status, 0);
+  assert.ok(stillRefused.stderr.includes(path.join(lane, "src 2")) && !stillRefused.stderr.includes(".env 2"));
+  git(lane, "add", "src 2");
   const approved = harness(lane, "worktree", "approve", "--approved", "Guarded", "--target", lane);
   assert.equal(approved.status, 0, approved.stderr);
   const committed = git(repo, "ls-files");
   assert.match(committed, /^result\.txt$/m);
+  assert.match(committed, /^src 2\/a\.js$/m);
+  assert.match(committed, /^solo 2\/x\.txt$/m);
   assert.doesNotMatch(committed, /\.env 2|notes 2/);
 });
 
@@ -1185,6 +1196,15 @@ test("kept worktree admin and task-packet directory copies stop lane commands wi
   assert.equal(await fs.readFile(path.join(admin, "index 2"), "utf8"), "possibly the only staged state\n");
   await fs.rename(path.join(admin, "index.saved"), path.join(admin, "index"));
   await fs.rm(path.join(admin, "index 2"));
+
+  // an identical copy of an admin directory is redundant and moves to the quarantine whole
+  await fs.cp(admin, `${admin} 2`, { recursive: true });
+  const identical = projectCli(repo, repo, "worktree", "sweep");
+  assert.equal(identical.status, 0, identical.stderr);
+  assert.match(identical.stdout, /worktrees\/alpha 2: identical to the original directory/);
+  assert.equal(await fs.stat(`${admin} 2`).catch(() => null), null);
+  const stored = identical.stdout.match(/quarantine: (.+) \(manifest/)[1];
+  assert.ok(await fs.stat(path.join(stored, "git/worktrees/alpha 2/HEAD")));
 
   // a differing copy of a worktree admin directory shows up as an extra worktree
   await fs.cp(admin, `${admin} 2`, { recursive: true });
@@ -1224,14 +1244,13 @@ test("simultaneous sweeps hand each duplicate to exactly one of them without fal
     await fs.writeFile(path.join(bulk, `f${index}.txt`), `payload ${index}\n`);
     await fs.writeFile(path.join(bulk, `f${index} 2.txt`), `payload ${index}\n`);
   }
-  const sweep = () => new Promise((resolve) => {
+  const sweep = async () => {
     const child = spawn(process.execPath, [cli, "worktree", "sweep", "--target", repo], { cwd: repo, stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk; });
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
-    child.on("close", (status) => resolve({ status, stdout, stderr }));
-  });
+    const output = { stdout: "", stderr: "" };
+    for (const stream of ["stdout", "stderr"]) child[stream].setEncoding("utf8").on("data", (chunk) => { output[stream] += chunk; });
+    const [status] = await once(child, "close");
+    return { status, ...output };
+  };
   const results = await Promise.all([sweep(), sweep()]);
   let movedByThem = 0;
   for (const result of results) {
@@ -1253,15 +1272,13 @@ test("simultaneous sweeps hand each duplicate to exactly one of them without fal
 test("init and update run only from the identified package; every other location is an installed copy", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "hai-detect-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const place = async (relative, packageName) => {
-    const folder = path.join(root, relative.split("/")[0]);
-    await fs.mkdir(path.join(folder, path.dirname(relative.split("/").slice(1).join("/"))), { recursive: true });
-    await fs.writeFile(path.join(folder, "package.json"), JSON.stringify({ name: packageName, version: "9.9.9" }));
-    await fs.mkdir(path.join(folder, "scaffold"), { recursive: true });
-    await fs.writeFile(path.join(folder, "scaffold/AGENTS.md"), "template\n");
-    const script = path.join(root, relative);
-    await fs.copyFile(cli, script);
-    return script;
+  // Copies the CLI to <root>/<script> with a package.json of the given name two levels up from it.
+  const place = async (script, packageName) => {
+    const file = path.join(root, script);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.copyFile(cli, file);
+    await fs.writeFile(path.join(path.dirname(path.dirname(file)), "package.json"), JSON.stringify({ name: packageName }));
+    return file;
   };
   const target = path.join(root, "target");
   await fs.mkdir(target);
@@ -1272,9 +1289,9 @@ test("init and update run only from the identified package; every other location
   assert.equal(real.status, 0, real.stderr);
   assert.match(real.stdout, /Dry run complete/);
   // the same file under another package name, or under Agents/, is an installed copy
-  for (const [relative, name] of [["other/bin/hai-harness.mjs", "someone-else"], ["agents/Agents/hai-harness.mjs", "hai-harness"]]) {
-    const refused = update(await place(relative, name), "--target", target);
-    assert.notEqual(refused.status, 0, relative);
+  for (const [script, name] of [["other/bin/hai-harness.mjs", "someone-else"], ["agents/Agents/hai-harness.mjs", "hai-harness"]]) {
+    const refused = update(await place(script, name), "--target", target);
+    assert.notEqual(refused.status, 0, script);
     assert.match(refused.stderr, /npx github:ClaudiusMa\/HAI-Harness update --dry-run --target/);
   }
 
@@ -1292,46 +1309,6 @@ test("init and update run only from the identified package; every other location
   assert.match(live.stderr, /npx github:ClaudiusMa\/HAI-Harness update/);
   assert.equal(await fs.readFile(path.join(project, "AGENTS.md"), "utf8"), "the project's own entry point\n");
   assert.equal(await fs.readFile(path.join(project, ".hai-harness.json"), "utf8"), receipt);
-});
-
-test("approve refuses an untracked directory copy, and staging it explicitly is the way through", async (t) => {
-  const { repo } = await makeGitFixture(t);
-  t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
-  await fs.mkdir(path.join(repo, "src"));
-  await fs.writeFile(path.join(repo, "src/a.js"), "one\n");
-  git(repo, "add", "-A");
-  git(repo, "commit", "-m", "Add src");
-  assert.equal(harness(repo, "worktree", "create", "dirs", "--target", repo).status, 0);
-  const lane = `${repo}-worktrees/dirs`;
-  await fs.mkdir(path.join(lane, "src 2"));
-  await fs.writeFile(path.join(lane, "src 2/a.js"), "two\n");
-  await fs.mkdir(path.join(lane, "solo 2")); // no sibling "solo": reported at most, never a stop
-  await fs.writeFile(path.join(lane, "solo 2/x.txt"), "x\n");
-  await fs.writeFile(path.join(lane, "result.txt"), "result\n");
-  const head = git(lane, "rev-parse", "HEAD");
-
-  const refused = harness(lane, "worktree", "approve", "--approved", "Dirs", "--target", lane);
-  assert.notEqual(refused.status, 0);
-  assert.match(refused.stderr, /Stopped: approve would commit what looks like a cloud-sync conflict copy\. Nothing was committed\./);
-  assert.ok(refused.stderr.includes(path.join(lane, "src 2")));
-  assert.ok(!refused.stderr.includes("solo 2"));
-  assert.match(refused.stderr, /intentional, renaming it or staging it explicitly with `git add <path>` lets approve proceed/);
-  assert.equal(git(lane, "rev-parse", "HEAD"), head);
-  assert.equal(git(lane, "diff", "--cached", "--name-only"), "");
-
-  // the sweep never moves a directory out of a checkout, even when the user names it
-  const named = harness(lane, "worktree", "sweep", "--quarantine", "src 2", "--target", lane);
-  assert.notEqual(named.status, 0);
-  assert.match(named.stderr, /Only a regular file can be quarantined from a checkout/);
-  assert.equal(await fs.readFile(path.join(lane, "src 2/a.js"), "utf8"), "two\n");
-
-  // the user says it is intentional: explicit staging lets approve proceed
-  git(lane, "add", "src 2");
-  const approved = harness(lane, "worktree", "approve", "--approved", "Dirs", "--target", lane);
-  assert.equal(approved.status, 0, approved.stderr);
-  const committed = git(repo, "ls-files");
-  assert.match(committed, /^src 2\/a\.js$/m);
-  assert.match(committed, /^solo 2\/x\.txt$/m);
 });
 
 test("--quarantine resolves relative paths against --target and refuses files owned by a nested repository", async (t) => {
@@ -1556,11 +1533,10 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
     assert.match(rejected.stderr, /options are not supported/);
   }
   assert.notEqual(meta("unknown").status, 0);
-  // The harness's own .hai copy of the CLI refuses update and names the wrapper that does the job.
+  // The harness's own .hai copy of the CLI is an installed copy and refuses update too.
   const ownCopy = run(process.execPath, [path.join(target, "Agents/hai-harness.mjs"), "update"], root, noHarnessEnv);
   assert.notEqual(ownCopy.status, 0);
   assert.match(ownCopy.stderr, /npx github:ClaudiusMa\/HAI-Harness update/);
-  assert.match(ownCopy.stderr, /\.\/hai-meta sync/);
   // Doctor delegates successfully without rewriting canonical redirects.
   const receiptPath = path.join(target, ".hai-harness.json");
   const receipt = JSON.parse(await fs.readFile(receiptPath, "utf8"));

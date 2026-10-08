@@ -12,8 +12,8 @@
 - Replace every placeholder below with your real design system. Delete the
   sections you don't need; add the ones you do.
 - Already have a design system elsewhere (a shared brand repo, a component
-  library, a Figma spec)? Point `AGENTS.md` at that source instead of filling
-  this in, and keep this file as a short pointer to it.
+  library, a Figma spec)? Keep this file as a short pointer to that source
+  instead of filling it in; agents still read this file before UI work.
 -->
 
 The concrete visual language for this project. Hephaestus designs within it,

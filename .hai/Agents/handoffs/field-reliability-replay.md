@@ -24,3 +24,10 @@ Each scenario ran in a fresh agent on the controller's capability profile, told 
 
 - The prompt told each agent to read `AGENTS.md`; the field host injects it automatically. This primes reading the root file but not onboarding or role files.
 - One run per scenario on one model; not a statistical measure. No real iCloud, no Codex host, no worker spawn path.
+
+## Rerun against the lean AGENTS.md (312 words) — 2026-10-08
+
+Same fixtures and prompts, rebuilt from the lane after the main merge and code-quality pass.
+
+- C ("augustus, …"): complete. AGENTS.md → update check + onboarding + `augustus.md` → project_context, task, implement skill, design.md → `git status --short` → CLI `worktree create` → edit only in the lane → verified → stopped before approve. 9 tool calls (11 before). Primary clean. **Defect found:** it told the user to run `approve` "from the main checkout". The old AGENTS.md said approve runs from the task worktree; the lean rewrite dropped that and onboarding never stated it. Fix pending: say "from the task lane" in the AGENTS.md integrate line and onboarding's approve bullet.
+- A (unnamed) and B ("claudida, …"): stopped by an API usage limit while writing the contract. Before the cutoff each read AGENTS.md, onboarding and the Claudia chain first, checked the primary was clean, created the lane with the CLI (metadata present), and left `src/` untouched in primary and lane. Contract/handoff output not observed.
