@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "version": "0.2.6",
-  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.6",
-  "summary": "HAI-Harness 0.2.6: Merge task/trunk-lanes: feat: task lanes merge into a clean main; feat: task lanes merge into a clean main"
+  "version": "0.2.7",
+  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.7",
+  "summary": "HAI-Harness 0.2.7: Merge task/task-cleanup: Complete automatic task cleanup; Complete automatic task cleanup; Merge task/closeout-branches: docs: note deleted release branches in trunk-lanes handoff; docs: note deleted release branches in trunk-lanes handoff; Merge task/trunk-lanes-closeout: docs: close trunk-lanes iteration after v0.2.6 release (+1 more)"
 }
