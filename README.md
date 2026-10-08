@@ -105,7 +105,7 @@ npx github:ClaudiusMa/HAI-Harness init
 After install you'll have:
 
 - `AGENTS.md` at the project root — the provider-neutral entry point for AI agents. It points the agent at `Agents/onboarding.md` and explicitly tells it not to read `Human/`.
-- `Agents/` — the agent operating layer.
+- `Agents/` — the agent operating layer, including `Agents/hai-harness.mjs`, the project's own dependency-free copy of the CLI. Agents run lanes with `node Agents/hai-harness.mjs …`, which needs no PATH entry, npm, or network.
 - `Human/` — your human-owned workspace for product thinking. Visibility follows your project's sharing and version-control policy; agents do not read it by default.
 - `.hai-harness.json` — the installed-version receipt and update-check preference.
 
@@ -113,6 +113,7 @@ Verify the install at any time:
 
 ```sh
 npx github:ClaudiusMa/HAI-Harness doctor
+node Agents/hai-harness.mjs doctor
 ```
 
 ### Safe scaffold updates
@@ -123,9 +124,9 @@ HAI-Harness evolves. To pull the latest role definitions and onboarding files wi
 npx github:ClaudiusMa/HAI-Harness update
 ```
 
-`update` refreshes stable method files and generic infrastructure: the root entry point, onboarding and role methods, task/handoff/lesson/archive templates and README files, reusable skills, and `Human/onboarding.md`. It creates a missing lesson index or generated worker task file but never replaces populated project state.
+`update` refreshes stable method files and generic infrastructure: the root entry point, the project's copy of the CLI (`Agents/hai-harness.mjs`), onboarding and role methods, task/handoff/lesson/archive templates and README files, reusable skills, and `Human/onboarding.md`. It creates a missing lesson index or generated worker task file but never replaces populated project state.
 
-Project-authored planning, context, design, worker queues, handoff entries, lesson index/content, legacy decision trail and inbox entries, archive entries, and Human workspace content remain untouched. Preview the refresh with `--dry-run`; reserve `init --force` for an intentional full reset.
+Project-authored planning, context, design, worker queues, handoff entries, lesson index/content, legacy decision trail and inbox entries, archive entries, and Human workspace content remain untouched. Preview the refresh with `--dry-run`; reserve `init --force` for an intentional full reset. `init` and `update` carry the packaged templates, so they run only from the published package; the project copy of the CLI refuses them and prints the `npx github:ClaudiusMa/HAI-Harness …` command to run instead.
 
 ### Update Beacon
 
@@ -151,12 +152,20 @@ The published upstream contains only `Agents/tasks/TEMPLATE.md`. During `init`, 
 ### Native task worktrees
 
 ```sh
-npx github:ClaudiusMa/HAI-Harness worktree create my-task --integration develop
-npx github:ClaudiusMa/HAI-Harness worktree status
-npx github:ClaudiusMa/HAI-Harness worktree approve --approved "Complete my task"
+node Agents/hai-harness.mjs worktree create my-task --integration develop
+node Agents/hai-harness.mjs worktree status
+node Agents/hai-harness.mjs worktree approve --approved "Complete my task"
 ```
 
 Create runs from the clean primary checkout and creates `task/<task-slug>` from the branch it has checked out, normally `main`. `worktree status --all` lists lanes and the files they share. Approval runs from the task lane and preserves Git hooks. It first merges the latest `main` into the lane. If that brought changes, it stops so you can re-test. If it conflicts, it changes nothing and lists the files. Otherwise it fast-forwards `main` to a local merge commit. A dirty primary checkout blocks both create and approve. No push, PR, deployment, or publication is performed.
+
+Lanes must come from `worktree create`. A branch made with plain `git worktree add` has no recorded integration branch or base, so `approve` and `cleanup` say it was not created by the harness and explain the recovery: create a real lane from the clean primary, run `git merge <that branch>` inside it, and approve from there. Never set `hai*` git config by hand to make them pass.
+
+### Cloud-sync conflict copies
+
+Projects kept in iCloud Drive or a similar sync service can collect duplicates named `<name> <N>` (`index 2`, `notes 2.md`, `refs/heads/task/x 2`), including inside `.git`, where a ref copy surfaces as `fatal: bad object`. Repositories and lanes stay where they are and keep syncing. Instead, `worktree create`, `approve`, and `cleanup` sweep the Git common directory, registered worktree admin directories, harness task packets, and untracked files in the primary and the current lane before they act; `node Agents/hai-harness.mjs worktree sweep` does the same on demand, and `doctor` reports the findings without moving anything.
+
+A copy moves to a reversible quarantine (a dated folder under the Git common directory's `hai-harness/quarantine/`, same relative paths, with a manifest) only when it is provably redundant: byte-identical to the original, a loose ref copy whose commit is already contained in the real ref, or a Git `index <N>` cache copy. Tracked files are never touched and nothing is deleted. Everything else is kept and reported with both paths and a next step. A kept copy that Git or the harness reads (a ref, `HEAD`, a worktree admin directory, a task-packet directory) stops the lane commands until you resolve it, and `approve` refuses while a differing sync duplicate of an existing file, or an untracked directory beside a directory of the original name, sits in the lane it would commit; if such a path is intentional, renaming it or staging it explicitly with `git add` lets approve proceed. For a path you have approved, `node Agents/hai-harness.mjs worktree sweep --quarantine <path>` moves that one copy (Git metadata, or an untracked file of this checkout; a relative path is resolved against `--target`, default the current directory) into the same quarantine; its manifest line is marked user-directed.
 
 ### Keeping Human/ current
 
@@ -165,9 +174,9 @@ Agents keep Human records current through [human-scribe](Agents/skills/human-scr
 In a recognized task lane, explicitly adopt the scope once:
 
 ```sh
-npx github:ClaudiusMa/HAI-Harness human-sync init --target .
-npx github:ClaudiusMa/HAI-Harness human-sync status --target .
-npx github:ClaudiusMa/HAI-Harness human-sync --target .
+node Agents/hai-harness.mjs human-sync init --target .
+node Agents/hai-harness.mjs human-sync status --target .
+node Agents/hai-harness.mjs human-sync --target .
 ```
 
 Use `init --migrate` instead when both legacy Agents trail/inbox files exist. It verifies exact copies, saves a supersession receipt, then retires the sources; partial or populated storage is never blindly overwritten. Initialization adopts the current state as baseline and cannot reconstruct earlier history. `status` returns the physical packet directory, identity, HEAD and snapshot. Append trace entries and drafts only there, serialized with the task lane writer.
@@ -177,8 +186,8 @@ Default capture is offline, deterministic and read-only: no model or network cal
 `doctor` warns about waiting drafts and dirty or committed traced-path drift. After appending a valid new trace entry naming every changed traced path, use the exact observations from `status`:
 
 ```sh
-npx github:ClaudiusMa/HAI-Harness human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
-npx github:ClaudiusMa/HAI-Harness human-sync checkpoint --output /private/checkpoints/task.json --target .
+node Agents/hai-harness.mjs human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
+node Agents/hai-harness.mjs human-sync checkpoint --output /private/checkpoints/task.json --target .
 ```
 
 Replace the placeholders and use the actual new trace ID. Acknowledgment does not approve Human drafts; committing an acknowledged dirty change requires another trace and acknowledgment. The checkpoint parent must exist and its new file must be outside every registered repository worktree. Packets remain in Git common metadata after lane cleanup, but Git push/fetch never transfers them. Transfer the checkpoint explicitly for cross-machine recovery and reconcile the original identity; import automation is not implemented. Retain the lane and packet for unfinished work and record the physical packet/checkpoint in its handoff.

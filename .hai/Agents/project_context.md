@@ -43,6 +43,7 @@ All substantive `.hai/` project context is version-controlled for transparency; 
 - The tracked root `AGENTS.md` is the universal repository entry point and must redirect development sessions to `.hai/AGENTS.md` and this outer harness.
 - `scaffold/AGENTS.md` is distributable product source and installs as target-root `AGENTS.md`; the repository redirect must never ship as that template.
 - Future sessions read outer onboarding, outer project context, the active role, outer planning, and only the task/handoff/lesson context routed from there.
+- In this repository, run `create` and `cleanup` from the primary checkout and `approve` from the task lane, as `node bin/hai-harness.mjs …` (installed-project docs say `node Agents/hai-harness.mjs`, which does not exist at this repository's root).
 
 ## Project-specific verification
 

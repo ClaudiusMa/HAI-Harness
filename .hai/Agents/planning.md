@@ -2,12 +2,22 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-07 — Momus release authorized; prepare v0.2.8
+Last updated: 2026-10-08 — field reliability verified; integrating and pushing (Momus released as v0.2.8 on main)
 Last updated by: Claudia
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
+
+## Current iteration — field reliability, 2026-10-07
+
+- Status: verified; user approved the decision entry, local integration and push on 2026-10-07, conditional on an optimized AGENTS.md, and on 2026-10-08 asked to confirm the shortening kept quality before merge and release. Both conditions met. Integrating with `worktree approve` from the lane, then push; the release PR still needs the repository's GitHub review.
+- Why: portfolio-2026 traces showed sessions skipping Claudia's startup on coding requests, a bare `hai-harness` that was never on PATH, hand-made lanes that later broke approve/cleanup (and forged `hai*` config), and iCloud conflict copies corrupting Git refs.
+- Delivered: CLI installed in projects as `Agents/hai-harness.mjs` (`init`/`update` only from the identified package); clear refusal for hand-made lanes; cloud-sync conflict-copy sweep with reversible quarantine, approve guard and user-directed `--quarantine`; packet templates embedded as the single source; `scaffold/AGENTS.md` 1,259 → 337 words (three start steps, eight invariants, test-guarded), every removed rule mapped to onboarding or role docs; Momus merged from `main` with both sides kept.
+- Quality critique (2026-10-08): the shortening had lost the approve location and narrowed the clean-baseline ban, plus three meaning-losing wordings; all restored. Outer redirect/project_context corrected to run `create`/`cleanup` from the primary and `approve` from the lane.
+- Verification: focused suite 36/36; `git diff --check`; source/outer parity; independent review over four rounds (all confirmed findings fixed, no open regressions); live replays — unnamed, "claudida", "augustus" (role read path first, CLI lane from a clean primary, Claudia edits no product code, approve guidance from the lane), dirty primary under time pressure (stops, no stash/commit). Evidence: [handoff](handoffs/field-reliability.md), [replay](handoffs/field-reliability-replay.md). Not covered: real iCloud, Windows, a real `npx github:` run.
+- Scope: this repository only; field projects are cleaned by their own sessions. Retained `task/task-cleanup` (conflict copies only) untouched. Deferred: host session-start hook; lighter path for one-line edits.
+- Lane `task/field-reliability` (base `b711df0`); contract [field-reliability](tasks/field-reliability.md); packet Git common `hai-harness/tasks/9a3f0fb1d9fa9cac744d61c7a7a6f488e3cb40ed43003d2fe7a532991ccdb5df` (trail T1–T5, captured through T5, inbox empty; the approved entry is in `Human/decisions.md`).
 
 ## Current iteration — Momus release, 2026-10-07
 

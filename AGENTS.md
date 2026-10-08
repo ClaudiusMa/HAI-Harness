@@ -10,6 +10,11 @@ at [`.hai/AGENTS.md`](.hai/AGENTS.md), then follow
 `.hai/Agents/onboarding.md`, `.hai/Agents/project_context.md`, and the role/task
 routing defined there.
 
+In this repository, run `create` and `cleanup` from the primary checkout and
+`approve` from the task lane, as `node bin/hai-harness.mjs …` (installed-project
+docs say `node Agents/hai-harness.mjs`; this repository has no
+`Agents/hai-harness.mjs`).
+
 Plan and coordinate in `.hai/`. Modify distributable product source only when
 the outer task contract assigns that scope.
 

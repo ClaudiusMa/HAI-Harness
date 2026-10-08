@@ -24,7 +24,7 @@
 - Current baton-pass notes live in [handoffs/](handoffs) for the active task when one exists.
 - Hard-problem lessons live in [lessons/](lessons) and should be read only when the task or user points you there.
 - Start implementation in the task worktree named by the contract. Run project preview/dev commands from that exact lane; never copy dirty product files from another checkout.
-- Local commit/merge happens only after explicit approval through `hai-harness worktree approve`; never use `--no-verify` or perform remote acts unless separately authorized.
+- Local commit/merge happens only after explicit approval through `node Agents/hai-harness.mjs worktree approve`; never use `--no-verify` or perform remote acts unless separately authorized.
 - Read [planning.md](planning.md) or other shared docs only when the task or user points you there.
 - Treat task scope as planner-assigned. Do not assume this role owns a fixed technical area unless the current task doc says so. An authorized Momus incident contract may coordinate this same-task worker for a scoped probe/fix; keep your role, parent and lane, report evidence to Momus, and return scope/authority changes to the parent. Use [debugging](skills/debugging/SKILL.md) directly for obvious, reproduced, bounded fixes; do not create a coordinator for every bug.
 - For an assigned implementation, follow [implement](skills/implement/SKILL.md) and the method, requirements, design, and verification references in the task contract. Use [code-review](skills/code-review/SKILL.md) only for an explicitly assigned read-only review; keep the Julius role and do not implement during review.
