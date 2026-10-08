@@ -170,7 +170,7 @@ const gitWorktreeCopy = /^worktrees\/[^/]+$/;
 const packetDirectoryCopy = /^hai-harness\/tasks\/[^/]+$/;
 const compareNext = "Compare the two and ask the user which one is right; nothing is moved or deleted for you.";
 const missingNext = "Ask the user before renaming it to the original name or moving it away; it may hold the only copy.";
-const quarantineAdvice = `only for a path the user explicitly approves, "${cliCommand} worktree sweep --quarantine <path>" moves that one copy to the same reversible quarantine`;
+const quarantineAdvice = `"${cliCommand} worktree sweep --quarantine <path>" moves one copy aside to the same reversible quarantine, but only for a path the user explicitly approved`;
 
 const usage = `HAI-Harness
 
@@ -1428,8 +1428,8 @@ function readerOf(item) {
   if (item.area !== "git") return "";
   if (gitRefCopy.test(item.rel)) return "Git reads it as a ref (typically as \"bad object\").";
   if (gitHeadCopy.test(item.rel)) return "Git may read it as HEAD.";
-  if (gitWorktreeCopy.test(item.rel)) return "Git lists a copy of a worktree admin directory as an extra worktree.";
-  if (packetDirectoryCopy.test(item.rel)) return "Task-packet commands read every directory under hai-harness/tasks, so a copy fails them with \"Invalid task packet identity\".";
+  if (gitWorktreeCopy.test(item.rel)) return item.directory ? "Git lists a copy of a worktree admin directory as an extra worktree." : "A stray copy-named entry sits in Git's worktree admin area and blocks lane commands until it is resolved.";
+  if (packetDirectoryCopy.test(item.rel)) return item.directory ? "Task-packet commands read every directory under hai-harness/tasks, so a copy fails them with \"Invalid task packet identity\"." : "A stray copy-named entry sits among the task packets in hai-harness/tasks and blocks lane commands until it is resolved.";
   return "";
 }
 
@@ -1442,6 +1442,7 @@ async function decideGitCopy(scope, rel) {
   const item = conflictItem("git", scope.common, rel, path.join(scope.common, ...rel.split("/")));
   const stat = await fs.lstat(item.copy).catch(() => null);
   if (!stat) return null;
+  item.directory = stat.isDirectory();
   if (stat.isSymbolicLink()) return markKept(item, "It is a symbolic link.", compareNext);
   const original = await fs.lstat(item.original).catch(() => null);
   if (stat.isFile() && gitIndexCopy.test(rel)) {
@@ -1597,7 +1598,7 @@ async function assertNoCopiesToCommit(lane) {
   throw stop(
     "approve would commit what looks like a cloud-sync conflict copy. Nothing was committed.",
     [...copies].map(([copy, original]) => `  - ${copy}\n    original: ${original}`),
-    `Each path is named like a sync duplicate of one that exists. Ask the user to merge what is needed into the original and rename or remove the copy; for a file, ${quarantineAdvice}. If a listed path is intentional, renaming it or staging it explicitly with \`git add <path>\` lets approve proceed. Then run approve again.`
+    `Each path is named like a sync duplicate of one that exists. Ask the user to merge what is needed into the original and rename or remove the copy. If a listed path is intentional, rename it or stage it with \`git add <path>\`. For a file, ${quarantineAdvice}. Then run approve again.`
   );
 }
 

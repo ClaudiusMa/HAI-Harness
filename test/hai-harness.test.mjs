@@ -1128,7 +1128,7 @@ test("approve refuses to commit a conflict copy (file or directory), and --quara
   assert.match(refused.stderr, /Stopped: approve would commit what looks like a cloud-sync conflict copy\. Nothing was committed\./);
   for (const copy of [".env 2", "notes 2.md", "src 2"]) assert.ok(refused.stderr.includes(path.join(lane, copy)), copy);
   assert.match(refused.stderr, /merge what is needed into the original[\s\S]*worktree sweep --quarantine <path>/);
-  assert.match(refused.stderr, /intentional, renaming it or staging it explicitly with `git add <path>` lets approve proceed/);
+  assert.match(refused.stderr, /intentional, rename it or stage it with `git add <path>`\. For a file, .*worktree sweep --quarantine <path>.* moves one copy aside .*but only for a path the user explicitly approved/);
   assert.ok(!refused.stderr.includes("orphan 2.txt") && !refused.stderr.includes("solo 2"), "copies with no original only report");
   assert.match(refused.stdout, /Conflict copies kept \(3\)[\s\S]*orphan 2\.txt/);
   assert.equal(git(lane, "rev-parse", "HEAD"), head);

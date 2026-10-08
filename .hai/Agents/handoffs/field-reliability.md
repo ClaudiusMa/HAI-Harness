@@ -31,7 +31,7 @@ Not edited by me: outer planning, task files, packet, Human state, and Claudia's
 ## Design choices to explain
 
 - `worktree sweep` (and its `--quarantine` form) exists because the instructions must name a runnable sweep; it calls the same functions as `create|approve|cleanup`.
-- Packet templates are embedded in the CLI (`packetTemplates`) since `human-sync init` previously read `scaffold/task-packet/*`. `scaffold/task-packet/` was deleted in the code-quality pass (nothing else read it; `package.json` `files` lists the whole `scaffold` directory, so no change there); the project-copy test proves `human-sync` works from an installed project that has no such files.
+- Packet templates are embedded in the CLI (`packetTemplates`) since `human-sync init` previously read `scaffold/task-packet/*`. `scaffold/task-packet/` was deleted in the code-quality pass (nothing else read it; `package.json` `files` lists the whole `scaffold` directory, so no change there); no test compares the embedded templates with files on disk. The project-copy test proves `human-sync` works from an installed project that has no such files.
 - `doctor` works from the installed copy (needs no package root); contract over the earlier planning note.
 - Sweep runs before the clean-primary check and before `git add -A`; planning drops a kept item whose copy vanished while it was judged (concurrent sweeps); stamp folders carry the process id so two sweeps in one millisecond never share a folder.
 
@@ -134,3 +134,19 @@ Behavior unchanged except where noted. Line counts versus commit `c4ad49d` (merg
 ## Exact next step
 
 - Claudia: review the code-quality pass and the TAKE 7 verdict, then commit the uncommitted work on top of `c4ad49d` (lean AGENTS.md, `Agents/design.md`, onboarding compaction, the code-quality pass, the `scaffold/task-packet/` deletion) and run the live agent replay of the startup openings against the 312-word AGENTS.md, including prompts that need the cleanup, Storybook and task-packet rules.
+
+## Quality fixes after critique (2026-10-08, Augustus, uncommitted in the lane)
+
+Claudia's rule-by-rule critique of `c4ad49d:scaffold/AGENTS.md` found two losses and three weaker wordings in the 312-word file. Fixed with the fewest words (AGENTS.md now 337 words, still three start steps and eight Always lines):
+
+- L1 approve location: the integrate line now says `worktree approve ...` "from the task lane"; onboarding's approve bullet says it runs "from the unchanged approved task worktree and never the primary".
+- L2 clean baseline: the Always line now reads "never reset, stash, clean or copy dirty files to fake a clean baseline, a dirty primary included" (step 3 already says to stop and have the user commit); onboarding's "primary checkout stays clean" bullet forbids the same whether the dirty tree is the primary or another lane.
+- W1 step 1: the update check is "silent unless a newer release exists".
+- W2: "Read and match `Agents/design.md`".
+- W3: step 3 runs `worktree create` "from the primary checkout".
+
+Verification: `./hai-meta sync` exit 0 (30 paths refreshed; only `.hai/AGENTS.md` and `.hai/Agents/onboarding.md` changed); `cmp` parity for `AGENTS.md`, `onboarding.md` and the CLI copy; `node --test test/hai-harness.test.mjs` 36/36 with no test edits (none asserts the changed text; the 450-word cap still holds); `git diff --check` clean. Not run: live agent replay of C and D (Claudia), Julius's recheck.
+
+Human log: the user-approved 2026-10-07 decision entry (installed CLI, lane-first startup, conflict-copy cleaning, short AGENTS.md) was appended to `.hai/Human/decisions.md` as the human-scribe writer, verbatim, with no other Human file touched. The matching packet draft and trail entry are Claudia's to retire or acknowledge.
+
+Reviewer wording fixes (same day): a kept copy-named FILE under `worktrees/` or `hai-harness/tasks/` now gets its own accurate stop explanation (the directory wording is unchanged), via an `item.directory` flag set in `decideGitCopy`; the approve-guard footer is rewritten as plain sentences around a reworded shared `quarantineAdvice`; the design-choices line about packet templates no longer implies a template-versus-scaffold test. Tests 36/36 (one regex adjusted), CLI copy in `.hai` byte-identical.

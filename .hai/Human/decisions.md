@@ -183,3 +183,9 @@ Archive or reset this file before changing the version header convention.
 - Why: The user wants Claudia to know when debugging needs Momus and wants an improvement rather than burdensome extra loops.
 - Tradeoffs: Not stated.
 - Follow-up: Implement and verify the accepted design. Local integration and publication retain separate approval.
+
+- Date: 2026-10-07
+- Decision: Installed projects carry the harness CLI as `Agents/hai-harness.mjs`, and every instruction runs it as `node Agents/hai-harness.mjs …`. Every session checks that the primary checkout is clean and creates its lane before writing anything, and stops if the CLI fails instead of using raw Git. A session is Claudia unless the message addresses or assigns it another role, misspellings included. Cloud-sync conflict copies are cleaned as they appear: provably redundant copies move to a reversible quarantine, the rest are reported, and approve refuses to commit them. The always-loaded AGENTS.md stays short (three start steps and a few invariants); detail lives in onboarding.
+- Why: In the portfolio project, sessions could not run the bare `hai-harness` command, made lanes by hand that later broke approve and cleanup, skipped Claudia's startup on coding requests, and iCloud duplicates corrupted Git branches. The user keeps iCloud as a backup and wants AGENTS.md optimized rather than grown by each fix.
+- Tradeoffs: The startup rules are still instructions the agent must follow; there is no host hook. Repositories stay in iCloud, so copies keep appearing and are cleaned each time; a kept branch copy blocks lane commands until the user approves quarantining that path. Field projects are cleaned by their own sessions. The full process is heavy for one-line edits.
+- Follow-up: Consider a lighter path for trivial edits.
