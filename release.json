@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "version": "0.2.6",
-  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.6",
-  "summary": "HAI-Harness 0.2.6: Merge task/trunk-lanes: feat: task lanes merge into a clean main; feat: task lanes merge into a clean main"
+  "version": "0.2.8",
+  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.8",
+  "summary": "HAI-Harness 0.2.8: Merge task/momus-release: Prepare verified Momus release from published v0.2.7; Prepare verified Momus release from published v0.2.7; Merge published v0.2.7 metadata for Momus release; Merge task/momus-debugger-design: Add Momus selective debugging and verified repair workflow; Add Momus selective debugging and verified repair workflow"
 }
