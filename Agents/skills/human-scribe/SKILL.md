@@ -12,15 +12,15 @@ Agents maintain `Human/` and the public README; the user owns them by approving.
 Run commands from the retained recognized task lane, using one consistent physical harness target (`.` for root or `.hai` for the outer harness):
 
 ```sh
-hai-harness human-sync init --target .
-hai-harness human-sync status --target .
+node Agents/hai-harness.mjs human-sync init --target .
+node Agents/hai-harness.mjs human-sync status --target .
 ```
 
 Initialization explicitly adopts the current traced state as baseline; it does not reconstruct earlier history. The current worktree workflow still requires a recognized task branch with canonical base/integration metadata, created from the clean primary checkout (normally on `main`). Missing, invalid, detached and non-task state refuses; never create a shared/global fallback or borrow another task's packet. Restore the recorded integration target for integration; packet reads can resume while that target is unavailable. When `worktree approve` merges the latest `main` into the lane, doctor may report traced paths that changed on `main`; append one entry naming them as merged from `main`, then acknowledge.
 
 `status` returns `{packet, identity, head, snapshot}`. `packet` is the physical Git common directory's `hai-harness/tasks/<identity-hash>` path, containing `packet.json`, `decision-trail.md` and `human-inbox.md`. Identity binds branch, base, integration and physically resolved harness scope relative to the checkout; root and `.hai` have separate packets. Follow the returned directory, not an assumed `.git` directory in a worktree. Namespace and file symlink redirects refuse. Keep packet metadata private; do not put it in tracked code, Agents or Human.
 
-If legacy `Agents/decision-trail.md` and `Agents/human-inbox.md` both exist, use `hai-harness human-sync init --migrate --target .` instead. Migration requires regular files and a valid cursor, verifies exact copies and persists a content/hash supersession receipt before retiring either source. Existing or partial packets refuse for explicit reconciliation; never blindly delete populated legacy state. Init/update neither install these legacy files nor silently retire installed content.
+If legacy `Agents/decision-trail.md` and `Agents/human-inbox.md` both exist, use `node Agents/hai-harness.mjs human-sync init --migrate --target .` instead. Migration requires regular files and a valid cursor, verifies exact copies and persists a content/hash supersession receipt before retiring either source. Existing or partial packets refuse for explicit reconciliation; never blindly delete populated legacy state. Init/update neither install these legacy files nor silently retire installed content.
 
 ## Sources and trace duty
 
@@ -36,14 +36,14 @@ Coordinate one writer slot for packet and lane mutations. Pause or hand off the 
 After the traced change and its new entry, run `human-sync status` again and acknowledge the exact observed state:
 
 ```sh
-hai-harness human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
+node Agents/hai-harness.mjs human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
 ```
 
 Use the actual new trace ID and exact status values. Acknowledgment requires an unchanged prior trail prefix, a valid newly appended entry and a Change field naming every changed traced path; stale observations refuse. `doctor` compares touched commits, staged entries and physical contents/mode with the baseline and warns on pending/deferred drafts and untraced dirty or committed changes. Committing an acknowledged dirty change needs a fresh entry and acknowledgment of the committed state. Editing an unrelated trail/inbox item cannot clear drift. Initialization and acknowledgment never approve a Human draft.
 
 ## 1. Capture (fast-worker profile, low effort)
 
-1. Run `hai-harness human-sync --target .` (or explicit `capture`). The CLI is offline, read-only and deterministic; it performs no model or network call. It lists entries after the packet cursor whose Origin is `user` or Area is `product`, `design`, or `process`, drops agent-origin `code`, and suppresses `- Applies: approved {draft}` reflections of already-approved items.
+1. Run `node Agents/hai-harness.mjs human-sync --target .` (or explicit `capture`). The CLI is offline, read-only and deterministic; it performs no model or network call. It lists entries after the packet cursor whose Origin is `user` or Area is `product`, `design`, or `process`, drops agent-origin `code`, and suppresses `- Applies: approved {draft}` reflections of already-approved items.
 2. If nothing remains to capture, serialize the cursor update to the latest entry named and stop; no model call is needed. If a heading is malformed, preserve it for review and follow the command's numbering/cursor guidance rather than skipping it.
 3. Otherwise add a draft for each listed entry under packet `## Drafts`, with `Status: pending`, `Target`, `Draft` and `from T{n}`. Skip a source/target draft already present; respect the existing cursor.
    - Origin `user` becomes a `decision` for `Human/decisions.md`. Add a `brief` or `readme` draft only when it changes the current product story or public description.
@@ -79,7 +79,7 @@ Retain the unfinished lane and packet, including deferred and unreviewed drafts.
 For cross-machine handoff, create an explicit recoverable checkpoint:
 
 ```sh
-hai-harness human-sync checkpoint --output /private/checkpoints/task.json --target .
+node Agents/hai-harness.mjs human-sync checkpoint --output /private/checkpoints/task.json --target .
 ```
 
 The destination parent must exist, the file must be new, and its physical location must be outside every registered worktree of this repository (including a `.hai` scope's product parent). Export includes packet metadata, files and observed state. Transfer privately and reconcile canonical branch/base/integration/scope identity on recovery. Git push/fetch does not transfer packets. There is no import command or automatic cross-host recovery. Automatic session attachment, submit freeze, full lifecycle enforcement, host write prevention, generation fencing and distributed leases remain pending; this method does not claim them.
