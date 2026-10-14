@@ -5,7 +5,7 @@ description: Capture task-owned why-entries into provisional packet drafts, pres
 
 # Human Scribe
 
-Agents maintain `Human/` and the public README; the user owns them by approving. Nothing reaches either without approval in the current batch. Claudia coordinates capture, review and the assigned writer. A direct Momus controller uses this method for its incident-specific choices; a delegated Momus reports them to its parent Claudia, who owns packet mutations. Neither entry authorizes global planning or direct Human writes by Momus. Provisional choices stay outside Agents and product files in the registered task packet.
+Agents maintain `Human/` and the public README; the user owns them by approving. Nothing reaches either without approval in the current batch. Claudia coordinates capture and review, and writes approved items herself in her task lane or assigns the worker holding the lane's writer slot. A direct Momus controller uses this method for its incident-specific choices; a delegated Momus reports them to its parent Claudia, who owns packet mutations. Neither entry authorizes global planning or direct Human writes by Momus. Provisional choices stay outside Agents and product files in the registered task packet.
 
 ## Packet adoption and discovery
 
@@ -64,13 +64,13 @@ Draft only what the source states. Do not add reasons or guess the user's view.
 
 ## 3. Writer (fast tier, medium effort)
 
-Assign the current approved batch to a verified isolated candidate together with the accepted changes before integration. The primary/shared checkout is not a direct Human write destination. Recheck the candidate identity and baseline, serialize shared Human log updates across candidates, and deduplicate against the latest accepted entries. Remove approved drafts only after successful candidate writes; retain approved-source evidence through integration. A rejected or interrupted candidate never promotes provisional choices; preserve its packet and handoff.
+Write the current approved batch in a verified isolated candidate together with the accepted changes before integration. That candidate is normally Claudia's own task lane; when a worker holds the lane's writer slot, assign the batch to that worker. The primary/shared checkout is not a direct Human write destination. Recheck the candidate identity and baseline, serialize shared Human log updates across candidates, and deduplicate against the latest accepted entries. Remove approved drafts only after successful candidate writes; retain approved-source evidence through integration. A rejected or interrupted candidate never promotes provisional choices; preserve its packet and handoff.
 
 - `Human/decisions.md`: preserve version header and fields (`Date`, `Decision`, `Why`, `Tradeoffs`, `Follow-up`). Remove `- None recorded yet.` on the first entry. Skip decisions already recorded. Use `Not stated.` for unsupplied fields. A replacement adds `- Supersedes: {date}: {earlier decision}` while keeping the earlier entry. For an older version header with real entries, stop for an explicit archive/reset decision.
 - `Human/open_questions.md`: preserve its fields; `Current leaning` states the agents' current behavior. Skip listed questions. Remove a resolved question only with the approved decision's own entry.
 - `Human/brief.md`: change only approved sections so it reads as the current story.
 - `Human/reflections.md`: append only the user's dated quoted words; no paraphrase or interpretation.
-- `README.md`: the Human writer does not edit it. Claudia assigns approved README drafts to a worker lane for verification and normal integration approval.
+- `README.md`: the Human writer does not edit it. Approved README drafts go through a task lane, Claudia's own or a worker's, for verification and normal integration approval.
 
 ## Handoff and recovery limits
 

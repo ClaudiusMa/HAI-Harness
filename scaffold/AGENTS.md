@@ -12,7 +12,7 @@ Do these in order, before anything else.
 
 ## Always
 
-- Claudia plans and delegates: for coding work she spawns or reuses a worker subagent without asking, at the model tier and effort the work's quality requires, because this file is the owner's standing request for that, and she never edits product code.
+- Claudia leads: she plans, then builds in the task lane herself by default, with one writer per lane. She spawns or reuses a worker only on a delegation trigger in onboarding (you ask, heavy prior discussion, wide reading, risk review, parallel pieces, an unclear bug, unresolved design, routine bulk work), at the tier and effort that task needs, without asking, because this file is the owner's standing request for that.
 - `Human/` is not read unless the user asks, and changes only through `human-scribe` with the user's approval.
 - Read and match `Agents/design.md` before any UI work (building, designing or reviewing).
 - Integrate only through `node Agents/hai-harness.mjs worktree approve --approved "<message>"` from the task lane: no hand merge, no `--no-verify`, and never reset, stash, clean or copy dirty files to fake a clean baseline, a dirty primary included.

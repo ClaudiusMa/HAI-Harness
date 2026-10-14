@@ -213,3 +213,32 @@ Archive or reset this file before changing the version header convention.
 - Why: The user wants agents matched to task complexity without trading away quality, and wants the harness to work in other products.
 - Tradeoffs: Claudia routes models herself rather than through a separate agent, to avoid an extra hop. Lighter tiers are used less often than a cost-first rule would use them.
 - Follow-up: Not stated.
+
+- Date: 2026-10-14
+- Decision: Claudia leads each task. She records the request's requirements, rejected options and acceptance, then builds it in the task lane herself by default, with one writer per lane. She spawns or reuses a worker, without asking, only when a trigger applies:
+  - the user asks or names a role;
+  - heavy product discussion or a near-compaction context precedes the build;
+  - wide reading calls for read-only helpers;
+  - a risk-area change needs an independent reviewer;
+  - independent pieces clear the Parallel Split Gate;
+  - a bug's cause is unclear (Momus);
+  - visual intent is unresolved (Hephaestus);
+  - a sizeable mechanical, checkable job can run on a lighter worker behind a verifier.
+
+  Design, design review, debugging, code review, decision records, lessons, traffic control and integration keep working, with "the worker" generalized to whoever builds in the lane.
+- Supersedes: 2026-10-13: Keep the split between Claudia and her workers, so product discussion stays out of the engineer's context, but make it cheap.
+- Why: Paired tests showed that delegating every build adds a hand-off on each step without a quality gain: 1.3 to 1.9 times the tokens and 2 to 2.3 times the time over three steps, and 2.3 times the cost and 2.8 times the time in one shot. Anthropic, Cognition and LangChain guidance agree on one writer, with delegation by kind of work. The user asked that the change be treated as a system upgrade.
+- Tradeoffs: Product discussion and code share Claudia's context unless the heavy-context trigger fires. Claudia's judgment of the triggers replaces a fixed rule.
+- Follow-up: One confirming test when the user declares the harness ready to deploy.
+
+- Date: 2026-10-14
+- Decision: The user sets Claudia's own model and effort, and Claudia never changes them. Each worker's model tier and effort are Claudia's decision per task, not a copy of her own setting. She reads five signals: whether the result can be checked mechanically, how much judgment it needs, its blast radius, whether it is wide or deep, and how the lane has gone so far. The levels:
+  - checkable, low-judgment work runs on the fast tier at low effort behind a verifier;
+  - a clear new feature runs on the standard tier;
+  - open judgment, unclear bugs, shared interfaces, migrations, security, data leaving the device and risk reviews run on the deep tier at high effort.
+
+  She starts lighter when the only doubt is whether a lighter tier can do checkable work, goes higher when judgment or risk is in doubt, escalates on evidence, and never lowers a tier mid-task to save cost. Routine bulk work goes to a fast-tier worker rather than running at the lead's reasoning level. The harness never names a model, provider or host.
+- Supersedes: 2026-10-14: Claudia chooses each worker's tier and effort by task complexity, choosing the higher tier when unsure.
+- Why: The user sets Claudia very high for product work and wants the system to use less reasoning on low-reasoning tasks and more when needed, decided smartly. Model names change, and the user works across several hosts. Ponytail has no routing feature, but the user's 2026-09-24 Ponytail decision already reserved high capability for concrete risk.
+- Tradeoffs: Light work relies on its verifier and on escalation to catch misses.
+- Follow-up: Measure in the confirming test when the user declares the harness ready to deploy.
