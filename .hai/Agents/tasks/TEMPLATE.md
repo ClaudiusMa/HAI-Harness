@@ -13,7 +13,7 @@ Keep this file execution-only. Do not copy product rationale, option analysis, o
 - Next in sequence: none
 - Queue order and priority: none
 - Method reference: none
-- Model tier / effort: none (fast, standard or deep; low, medium or high; one-line reason)
+- Model tier / effort: none (fast, standard or deep; low, medium or high; deciding signals: checkability, judgment, blast radius, breadth, track record)
 - Requirements / design references: none
 - Files / write scope: none
 - Acceptance criteria: none

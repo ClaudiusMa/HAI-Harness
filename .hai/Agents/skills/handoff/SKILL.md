@@ -17,7 +17,7 @@ Do **not** use this skill for broad retrospectives or project-wide doc grooming.
 
 Read the smallest set that can produce a correct handoff:
 
-1. The current worker task file in `Agents/tasks/`
+1. The current worker task file in `Agents/tasks/`, or the request's `planning.md` entry when Claudia built the work herself
 2. The matching task entry in `Agents/planning.md` if needed
 3. The existing handoff file in `Agents/handoffs/` if one exists
 4. Touched files or the current diff only when needed to state what changed accurately

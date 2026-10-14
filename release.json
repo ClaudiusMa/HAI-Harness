@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "version": "0.2.8",
-  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.8",
-  "summary": "HAI-Harness 0.2.8: Merge task/momus-release: Prepare verified Momus release from published v0.2.7; Prepare verified Momus release from published v0.2.7; Merge published v0.2.7 metadata for Momus release; Merge task/momus-debugger-design: Add Momus selective debugging and verified repair workflow; Add Momus selective debugging and verified repair workflow"
+  "version": "0.2.9",
+  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.9",
+  "summary": "HAI-Harness 0.2.9: Merge task/field-reliability: Field reliability: in-project CLI, lean AGENTS.md startup gate, conflict-copy sweep; Merge branch 'main' into task/field-reliability; Restore rules lost in the AGENTS.md shortening and close out field reliability; Lean AGENTS.md startup gate and code-quality pass; Merge main into task/field-reliability (+1 more)"
 }

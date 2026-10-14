@@ -2,12 +2,33 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-14 — harness overhead approved ("approve all"); integrating locally
+Last updated: 2026-10-14 — lead model approved ("Approve and push release"); integrating, pushing and releasing
 Last updated by: direct session (user asked for no role routing)
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
+
+## Current iteration — lead builds, 2026-10-14
+
+- Status: user approved both decision records, local integration, push and release on 2026-10-14 ("Good. Approve and push release"). Records written to `Human/decisions.md` in the lane; published v0.2.9 release commits merged into the lane before approve; then native approve, push `main`, and the release workflow's version PR. The confirming test still runs only when the user declares the harness ready to deploy.
+- Why: in the paired tests, delegating every build added a hand-off on each step and gained no quality:
+  - Clay Club: 1.3–1.9× tokens and 2–2.3× time.
+  - CapWords: 2.3× cost and 2.8× time, at a tie on quality.
+
+  Anthropic, Cognition and LangChain guidance agree: keep one writer and delegate by kind of work.
+- User decision (2026-10-14): Claudia builds by default and delegates only on triggers ("Make sense. Let's do it"). Every existing workflow must keep working, treated as a system upgrade ("It's a system upgrade so we don't just look at a node").
+- Delivered:
+  - `claudia.md` rewritten as the lead role, with the delegation triggers;
+  - onboarding, `AGENTS.md`, the Athena, Hephaestus and Momus roles, the skills (debugging, code-review, implement, handoff, traffic-control, guardian, human-scribe), the planning and project-context templates, README, CONTRIBUTING and Human onboarding updated;
+  - outer project context updated;
+  - Claudia's read order now checks handoffs addressed to her.
+- Verification: 36/36 focused suite; `git diff --check`; sync parity; old-wording sweep; workflow walk-through. Evidence: [handoff](handoffs/lead-builds.md); contract: [lead-builds](tasks/lead-builds.md).
+- Routing revision (2026-10-14):
+  - User direction: workers' model and effort are Claudia's decision, not a copy of her high setting; lighter for low-reasoning tasks and higher when needed ("This part need to be smart"); never name models.
+  - Delivered: signal-based routing (checkability, judgment, blast radius, breadth, track record), light behind a verifier, deep for judgment or risk, escalation on evidence; trigger 8 sends routine bulk work to a fast-tier worker.
+  - Ponytail check: no routing update upstream (v5.2.0, 2026-10-13). Ponytail's levels are code-minimalism intensity; its subagent hook only re-injects rules. The relevant precedent is the 2026-09-24 decision: escalate capability only on concrete risk.
+- Lane: `task/lead-builds`, base `61d5c58`. Packet: Git common `hai-harness/tasks/e309fcc1869c7e16aad0da35504d8528193c767ba6ab788d6067aef9fe5310d5` (.hai scope).
 
 ## Current iteration — harness overhead, 2026-10-13
 

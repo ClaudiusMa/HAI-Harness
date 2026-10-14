@@ -36,7 +36,7 @@ All real work for building HAI-Harness lives here:
 - `Human/decisions.md` — confirmed durable human decisions;
 - other `.hai/Human/` files — human-owned product thinking.
 
-All substantive `.hai/` project context is version-controlled for transparency; machine-local settings and receipts remain ignored. No outer operating state ships in the package. Claudia plans here and never writes product source. Workers read assignments here and edit the inner product files named by those assignments.
+All substantive `.hai/` project context is version-controlled for transparency; machine-local settings and receipts remain ignored. No outer operating state ships in the package. Claudia plans here and, by default, builds the inner product source herself in the task lane. A delegated worker reads its assignment here and edits only the inner product files that assignment names, while it holds the lane's writer slot.
 
 ## Session bootstrap
 

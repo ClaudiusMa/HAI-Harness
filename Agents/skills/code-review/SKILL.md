@@ -1,11 +1,11 @@
 ---
 name: code-review
-description: Review an assigned code change for correctness, completeness, regressions, and relevant security concerns. Use for a substantive change when you did not implement it; skip trivial prose and mechanical edits.
+description: Review an assigned code change for correctness, completeness, regressions, and relevant security concerns. Use for a risk-area change when you did not implement it; skip trivial prose and mechanical edits.
 ---
 
 # Code Review
 
-Review the producer's exact task lane against the original task contract and referenced requirements, design, and acceptance criteria. Inspect the intended base-to-task diff, including added or untracked files in the assigned scope, plus affected callers needed to understand behavior. Do not broaden the work into a whole-repository audit unless the assignment explicitly asks for one. Do not create another worktree. This is a read-only assignment: it temporarily replaces implementation defaults while you retain your assigned worker role. Do not edit files, run mutating commands, or approve/integrate the change.
+Review the producer's exact task lane against the request's recorded requirements: the task contract for a delegated worker, or the `planning.md` entry when Claudia built it. Include the referenced requirements, design, and acceptance criteria. Inspect the intended base-to-task diff, including added or untracked files in the assigned scope, plus affected callers needed to understand behavior. Do not broaden the work into a whole-repository audit unless the assignment explicitly asks for one. Do not create another worktree. This is a read-only assignment: it temporarily replaces implementation defaults while you retain your assigned worker role. Do not edit files, run mutating commands, or approve/integrate the change.
 
 Trace the changed behavior through its affected callers, interfaces, data, and error paths. Check:
 
@@ -20,4 +20,4 @@ Report only actionable findings supported by the source or task contract. For ea
 
 For routed learning, distinguish instruction or scenario inspection from an executed replay/check with observable artifacts. Report the verification scope precisely: actual replay evidence verifies only the exercised failure case and does not establish future recurrence prevention. Give Claudia any durable evidence link; the reviewer reports evidence but does not change lesson state.
 
-Send findings to Claudia for assignment to the producing worker; the reviewer does not fix them or claim approval authority. If the producer changes code in response, review the affected changes against the same contract and report whether the findings are resolved. Keep the recheck scoped to the changed areas and their relevant callers.
+Send findings to Claudia. She fixes them herself when she built the change, or assigns them to the producing worker. The reviewer does not fix them or claim approval authority. If the producer changes code in response, review the affected changes against the same contract and report whether the findings are resolved. Keep the recheck scoped to the changed areas and their relevant callers.

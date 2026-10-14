@@ -69,11 +69,11 @@ Shared high-level context for all agents. This file is intentionally architectur
 - [onboarding.md](onboarding.md) is the mandatory first read for every agent.
 - `project_context.md` is shared, high-level context only.
 - Role docs (`claudia.md`, `augustus.md`, `julius.md`) define stable collaboration rules. Worker scope is planner-assigned unless your project intentionally adds durable role biases.
-- Each agent session has at most one active role and does not switch roles. A parent task may contain a Claudia session plus separate role-isolated worker sessions that Claudia coordinates.
+- Each agent session has at most one active role and does not switch roles. A parent task may contain a Claudia session plus separate role-isolated worker sessions that Claudia delegates to.
 - [planning.md](planning.md) is Claudia-owned and is the single iteration source of truth for task allocation, implementation strategy, and worker execution planning.
-- Claudia edits planner-owned coordination docs only. Augustus and Julius own implementation code within their assigned write scopes.
-- When a request is clear, sufficiently confident, approved, and safely scoped, Claudia coordinates the assigned worker directly. She pauses for material ambiguity, scope collisions, missing high-cost approval, or outward-act approval.
-- `tasks/` holds current worker assignments for Augustus and Julius.
+- Claudia leads: she plans and, by default, builds in the task lane herself. Augustus and Julius own a write scope only when Claudia delegates it on a trigger. Each lane has one writer at a time.
+- When a request is clear, sufficiently confident, approved, and safely scoped, Claudia builds it directly, or delegates it when a trigger in onboarding applies. She pauses for material ambiguity, scope collisions, missing high-cost approval, or outward-act approval.
+- `tasks/` holds current worker assignments for Augustus and Julius when Claudia delegates.
 - `designs/` holds Hephaestus-owned, non-code design contracts and supporting artifacts.
 - `handoffs/` holds task baton-pass notes for coordinated worker execution and later chats/sessions.
 - `lessons/` holds task/problem-specific learnings worth reusing in later chats.

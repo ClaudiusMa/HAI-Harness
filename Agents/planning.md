@@ -52,7 +52,8 @@ Priority options: `P0` (must now), `P1` (soon), `P2` (nice), `P3` (maybe).
 
 - **Status:** ready / in progress / blocked / done
 - **Priority:** P0 / P1 / P2 / P3
-- **Owner sequence:** Claudia → Hephaestus/Athena if needed → Augustus/Julius → review
+- **Owner sequence:** Claudia builds by default → Hephaestus/Athena if needed → delegated worker only on a trigger → independent review only for risk areas
+- **Builder:** Claudia / delegated worker (trigger: none)
 - **Current handoff:** `handoffs/<file>.md`, or none
 - **Design contract:** `designs/<artifact>/design.md`, or none
 - **Dependencies:** exact artifact, ordering, external state, or independent
@@ -84,7 +85,7 @@ Completion evidence:
   - Decision:
   - Constraint:
   - Out of scope:
-- Worker split (one worker by default; two only if both queues clear the Parallel Split Gate):
+- Delegation (Claudia builds by default; name the trigger when a worker builds; two workers only if both queues clear the Parallel Split Gate):
   - Augustus:
   - Julius:
   - Parallel Split Gate result:
@@ -93,11 +94,11 @@ Completion evidence:
 
 ### 3b. Implementation Queues
 
-Assigned queue for Augustus:
+Assigned queue for Augustus (only when delegated):
 
 1. Not assigned.
 
-Assigned queue for Julius:
+Assigned queue for Julius (only when delegated):
 
 1. Not assigned.
 

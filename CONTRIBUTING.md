@@ -11,7 +11,7 @@ how decisions led to the current implementation.
 | Why agent docs changed | Registered task packet (`human-sync status --target .hai`); [method](Agents/skills/human-scribe/SKILL.md) | Claudia, Athena, and Hephaestus append entries outside product files and Agents; drafts await the owner's approval |
 | Active work and next steps | [Planning](.hai/Agents/planning.md) and [worker assignments](.hai/Agents/tasks/) | Claudia |
 | Unresolved product questions | [Current unresolved research/prototype scope](.hai/Agents/project_context.md#current-discovery-direction--2026-09-09), [brief](.hai/Human/brief.md), and [open-questions workspace](.hai/Human/open_questions.md) | Human workspace owners |
-| Completed work and verification | [Handoffs](.hai/Agents/handoffs/) and [archived tasks](.hai/Agents/_archive/tasks/) | Assigned workers and reviewers, coordinated by Claudia |
+| Completed work and verification | [Handoffs](.hai/Agents/handoffs/) and [archived tasks](.hai/Agents/_archive/tasks/) | Claudia, delegated workers and reviewers |
 | Earlier context | [Archive](.hai/Agents/_archive/) and [Git history](https://github.com/ClaudiusMa/HAI-Harness/commits/main/) | Preserved records and commits |
 
 These are maintained summaries, decisions, and work records; they are not a complete
