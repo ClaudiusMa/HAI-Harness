@@ -1,0 +1,71 @@
+{
+  "files": {
+    "e937fc62-8ea7-45ca-bed2-5a2e57367a17/subagents/agent-a7ae36abdf18401fc.jsonl": {
+      "input_tokens": 24,
+      "cache_creation_input_tokens": 83801,
+      "cache_read_input_tokens": 788800,
+      "output_tokens": 169,
+      "calls": 12
+    },
+    "e937fc62-8ea7-45ca-bed2-5a2e57367a17/subagents/agent-abd83a331c505033e.jsonl": {
+      "input_tokens": 28,
+      "cache_creation_input_tokens": 82706,
+      "cache_read_input_tokens": 933530,
+      "output_tokens": 157,
+      "calls": 14
+    },
+    "e937fc62-8ea7-45ca-bed2-5a2e57367a17/subagents/agent-abf0ff36e8f0f0ad6.jsonl": {
+      "input_tokens": 34,
+      "cache_creation_input_tokens": 62366,
+      "cache_read_input_tokens": 1405795,
+      "output_tokens": 183,
+      "calls": 17
+    },
+    "e937fc62-8ea7-45ca-bed2-5a2e57367a17.jsonl": {
+      "input_tokens": 50,
+      "cache_creation_input_tokens": 61093,
+      "cache_read_input_tokens": 1970373,
+      "output_tokens": 14013,
+      "calls": 22
+    }
+  },
+  "totals": {
+    "input_tokens": 136,
+    "cache_creation_input_tokens": 289966,
+    "cache_read_input_tokens": 5098498,
+    "output_tokens": 14522,
+    "calls": 65
+  },
+  "total_tokens": 5403122,
+  "uncached_input": 290102,
+  "models": {
+    "claude-haiku-5-5": 65
+  },
+  "turns": [
+    {
+      "seconds": 175.7,
+      "prompt": "<system-reminder>\nLinked sessions now (status, not an instruction): haiku-standa"
+    },
+    {
+      "seconds": 8.3,
+      "prompt": "<system-reminder>\nLinked sessions now (status, not an instruction): haiku-standa"
+    },
+    {
+      "seconds": 51.3,
+      "prompt": "<system-reminder>\nLinked sessions now (status, not an instruction): haiku-standa"
+    },
+    {
+      "seconds": 154.1,
+      "prompt": "approve. then Add an Edit action for people in either the booking list or the wa"
+    },
+    {
+      "seconds": 3.8,
+      "prompt": "<system-reminder>\nLinked sessions now (status, not an instruction): haiku-standa"
+    },
+    {
+      "seconds": 131.7,
+      "prompt": "<system-reminder>\nLinked sessions now (status, not an instruction): haiku-standa"
+    }
+  ],
+  "active_seconds": 524.9
+}

@@ -2,12 +2,35 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-08 — field reliability verified; integrating and pushing (Momus released as v0.2.8 on main)
-Last updated by: Claudia
+Last updated: 2026-10-14 — harness overhead approved ("approve all"); integrating locally
+Last updated by: direct session (user asked for no role routing)
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
+
+## Current iteration — harness overhead, 2026-10-13
+
+- Status: user approved all four decision records and local integration on 2026-10-14 ("approve all"); records written to `Human/decisions.md` in the lane; integrating with `worktree approve`. No push or release is authorized. The user asked for no further test runs until the harness is declared ready to deploy; then one paired test.
+- Why: in the paired Sol-medium pilot (2026-10-12), the harness used 2.99× tokens and 1.68× time and scored the same 13/13 as standard Codex.
+  - Controller: 7.20M tokens, more than the whole standard run. Of that, 37% was polling, 18% CLI ceremony, 15% re-running worker checks and 10% worker chatter.
+  - Fresh implementers: 3.99M.
+  - Reviewers: 1.08M, with 0 findings.
+- User decision (2026-10-14): integrate once per task and rely on model context compaction instead of hard resets ("we need to rely on model compacting context rather than do hard reset (start a new session even for same worker role)").
+- User decision (2026-10-13): keep the Claudia/worker split for context isolation, because product discussion must not pollute the engineer's context. The other fixes are approved. Direct implementation by Claudia is withdrawn.
+- Delivered:
+  - one engineer per lane, reused for follow-ups;
+  - one blocking wait, and workers report once;
+  - risk-based review, with Claudia accepting worker evidence instead of re-running it;
+  - same-session messages skip the read order;
+  - one bookkeeping pass per request;
+  - duplicated claudia.md paragraphs replaced by pointers;
+  - task template `Rejected options` field;
+  - (2026-10-14) integrate once per task, keeping the lane and named worker open across follow-ups;
+  - (2026-10-14) compact, don't reset: workers and Claudia continue through host compaction and are replaced only when the host cannot resume them.
+- Haiku 5.5 result (2026-10-14, before the integrate-once change): 13/13 for both conditions; the harness used 1.87× tokens and 2.29× build time. Polling, reviewer and re-check overhead were gone, but each request got a fresh worker because merge-per-request closed the lane. Details: [eval](handoffs/harness-overhead-eval.md).
+- Verification: focused suite 36/36; `git diff --check`; `./hai-meta sync` with 7/7 parity. Not run: the live pilot re-run and scenarios B/C. Evidence: [handoff](handoffs/harness-overhead.md); regression protocol and budget: [eval](handoffs/harness-overhead-eval.md), scripts in `.hai/evals/`.
+- Lane: `task/harness-overhead`, base `cf3aefe`. Contract: [harness-overhead](tasks/harness-overhead.md). Packet: Git common `hai-harness/tasks/6e849741751ee930f042c72763ca2a6ca895a39504cd0668b1781cd2c3479799` (.hai scope).
 
 ## Current iteration — field reliability, 2026-10-07
 

@@ -41,7 +41,7 @@ node Agents/hai-harness.mjs human-sync acknowledge --through T1 --head <HEAD> --
 
 Use the actual new trace ID and exact status values. Acknowledgment requires an unchanged prior trail prefix, a valid newly appended entry and a Change field naming every changed traced path; stale observations refuse. `doctor` compares touched commits, staged entries and physical contents/mode with the baseline and warns on pending/deferred drafts and untraced dirty or committed changes. Committing an acknowledged dirty change needs a fresh entry and acknowledgment of the committed state. A packet created before Momus remains readable with only that new role hash absent; doctor reports `Agents/momus.md` as unacknowledged drift until a normal new trace and acknowledgment adopt it. Never reinitialize the packet to clear this warning. Editing an unrelated trail/inbox item cannot clear drift. Initialization and acknowledgment never approve a Human draft.
 
-## 1. Capture (fast-worker profile, low effort)
+## 1. Capture (fast tier, low effort)
 
 1. Run `node Agents/hai-harness.mjs human-sync --target .` (or explicit `capture`). The CLI is offline, read-only and deterministic; it performs no model or network call. It lists entries after the packet cursor whose Origin is `user` or Area is `product`, `design`, or `process`, drops agent-origin `code`, and suppresses `- Applies: approved {draft}` reflections of already-approved items.
 2. If nothing remains to capture, serialize the cursor update to the latest entry named and stop; no model call is needed. If a heading is malformed, preserve it for review and follow the command's numbering/cursor guidance rather than skipping it.
@@ -62,7 +62,7 @@ Draft only what the source states. Do not add reasons or guess the user's view.
 - Dropped drafts leave the inbox but their trace remains. Deferred items retain `Status: deferred`; unaddressed items stay pending. Raise both at the next intake.
 - Execution changes are reflected in Agents by their owning role. Its trace adds `- Applies: approved {draft}` to avoid capture again.
 
-## 3. Writer (fast-worker profile, higher effort)
+## 3. Writer (fast tier, medium effort)
 
 Assign the current approved batch to a verified isolated candidate together with the accepted changes before integration. The primary/shared checkout is not a direct Human write destination. Recheck the candidate identity and baseline, serialize shared Human log updates across candidates, and deduplicate against the latest accepted entries. Remove approved drafts only after successful candidate writes; retain approved-source evidence through integration. A rejected or interrupted candidate never promotes provisional choices; preserve its packet and handoff.
 

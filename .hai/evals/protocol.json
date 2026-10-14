@@ -1,0 +1,50 @@
+{
+  "model": "gpt-6.1-sol",
+  "effort": "medium",
+  "order": [
+    "standard",
+    "harness"
+  ],
+  "harness_source_commit": "cf3aefee01230a8e2011dea6e071699c1cd8f485",
+  "scope": "one paired, three-turn pilot; no fresh-session continuity claim",
+  "acceptance": [
+    "signup valid name/email",
+    "invalid email rejected",
+    "capacity enforced",
+    "duplicate email case insensitive",
+    "cancel frees place",
+    "reload persistence",
+    "latest no-account one-screen intent",
+    "mobile usable",
+    "waitlist FIFO after cancellation",
+    "edit preserves registration identity and count",
+    "no unrelated modifications"
+  ],
+  "usage": "sum root and descendant session totals; cached input is subset of input; reasoning output is subset of output; supervisor excluded",
+  "initial_hashes": {
+    "README.md": "6d4630846a819e25e1119f89d12b4ddaed9c1fbcf960e89342c4f6867729cf93",
+    "index.html": "a54f258a5ac4740d252b5de6661745d5c8b985925703b23d025c618d8b2b08e4",
+    "app.js": "717aae01a5f0739a920b108bb949eda79f1b55d8f96cf114f3cf93c8a0ae3be4",
+    ".gitignore": "6c7d15d2ab1a0b51ebcae7e88b9ad01f0713d0833bc2dbe8f3bcc7a81b66b344"
+  },
+  "stage1_duration_ms": 280955,
+  "stage2": "One-page no-account waitlist, automatic FIFO promotion on cancellation, case-insensitive uniqueness across both lists, reload persistence.",
+  "stage3": "Edit name/email in place for either status; identity/order/count preservation, duplicate rejection, narrow mobile refinement.",
+  "limits": [
+    "No fresh-session continuity or population-level effectiveness claim."
+  ],
+  "scoring": {
+    "valid_signup": "name/email booking appears",
+    "invalid_email": "not saved",
+    "duplicate_email": "case-insensitive duplicate not saved",
+    "capacity": "six confirmed maximum; next joins waitlist",
+    "fifo": "oldest waitlisted entry promoted on cancellation",
+    "persistence": "same data after reload",
+    "edit_booking": "id and count preserved; details change",
+    "edit_waitlist": "id and index preserved; details change",
+    "edit_duplicate": "conflicting email rejected without mutation",
+    "cancel_edit": "original data remains",
+    "mobile": "no horizontal overflow at 375px; primary controls visible and usable",
+    "desktop": "booking form and lists usable at 1280px"
+  }
+}
