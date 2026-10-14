@@ -1,0 +1,75 @@
+{
+  "files": {
+    "18612d6d-3aef-460a-ba16-1263def3e75b/subagents/agent-a6033a34ea2e6deca.jsonl": {
+      "input_tokens": 32,
+      "cache_creation_input_tokens": 95335,
+      "cache_read_input_tokens": 1232764,
+      "output_tokens": 166,
+      "calls": 16
+    },
+    "18612d6d-3aef-460a-ba16-1263def3e75b/subagents/agent-a8b1f67a6b0adfa1c.jsonl": {
+      "input_tokens": 36,
+      "cache_creation_input_tokens": 106498,
+      "cache_read_input_tokens": 1531447,
+      "output_tokens": 184,
+      "calls": 18
+    },
+    "18612d6d-3aef-460a-ba16-1263def3e75b/subagents/agent-aca0b6f82582440ce.jsonl": {
+      "input_tokens": 44,
+      "cache_creation_input_tokens": 78927,
+      "cache_read_input_tokens": 2089051,
+      "output_tokens": 193,
+      "calls": 22
+    },
+    "18612d6d-3aef-460a-ba16-1263def3e75b.jsonl": {
+      "input_tokens": 62,
+      "cache_creation_input_tokens": 58744,
+      "cache_read_input_tokens": 2369209,
+      "output_tokens": 13823,
+      "calls": 27
+    }
+  },
+  "totals": {
+    "input_tokens": 174,
+    "cache_creation_input_tokens": 339504,
+    "cache_read_input_tokens": 7222471,
+    "output_tokens": 14366,
+    "calls": 83
+  },
+  "total_tokens": 7576515,
+  "uncached_input": 339678,
+  "models": {
+    "claude-haiku-5-5": 83
+  },
+  "turns": [
+    {
+      "seconds": 163.0,
+      "prompt": "\n\n<pasted_content id=\"a408\">\nBackground (from the session that started this one)"
+    },
+    {
+      "seconds": 7.6,
+      "prompt": "Approve the Clay Club signup prototype for local integration into main."
+    },
+    {
+      "seconds": 5.8,
+      "prompt": "Another Claude session sent a message:\n<cross-session-message from=\"uds:/tmp/cc-"
+    },
+    {
+      "seconds": 176.1,
+      "prompt": "```\nActually, keep this as one page with no accounts. When all six places are ta"
+    },
+    {
+      "seconds": 6.8,
+      "prompt": "Approve the Clay Club waitlist change for local integration into main."
+    },
+    {
+      "seconds": 204.0,
+      "prompt": "Add an Edit action for people in either the booking list or the waitlist so I ca"
+    },
+    {
+      "seconds": 5.7,
+      "prompt": "Approve the Clay Club edit change for local integration into main."
+    }
+  ],
+  "active_seconds": 569.1
+}

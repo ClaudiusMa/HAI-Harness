@@ -42,7 +42,7 @@ The repository-level coordination system is operational:
 
 - Claudia is the root controller for the user task and spawns fresh role-isolated Augustus or Julius child workers without changing her own role.
 - A separately created top-level task is a peer controller, not spare worker capacity. Moving ownership between controllers requires explicit user approval and an accepted handoff.
-- Capability profile and reasoning effort are separate: Claudia uses the portable `reasoning-controller` profile, implementation children use `fast-worker`, and effort is selected independently for the task. Harness files do not pin providers, model names, or versions.
+- Model tier and reasoning effort follow the task's complexity, with quality as the bar: Claudia runs on the model you set and routes each worker to the fast, standard or deep tier that will reliably meet its contract. She uses a lighter tier only where quality isn't at risk and never trades quality for speed or cost. Harness files never name a provider, model or version.
 - A strict Parallel Split Gate rejects concurrent work unless write scopes, dependencies, verification, and mutable setup are independent.
 - Worker contracts record exact scope, ordering, preservation requirements, approval state, verification, and stop conditions.
 - Workers report broken assumptions back to Claudia and the user instead of silently widening scope.

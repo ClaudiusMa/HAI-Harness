@@ -1,0 +1,38 @@
+{
+  "files": {
+    "e4fefbae-a67b-4c8c-b1bf-32df76a00a3d.jsonl": {
+      "input_tokens": 84,
+      "cache_creation_input_tokens": 93304,
+      "cache_read_input_tokens": 3919349,
+      "output_tokens": 47680,
+      "calls": 40
+    }
+  },
+  "totals": {
+    "input_tokens": 84,
+    "cache_creation_input_tokens": 93304,
+    "cache_read_input_tokens": 3919349,
+    "output_tokens": 47680,
+    "calls": 40
+  },
+  "total_tokens": 4060417,
+  "uncached_input": 93388,
+  "models": {
+    "claude-haiku-5-5": 40
+  },
+  "turns": [
+    {
+      "seconds": 99.2,
+      "prompt": "Background (from the session that started this one):\nThe user runs a small potte"
+    },
+    {
+      "seconds": 56.7,
+      "prompt": "Another Claude session sent a message:\n<cross-session-message from=\"local_5cabd7"
+    },
+    {
+      "seconds": 81.3,
+      "prompt": "Another Claude session sent a message:\n<cross-session-message from=\"local_5cabd7"
+    }
+  ],
+  "active_seconds": 237.1
+}

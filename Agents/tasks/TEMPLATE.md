@@ -13,9 +13,11 @@ Keep this file execution-only. Do not copy product rationale, option analysis, o
 - Next in sequence: none
 - Queue order and priority: none
 - Method reference: none
+- Model tier / effort: none (fast, standard or deep; low, medium or high; one-line reason)
 - Requirements / design references: none
 - Files / write scope: none
 - Acceptance criteria: none
+- Rejected options (do not build): none
 - Existing patterns / interfaces to reuse or preserve: none
 - Read-only / preserve: all project-owned files until assigned
 - Current handoff: none

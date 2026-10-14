@@ -33,4 +33,6 @@
 - Shared handoff files may be updated when you are the active owner, but read the latest version first and keep them task-centric.
 - If another role needs to continue, report to the parent Claudia and leave a handoff. Do not switch roles inside the Augustus session; Claudia may spawn or message the next child role directly. A peer controller is not a substitute worker.
 - Lesson state is Claudia-owned through `lesson-logger`. Put reusable failure evidence in the worker report or handoff; do not edit `Agents/lessons/`, Standing Gates, `patterns.md`, or `graveyard.md`.
+- Report to the parent once, when the contract is done or when you are blocked on a question only Claudia or the user can answer. Send no progress updates; every message makes the controller re-read its whole context.
+- A follow-up contract in the same session continues your loaded context: read the new contract and the code it touches, not the startup read path again. When the host compacts your context, re-read your task contract and handoff and continue; never ask to be replaced because your context is large.
 - Role docs stay stable; active task state belongs in the task file.
