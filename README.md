@@ -29,7 +29,7 @@ The foundational architecture for durable memory, context control, planning, and
 - `Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents keep it current for you and change it only with your approval; they don't read it unless explicitly instructed.
 - `Agents/`: The operating layer for current product truth, planning, task contracts, design contracts, handoffs, lessons, and archived history.
 - When the user names no role, the session is Claudia; follow the Claudia required read order in `Agents/onboarding.md`.
-- Claudia plans and orchestrates without editing product code. Augustus and Julius execute planner-assigned queues. For unclear bug causes, failed repairs without an established cause, or investigations needing runtime/intermittent/cross-component evidence, Claudia selectively routes to [Momus](Agents/momus.md). Known, reproduced, bounded fixes stay with the current worker using [debugging](Agents/skills/debugging/SKILL.md); an ordinary bug does not add another agent or report cycle.
+- Claudia leads: she plans and, by default, builds in the task lane herself, so decisions, code and verification share one context. She delegates to Augustus or Julius only on a trigger: you ask, heavy prior discussion, wide reading, risk review, independent parallel pieces, or routine bulk work that can run on a lighter tier. For unclear bug causes, failed repairs without an established cause, or investigations needing runtime/intermittent/cross-component evidence, Claudia selectively routes to [Momus](Agents/momus.md). Known, reproduced, bounded fixes stay with the lane's current writer using [debugging](Agents/skills/debugging/SKILL.md); an ordinary bug does not add another agent or report cycle.
 - Hephaestus owns non-code human-interface design and design review. Athena independently reviews enterprise product design. Both work against `Agents/design.md`.
 - Active task authority lives in `Agents/planning.md` and `Agents/tasks/`; handoffs carry the contract across role boundaries, not chat memory.
 - Confirmed decisions, broken assumptions, high-cost behavior, and outward acts have explicit gates.
@@ -40,9 +40,9 @@ The foundational architecture for durable memory, context control, planning, and
 
 The repository-level coordination system is operational:
 
-- Claudia is the root controller for the user task and spawns fresh role-isolated Augustus or Julius child workers without changing her own role.
+- Claudia is the root controller for the user task. She builds in her own lane by default and delegates to role-isolated Augustus or Julius child workers only on a trigger, without changing her own role. Each lane has one writer at a time.
 - A separately created top-level task is a peer controller, not spare worker capacity. Moving ownership between controllers requires explicit user approval and an accepted handoff.
-- Capability profile and reasoning effort are separate: Claudia uses the portable `reasoning-controller` profile, implementation children use `fast-worker`, and effort is selected independently for the task. Harness files do not pin providers, model names, or versions.
+- Model tier and reasoning effort are decided per task, with quality as the bar. Claudia runs on the model and effort you set. She chooses each worker's tier and effort from the task itself: whether it can be checked mechanically, how much judgment it needs, its blast radius, its breadth and its track record. Checkable routine work runs light behind a verifier, open judgment or risky work runs deep, and she escalates on evidence. Harness files never name a provider, model or version.
 - A strict Parallel Split Gate rejects concurrent work unless write scopes, dependencies, verification, and mutable setup are independent.
 - Worker contracts record exact scope, ordering, preservation requirements, approval state, verification, and stop conditions.
 - Workers report broken assumptions back to Claudia and the user instead of silently widening scope.
@@ -59,7 +59,7 @@ HAI-Harness supplies the durable contracts, Git isolation, and coordination meth
 What exists now:
 
 - Execution and design evaluation are separate responsibilities.
-- Athena performs read-only enterprise product-design review and assigns concrete fixes to the producing worker.
+- Athena performs read-only enterprise product-design review and assigns concrete fixes to whoever produced the artifact: Claudia or the worker.
 - Hephaestus creates durable, build-ready interface contracts and can review the resulting implementation without modifying product code.
 - Review findings and implementation corrections move through explicit design artifacts and handoffs.
 - Momus owns bounded diagnosis, worker probes/fixes and independent verification of the original symptom on the final candidate. You can also name Momus directly. Existing repair authority carries through; diagnosis-only stays read-only. He reuses an authorized same-task worker and handoff, stops after three unsuccessful applied fixes by default, and can satisfy an assigned independent source review when he did not implement the change.
@@ -181,7 +181,7 @@ node Agents/hai-harness.mjs human-sync --target .
 
 Use `init --migrate` instead when both legacy Agents trail/inbox files exist. It verifies exact copies, saves a supersession receipt, then retires the sources; partial or populated storage is never blindly overwritten. Initialization adopts the current state as baseline and cannot reconstruct earlier history. `status` returns the physical packet directory, identity, HEAD and snapshot. Append trace entries and drafts only there, serialized with the task lane writer.
 
-Default capture is offline, deterministic and read-only: no model or network call occurs in the CLI. It filters entries after the inbox cursor, preserving malformed-item review and duplicate suppression. The skill drafts user decisions and agent assumptions, and Claudia presents pending and deferred items in one batch. An assigned writer deduplicates and applies only approved Human items in the verified isolated candidate with accepted changes before integration. Approved README drafts go to a worker lane. Unreviewed and deferred choices remain provisional.
+Default capture is offline, deterministic and read-only: no model or network call occurs in the CLI. It filters entries after the inbox cursor, preserving malformed-item review and duplicate suppression. The skill drafts user decisions and agent assumptions, and Claudia presents pending and deferred items in one batch. Claudia, or the worker holding the lane's writer slot, deduplicates and applies only approved Human items in the verified task lane with the accepted changes before integration. Approved README drafts go through a task lane. Unreviewed and deferred choices remain provisional.
 
 `doctor` warns about waiting drafts and dirty or committed traced-path drift. After appending a valid new trace entry naming every changed traced path, use the exact observations from `status`:
 
@@ -226,9 +226,9 @@ Live user direction can correct stale repository state during a session. But onl
 
 Long conversations accumulate stale assumptions. The harness makes a fresh context safe because authority lives in current plans, task files, design contracts, and handoffs.
 
-* Start a fresh session when context becomes noisy or responsibility changes.
+* Let sessions continue through the host's context compaction; start a fresh session when responsibility changes or the host can no longer resume the old one.
 * Keep one role per agent session; do not impersonate another role midstream.
-* Claudia remains the root controller and spawns fresh role-isolated child workers when the host platform supports it.
+* Claudia remains the root controller. She builds in her lane by default and delegates to role-isolated child workers on a trigger when the host platform supports it.
 * Treat separately created top-level tasks as peer controllers. Sequence around them or request an explicit ownership transfer; never repurpose them as workers.
 * Before pausing or changing ownership, leave a task-centric handoff that states verified facts and the exact next step.
 
@@ -243,11 +243,11 @@ When you sit down to work, follow this loop:
 3. **Approve Human Updates:** Agents trace why they changed agent docs. At closeout, **`human-scribe`** shows the drafted decisions and open questions in one batch, and writes only what you approve.
 4. **Define Durable Context:** Keep architecture, boundaries, and non-negotiable rules in `Agents/project_context.md`; keep iteration state out of it.
 5. **Audit Alignment When Needed:** The read-only **`guardian`** compares authorized `Human/` intent with the agent operating layer and reports mismatches without resolving them.
-6. **Design When Needed:** Hephaestus creates a non-code contract under `Agents/designs/`; Claudia then assigns implementation. Athena can independently review enterprise design quality.
-7. **Assign the Queue:** Claudia records dependencies, write scopes, approvals, stop conditions, verification, capability profile, and effort in `Agents/planning.md` and the Augustus/Julius task files. Parallel work is allowed only when the Parallel Split Gate passes.
-8. **Isolate and Execute:** Claudia spawns a fresh role-isolated child worker and creates a native task worktree from the clean primary checkout. Run implementation and the project's own preview/dev command in that exact lane.
+6. **Design When Needed:** Hephaestus creates a non-code contract under `Agents/designs/`; Claudia then builds it, or delegates it on a trigger. Athena can independently review enterprise design quality.
+7. **Record the Work:** Claudia records requirements, rejected options, dependencies, write scopes, approvals, stop conditions and verification in `Agents/planning.md`. When she delegates, she writes the worker's Augustus/Julius task file, including its model tier and effort. Parallel work is allowed only when the Parallel Split Gate passes.
+8. **Isolate and Execute:** Claudia creates a native task worktree from the clean primary checkout and builds there, or hands the lane to a delegated worker when a trigger applies. Run implementation and the project's own preview/dev command in that exact lane.
 9. **Control Traffic:** When controllers, child workers, or mutable scopes may overlap, use **`traffic-control`** to return `CLEAR`, `SEQUENCE`, `TRANSFER_REQUIRED`, or `BLOCKED` before adding motion. Use Fast Resume only for the same settled controller/child/worktree lane without scope growth or drift.
-10. **Evaluate and Approve:** Athena or Hephaestus can issue design-review handoffs. After focused checks and review, explicit `worktree approve` commits and merges locally; remote acts remain separate.
+10. **Evaluate and Approve:** Athena or Hephaestus can issue design-review handoffs. After focused checks, and an independent review for risk-area changes, explicit `worktree approve` commits and merges locally; remote acts remain separate.
 11. **Learn and Archive:** Claudia uses **`lesson-logger`** only for confirmed preventable failures, routing them to checks, Standing Gates, or capped conditional lessons. Move superseded task/handoff history under `Agents/_archive/`.
 
 ## Developing this project

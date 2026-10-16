@@ -5,7 +5,7 @@ description: Capture task-owned why-entries into provisional packet drafts, pres
 
 # Human Scribe
 
-Agents maintain `Human/` and the public README; the user owns them by approving. Nothing reaches either without approval in the current batch. Claudia coordinates capture, review and the assigned writer. A direct Momus controller uses this method for its incident-specific choices; a delegated Momus reports them to its parent Claudia, who owns packet mutations. Neither entry authorizes global planning or direct Human writes by Momus. Provisional choices stay outside Agents and product files in the registered task packet.
+Agents maintain `Human/` and the public README; the user owns them by approving. Nothing reaches either without approval in the current batch. Claudia coordinates capture and review, and writes approved items herself in her task lane or assigns the worker holding the lane's writer slot. A direct Momus controller uses this method for its incident-specific choices; a delegated Momus reports them to its parent Claudia, who owns packet mutations. Neither entry authorizes global planning or direct Human writes by Momus. Provisional choices stay outside Agents and product files in the registered task packet.
 
 ## Packet adoption and discovery
 
@@ -41,7 +41,7 @@ node Agents/hai-harness.mjs human-sync acknowledge --through T1 --head <HEAD> --
 
 Use the actual new trace ID and exact status values. Acknowledgment requires an unchanged prior trail prefix, a valid newly appended entry and a Change field naming every changed traced path; stale observations refuse. `doctor` compares touched commits, staged entries and physical contents/mode with the baseline and warns on pending/deferred drafts and untraced dirty or committed changes. Committing an acknowledged dirty change needs a fresh entry and acknowledgment of the committed state. A packet created before Momus remains readable with only that new role hash absent; doctor reports `Agents/momus.md` as unacknowledged drift until a normal new trace and acknowledgment adopt it. Never reinitialize the packet to clear this warning. Editing an unrelated trail/inbox item cannot clear drift. Initialization and acknowledgment never approve a Human draft.
 
-## 1. Capture (fast-worker profile, low effort)
+## 1. Capture (fast tier, low effort)
 
 1. Run `node Agents/hai-harness.mjs human-sync --target .` (or explicit `capture`). The CLI is offline, read-only and deterministic; it performs no model or network call. It lists entries after the packet cursor whose Origin is `user` or Area is `product`, `design`, or `process`, drops agent-origin `code`, and suppresses `- Applies: approved {draft}` reflections of already-approved items.
 2. If nothing remains to capture, serialize the cursor update to the latest entry named and stop; no model call is needed. If a heading is malformed, preserve it for review and follow the command's numbering/cursor guidance rather than skipping it.
@@ -62,15 +62,15 @@ Draft only what the source states. Do not add reasons or guess the user's view.
 - Dropped drafts leave the inbox but their trace remains. Deferred items retain `Status: deferred`; unaddressed items stay pending. Raise both at the next intake.
 - Execution changes are reflected in Agents by their owning role. Its trace adds `- Applies: approved {draft}` to avoid capture again.
 
-## 3. Writer (fast-worker profile, higher effort)
+## 3. Writer (fast tier, medium effort)
 
-Assign the current approved batch to a verified isolated candidate together with the accepted changes before integration. The primary/shared checkout is not a direct Human write destination. Recheck the candidate identity and baseline, serialize shared Human log updates across candidates, and deduplicate against the latest accepted entries. Remove approved drafts only after successful candidate writes; retain approved-source evidence through integration. A rejected or interrupted candidate never promotes provisional choices; preserve its packet and handoff.
+Write the current approved batch in a verified isolated candidate together with the accepted changes before integration. That candidate is normally Claudia's own task lane; when a worker holds the lane's writer slot, assign the batch to that worker. The primary/shared checkout is not a direct Human write destination. Recheck the candidate identity and baseline, serialize shared Human log updates across candidates, and deduplicate against the latest accepted entries. Remove approved drafts only after successful candidate writes; retain approved-source evidence through integration. A rejected or interrupted candidate never promotes provisional choices; preserve its packet and handoff.
 
 - `Human/decisions.md`: preserve version header and fields (`Date`, `Decision`, `Why`, `Tradeoffs`, `Follow-up`). Remove `- None recorded yet.` on the first entry. Skip decisions already recorded. Use `Not stated.` for unsupplied fields. A replacement adds `- Supersedes: {date}: {earlier decision}` while keeping the earlier entry. For an older version header with real entries, stop for an explicit archive/reset decision.
 - `Human/open_questions.md`: preserve its fields; `Current leaning` states the agents' current behavior. Skip listed questions. Remove a resolved question only with the approved decision's own entry.
 - `Human/brief.md`: change only approved sections so it reads as the current story.
 - `Human/reflections.md`: append only the user's dated quoted words; no paraphrase or interpretation.
-- `README.md`: the Human writer does not edit it. Claudia assigns approved README drafts to a worker lane for verification and normal integration approval.
+- `README.md`: the Human writer does not edit it. Approved README drafts go through a task lane, Claudia's own or a worker's, for verification and normal integration approval.
 
 ## Handoff and recovery limits
 

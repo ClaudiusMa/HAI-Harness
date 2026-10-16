@@ -2,28 +2,74 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-12 — plugin layout design approved; Augustus implementing
+Last updated: 2026-10-16 — plugin layout rebased on v0.2.10 (lead model); Claudia builds in the lane
 Last updated by: Claudia
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
 
-## Current iteration — plugin layout, 2026-10-08
+## Current iteration — plugin layout, 2026-10-08 (rebased 2026-10-16)
 
-- Status: the user approved the resolved design on 2026-10-12 ("yes"); Augustus implementing in the lane. Local commit/merge, push and release remain unapproved.
+- Status: design approved 2026-10-12 ("yes"). The first worker stopped on a usage limit before changing source. 2026-10-16: user confirmed the problem still needs fixing and must not go against the latest decisions ("dont go against lates version decision, but the orblne yes we still need to fix"). Lane merged with `main` at `d25401f` (v0.2.10 lead model). Claudia builds; local commit/merge, push and release remain unapproved.
 - Why: Engram's 0.2.4 → 0.2.9 update overwrote the project's own root `AGENTS.md` and its locally edited `onboarding.md`/`claudia.md`, deleting the custom Apollo role and breaking its routing. Cause: root `AGENTS.md` and every role/method file are copied unconditionally by `update` (`bin/hai-harness.mjs` `scaffoldPaths`/`refreshPath`); nothing records what was shipped; there is no extension point, so customizing means editing core files. `init` meanwhile skips an existing `AGENTS.md`, so such projects are never wired in.
 - User direction (2026-10-08): HAI acts as a plugin, not the main block of the repository. Everything lives in one `.hai/` folder; the user's root `AGENTS.md` stays theirs and HAI owns only a marked block with the startup rules; users keep their own custom skills and custom agents across updates; an unnamed message is always Claudia, and Claudia sees custom roles — "this part we need to play carefully so agent dont make mistake".
 - Conflicts applied: supersedes the 2026-10-07 decision's CLI path (`node Agents/hai-harness.mjs` becomes `node .hai/Agents/hai-harness.mjs`) and the scaffold-installs-as-whole-root-`AGENTS.md` behavior. Default-Claudia (2026-09-29) and provider neutrality (2026-09-10) stand.
 - Design (agent-resolved, in the contract): `.hai/Agents` + `.hai/Human` + receipt; marked block; content-hash ownership guard with the history of every shipped core file; `migrate` command for root-layout installs; `custom/roles` and `custom/skills` with frontmatter and eight routing safeguards; `hai-meta` targets the repository root.
-- Queue: one serial Augustus worker (CLI foundation → layout/block → migrate → custom-role rules → docs → focused tests → sync → written scenario check); then a fresh read-only Julius review; then Claudia's live agent replays on an Engram-shaped fixture. Parallel Split Gate fails: docs, CLI and tests share the paths being moved.
-- Lane `task/plugin-layout` (base `cf3aefe`); contract [plugin-layout](tasks/plugin-layout.md); packet Git common `hai-harness/tasks/81130ee4e3c0691707adc3e16d8c673f0478786052d3c137a4178ff43be98fd4`.
-- Traffic: CLEAR. Retained `task/task-cleanup` (conflict copies, untouched). Peer controller `task/sol-medium-vibe-eval` (2026-10-12) runs an evaluation on frozen `cf3aefe` with fixtures under `/private/tmp`; no product-source writes, only its own task file, so no overlap. If both lanes edit `planning.md`, approve keeps both sides. Local `main` is two commits behind `origin/main` (v0.2.9 release merge, PR #21); reconcile in the lane before any push.
-- Decision needed from user later: release version. The planner bumps the patch automatically; a layout change that needs `migrate` probably warrants 0.3.0.
+- Queue (lead model, 2026-10-14): Claudia builds in the lane as the one writer (CLI foundation → layout/block → migrate → custom-role rules → docs → focused tests → sync → scenario check). Installer/CLI/migration is a risk area, so a fresh read-only reviewer on the deep tier reviews the frozen result. No pre-integration paired eval (the confirming test runs when the user declares the harness ready). Integrate once, when the user is done.
+- Lane `task/plugin-layout` (base `cf3aefe`, merged `main` `d25401f`); contract [plugin-layout](tasks/plugin-layout.md); packet Git common `hai-harness/tasks/81130ee4e3c0691707adc3e16d8c673f0478786052d3c137a4178ff43be98fd4`.
+- Traffic: CLEAR. Retained `task/task-cleanup` (conflict copies, untouched). Peer controller `task/sol-medium-vibe-eval` (2026-10-12) runs an evaluation on frozen `cf3aefe` with fixtures under `/private/tmp`; no product-source writes, only its own task file, so no overlap. If both lanes edit `planning.md`, approve keeps both sides. `origin/main` is ahead of local `main` by the v0.2.10 release merge (PR #22); reconcile in the lane before any push.
+- Decision needed from user later: release version. The planner bumps the patch automatically; v0.2.10 is published, so the default would be 0.2.11; a layout change that needs `migrate` probably warrants 0.3.0.
 
 ## Iteration — field reliability, 2026-10-07
 
 - Closeout: merged to local `main` as `cf3aefe`; `origin/main` shows the v0.2.9 release merge (PR #21).
+
+## Current iteration — lead builds, 2026-10-14
+
+- Status: user approved both decision records, local integration, push and release on 2026-10-14 ("Good. Approve and push release"). Records written to `Human/decisions.md` in the lane; published v0.2.9 release commits merged into the lane before approve; then native approve, push `main`, and the release workflow's version PR. The confirming test still runs only when the user declares the harness ready to deploy.
+- Why: in the paired tests, delegating every build added a hand-off on each step and gained no quality:
+  - Clay Club: 1.3–1.9× tokens and 2–2.3× time.
+  - CapWords: 2.3× cost and 2.8× time, at a tie on quality.
+
+  Anthropic, Cognition and LangChain guidance agree: keep one writer and delegate by kind of work.
+- User decision (2026-10-14): Claudia builds by default and delegates only on triggers ("Make sense. Let's do it"). Every existing workflow must keep working, treated as a system upgrade ("It's a system upgrade so we don't just look at a node").
+- Delivered:
+  - `claudia.md` rewritten as the lead role, with the delegation triggers;
+  - onboarding, `AGENTS.md`, the Athena, Hephaestus and Momus roles, the skills (debugging, code-review, implement, handoff, traffic-control, guardian, human-scribe), the planning and project-context templates, README, CONTRIBUTING and Human onboarding updated;
+  - outer project context updated;
+  - Claudia's read order now checks handoffs addressed to her.
+- Verification: 36/36 focused suite; `git diff --check`; sync parity; old-wording sweep; workflow walk-through. Evidence: [handoff](handoffs/lead-builds.md); contract: [lead-builds](tasks/lead-builds.md).
+- Routing revision (2026-10-14):
+  - User direction: workers' model and effort are Claudia's decision, not a copy of her high setting; lighter for low-reasoning tasks and higher when needed ("This part need to be smart"); never name models.
+  - Delivered: signal-based routing (checkability, judgment, blast radius, breadth, track record), light behind a verifier, deep for judgment or risk, escalation on evidence; trigger 8 sends routine bulk work to a fast-tier worker.
+  - Ponytail check: no routing update upstream (v5.2.0, 2026-10-13). Ponytail's levels are code-minimalism intensity; its subagent hook only re-injects rules. The relevant precedent is the 2026-09-24 decision: escalate capability only on concrete risk.
+- Lane: `task/lead-builds`, base `61d5c58`. Packet: Git common `hai-harness/tasks/e309fcc1869c7e16aad0da35504d8528193c767ba6ab788d6067aef9fe5310d5` (.hai scope).
+
+## Current iteration — harness overhead, 2026-10-13
+
+- Status: user approved all four decision records and local integration on 2026-10-14 ("approve all"); records written to `Human/decisions.md` in the lane; integrating with `worktree approve`. No push or release is authorized. The user asked for no further test runs until the harness is declared ready to deploy; then one paired test.
+- Why: in the paired Sol-medium pilot (2026-10-12), the harness used 2.99× tokens and 1.68× time and scored the same 13/13 as standard Codex.
+  - Controller: 7.20M tokens, more than the whole standard run. Of that, 37% was polling, 18% CLI ceremony, 15% re-running worker checks and 10% worker chatter.
+  - Fresh implementers: 3.99M.
+  - Reviewers: 1.08M, with 0 findings.
+- User decision (2026-10-14): integrate once per task and rely on model context compaction instead of hard resets ("we need to rely on model compacting context rather than do hard reset (start a new session even for same worker role)").
+- User decision (2026-10-13): keep the Claudia/worker split for context isolation, because product discussion must not pollute the engineer's context. The other fixes are approved. Direct implementation by Claudia is withdrawn.
+- Delivered:
+  - one engineer per lane, reused for follow-ups;
+  - one blocking wait, and workers report once;
+  - risk-based review, with Claudia accepting worker evidence instead of re-running it;
+  - same-session messages skip the read order;
+  - one bookkeeping pass per request;
+  - duplicated claudia.md paragraphs replaced by pointers;
+  - task template `Rejected options` field;
+  - (2026-10-14) integrate once per task, keeping the lane and named worker open across follow-ups;
+  - (2026-10-14) compact, don't reset: workers and Claudia continue through host compaction and are replaced only when the host cannot resume them.
+- Haiku 5.5 result (2026-10-14, before the integrate-once change): 13/13 for both conditions; the harness used 1.87× tokens and 2.29× build time. Polling, reviewer and re-check overhead were gone, but each request got a fresh worker because merge-per-request closed the lane. Details: [eval](handoffs/harness-overhead-eval.md).
+- Verification: focused suite 36/36; `git diff --check`; `./hai-meta sync` with 7/7 parity. Not run: the live pilot re-run and scenarios B/C. Evidence: [handoff](handoffs/harness-overhead.md); regression protocol and budget: [eval](handoffs/harness-overhead-eval.md), scripts in `.hai/evals/`.
+- Lane: `task/harness-overhead`, base `cf3aefe`. Contract: [harness-overhead](tasks/harness-overhead.md). Packet: Git common `hai-harness/tasks/6e849741751ee930f042c72763ca2a6ca895a39504cd0668b1781cd2c3479799` (.hai scope).
+
+## Current iteration — field reliability, 2026-10-07
 
 - Status: verified; user approved the decision entry, local integration and push on 2026-10-07, conditional on an optimized AGENTS.md, and on 2026-10-08 asked to confirm the shortening kept quality before merge and release. Both conditions met. Integrating with `worktree approve` from the lane, then push; the release PR still needs the repository's GitHub review.
 - Why: portfolio-2026 traces showed sessions skipping Claudia's startup on coding requests, a bare `hai-harness` that was never on PATH, hand-made lanes that later broke approve/cleanup (and forged `hai*` config), and iCloud conflict copies corrupting Git refs.

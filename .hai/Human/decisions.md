@@ -189,3 +189,56 @@ Archive or reset this file before changing the version header convention.
 - Why: In the portfolio project, sessions could not run the bare `hai-harness` command, made lanes by hand that later broke approve and cleanup, skipped Claudia's startup on coding requests, and iCloud duplicates corrupted Git branches. The user keeps iCloud as a backup and wants AGENTS.md optimized rather than grown by each fix.
 - Tradeoffs: The startup rules are still instructions the agent must follow; there is no host hook. Repositories stay in iCloud, so copies keep appearing and are cleaned each time; a kept branch copy blocks lane commands until the user approves quarantining that path. Field projects are cleaned by their own sessions. The full process is heavy for one-line edits.
 - Follow-up: Consider a lighter path for trivial edits.
+
+- Date: 2026-10-13
+- Decision: Keep the split between Claudia and her workers, so product discussion stays out of the engineer's context, but make it cheap. Each task lane has one engineer; follow-up requests reach it as new task briefs instead of fresh workers. Claudia waits for results instead of checking in repeatedly, and workers report once, when done or blocked. A separate reviewer is assigned only for security, authentication, data that leaves the device, shared interfaces, dependencies, migrations, installer, CLI or worktree changes, or when the user asks. Claudia accepts the worker's evidence instead of re-running its checks. A new message in the same session does not re-read the startup files, and each request gets one bookkeeping pass.
+- Why: A paired same-chat pilot cost 2.99 times the tokens and 1.68 times the time of standard Codex for the same result, mostly from controller polling, fresh workers, automatic reviewers and per-request ceremony. The user said the split exists so heavy product discussion in Claudia's context does not pollute the engineer's.
+- Tradeoffs: Delegation still costs a few controller turns per request, so short, fully specified work stays above the cost of a single session. Fewer reviews rely on worker evidence for self-contained changes.
+- Follow-up: Measure with one paired test when the harness is ready to deploy.
+
+- Date: 2026-10-14
+- Decision: Integrate a task once, when the user is done with it, not after every request. Follow-up requests keep the same open lane and the same worker. Sessions continue through the model's context compaction instead of being replaced; a new session for the same role takes over only when the old one can no longer be resumed.
+- Why: In a Haiku pilot, the merge request after every request closed the lane and forced a cold worker for each follow-up. The user wants to rely on compaction rather than hard resets.
+- Tradeoffs: Work stays unmerged in the lane until the user approves it, so the user reviews the lane path in the meantime.
+- Follow-up: Not stated.
+
+- Date: 2026-10-14
+- Decision: Installing HAI-Harness is the project owner's standing request for Claudia to spawn or reuse worker subagents without asking first. This overrides the host default of starting subagents only when the user asks.
+- Why: In a pilot, Claudia stopped to ask the user whether she could spawn a worker. The user objected to being asked.
+- Tradeoffs: Not stated.
+- Follow-up: Not stated.
+
+- Date: 2026-10-14
+- Decision: Claudia runs on the model the user sets. For each worker, she chooses a fast, standard or deep model tier and an effort level by the task's complexity, so the work reliably meets its task brief. Quality is the bar: a lighter tier only where quality is not at risk, the higher tier when unsure, one tier up after repeated failure, and never a lower tier to save time or cost. The harness never names a provider or model, so it works in products other than Claude.
+- Why: The user wants agents matched to task complexity without trading away quality, and wants the harness to work in other products.
+- Tradeoffs: Claudia routes models herself rather than through a separate agent, to avoid an extra hop. Lighter tiers are used less often than a cost-first rule would use them.
+- Follow-up: Not stated.
+
+- Date: 2026-10-14
+- Decision: Claudia leads each task. She records the request's requirements, rejected options and acceptance, then builds it in the task lane herself by default, with one writer per lane. She spawns or reuses a worker, without asking, only when a trigger applies:
+  - the user asks or names a role;
+  - heavy product discussion or a near-compaction context precedes the build;
+  - wide reading calls for read-only helpers;
+  - a risk-area change needs an independent reviewer;
+  - independent pieces clear the Parallel Split Gate;
+  - a bug's cause is unclear (Momus);
+  - visual intent is unresolved (Hephaestus);
+  - a sizeable mechanical, checkable job can run on a lighter worker behind a verifier.
+
+  Design, design review, debugging, code review, decision records, lessons, traffic control and integration keep working, with "the worker" generalized to whoever builds in the lane.
+- Supersedes: 2026-10-13: Keep the split between Claudia and her workers, so product discussion stays out of the engineer's context, but make it cheap.
+- Why: Paired tests showed that delegating every build adds a hand-off on each step without a quality gain: 1.3 to 1.9 times the tokens and 2 to 2.3 times the time over three steps, and 2.3 times the cost and 2.8 times the time in one shot. Anthropic, Cognition and LangChain guidance agree on one writer, with delegation by kind of work. The user asked that the change be treated as a system upgrade.
+- Tradeoffs: Product discussion and code share Claudia's context unless the heavy-context trigger fires. Claudia's judgment of the triggers replaces a fixed rule.
+- Follow-up: One confirming test when the user declares the harness ready to deploy.
+
+- Date: 2026-10-14
+- Decision: The user sets Claudia's own model and effort, and Claudia never changes them. Each worker's model tier and effort are Claudia's decision per task, not a copy of her own setting. She reads five signals: whether the result can be checked mechanically, how much judgment it needs, its blast radius, whether it is wide or deep, and how the lane has gone so far. The levels:
+  - checkable, low-judgment work runs on the fast tier at low effort behind a verifier;
+  - a clear new feature runs on the standard tier;
+  - open judgment, unclear bugs, shared interfaces, migrations, security, data leaving the device and risk reviews run on the deep tier at high effort.
+
+  She starts lighter when the only doubt is whether a lighter tier can do checkable work, goes higher when judgment or risk is in doubt, escalates on evidence, and never lowers a tier mid-task to save cost. Routine bulk work goes to a fast-tier worker rather than running at the lead's reasoning level. The harness never names a model, provider or host.
+- Supersedes: 2026-10-14: Claudia chooses each worker's tier and effort by task complexity, choosing the higher tier when unsure.
+- Why: The user sets Claudia very high for product work and wants the system to use less reasoning on low-reasoning tasks and more when needed, decided smartly. Model names change, and the user works across several hosts. Ponytail has no routing feature, but the user's 2026-09-24 Ponytail decision already reserved high capability for concrete risk.
+- Tradeoffs: Light work relies on its verifier and on escalation to catch misses.
+- Follow-up: Measure in the confirming test when the user declares the harness ready to deploy.

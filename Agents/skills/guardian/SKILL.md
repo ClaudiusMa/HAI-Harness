@@ -42,7 +42,7 @@ Start with the smallest set that can answer the request.
 - task docs vs shared project context
 - task docs vs handoff docs
 - stale names, paths, or references after migrations
-- planner/worker boundary violations
+- lead/worker boundary violations: two writers in one lane, a delegated build without a recorded trigger or contract, or Athena, Hephaestus or Momus editing product files
 - handoff/lesson path mismatches
 
 ## Output

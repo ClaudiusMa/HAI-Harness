@@ -5,13 +5,13 @@ description: Reconcile concurrent controller sessions, child workers, write scop
 
 # Traffic Control
 
-Traffic control is a coordination gate, not a delegation engine. It decides whether the current root controller or its bounded delegated Momus may safely coordinate the current task's workers. It never implements product work, assigns work to a peer controller, or converts a peer controller into a worker.
+Traffic control is a coordination gate, not a delegation engine. It decides whether the current root controller may safely build in its own lane or coordinate the current task's workers, and whether its bounded delegated Momus may coordinate an incident worker. It never implements product work, assigns work to a peer controller, or converts a peer controller into a worker.
 
 The contract is runtime-neutral. A host may call the units tasks, threads, chats, sessions, agents, or subprocesses; map those names onto the identities below without changing their authority.
 
 ## Identity Model
 
-- **Root controller:** the planning/orchestration session that received the user's request. Claudia is the default root controller; an explicitly named Momus root owns its own bug task. A delegated Momus is an incident coordinator under the existing root, not a new peer controller.
+- **Root controller:** the lead session that received the user's request. It may write in its own task lane as that lane's single writer, or delegate to child workers. Claudia is the default root controller; an explicitly named Momus root owns its own bug task. A delegated Momus is an incident coordinator under the existing root, not a new peer controller.
 - **Parent task:** that exact root user task, identified by its task/session identity. It is not the repository, branch, worktree, task document, or product area.
 - **Child worker:** a role-isolated execution session belonging to that parent task. Augustus and Julius are the default worker roles. Bounded Momus may reuse the named authorized same-task worker or spawn at most one probe/repair child at a time; preserve root/parent provenance and the settled lane.
 - **Peer controller:** another root planning session with its own user request. It remains a controller even when it owns overlapping files or active workers.
@@ -22,12 +22,12 @@ Role and parent-task provenance are immutable during ordinary traffic control. A
 
 Complete the census and return exactly one operating state:
 
-- **CLEAR:** the current controller may spawn or resume its own child-worker lane.
-- **SEQUENCE:** another lane owns a dependency or overlapping target; wait for the named boundary, then spawn or resume the current controller's own worker.
+- **CLEAR:** the current controller may proceed in its own lane, or spawn or resume its own child worker there.
+- **SEQUENCE:** another lane owns a dependency or overlapping target; wait for the named boundary, then proceed in the current controller's own lane or spawn or resume its own worker.
 - **TRANSFER_REQUIRED:** safe continuation requires moving ownership between root controllers; stop and ask the user to approve the transfer.
 - **BLOCKED:** authority, baseline, or scope cannot be established safely; report the missing evidence.
 
-The current controller—not this skill—turns `CLEAR` into worker assignments.
+The current controller, not this skill, turns `CLEAR` into its own building or into worker assignments.
 
 ## 1. Freeze Only New Motion You Own
 

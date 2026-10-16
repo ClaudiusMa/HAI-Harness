@@ -5,7 +5,7 @@ description: Diagnose and repair a reported bug using discriminating evidence, o
 
 # Debugging
 
-Use the current task's expected behavior, scope, lane and authority. Workers can use this method directly for obvious, reproduced, bounded fixes. Claudia routes unclear causes, repairs that failed without an established cause, and investigations needing intermittent/runtime/cross-component evidence to [Momus](../../momus.md). An ordinary bug or test failure does not require a new agent, report or review cycle.
+Use the current task's expected behavior, scope, lane and authority. The lane's writer, Claudia or a worker, can use this method directly for obvious, reproduced, bounded fixes. Claudia routes unclear causes, repairs that failed without an established cause, and investigations needing intermittent/runtime/cross-component evidence to [Momus](../../momus.md). An ordinary bug or test failure does not require a new agent, report or review cycle.
 
 ## Establish the incident
 
@@ -27,7 +27,7 @@ Explain the supported cause, gaps, one proposed causal correction and the sympto
 
 The worker applies one coherent correction, adds regression coverage when it catches the real failure pattern at a useful seam, runs focused checks and returns the actual candidate/diff. Do not add tests that merely restate wording or mirror implementation. Reject or undo a failed probe/fix only through its owner's attributable edits after inspecting the current diff; preserve baseline, user and peer work. Never stack speculative corrections or reset/stash/clean a lane.
 
-Re-run the original symptom and relevant neighboring behavior against the final candidate after temporary probe cleanup. For UI bugs inspect the rendered interaction at the relevant viewport/theme; typecheck is insufficient. For harness bugs compare the latest instruction to the actual role, task and lane. Momus, when routed, independently performs this symptom verification. Existing substantive source-review obligations may be satisfied by assigned Momus review when he did not implement the change; no duplicate review is required solely because debugging occurred.
+Re-run the original symptom and relevant neighboring behavior against the final candidate after temporary probe cleanup. For UI bugs inspect the rendered interaction at the relevant viewport/theme; typecheck is insufficient. For harness bugs compare the latest instruction to the actual role, task and lane. Momus, when routed, independently performs this symptom verification. Existing risk-based review obligations may be satisfied by assigned Momus review when he did not implement the change; no duplicate review is required solely because debugging occurred.
 
 Label a verified correction, mitigation or unverified result accurately. A mitigation has its own checked scope and limits. Retained instrumentation needs a concrete reason, owner and revisit condition.
 
