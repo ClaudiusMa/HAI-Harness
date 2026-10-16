@@ -2,14 +2,28 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-08 — field reliability verified; integrating and pushing (Momus released as v0.2.8 on main)
+Last updated: 2026-10-12 — plugin layout design approved; Augustus implementing
 Last updated by: Claudia
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
 
-## Current iteration — field reliability, 2026-10-07
+## Current iteration — plugin layout, 2026-10-08
+
+- Status: the user approved the resolved design on 2026-10-12 ("yes"); Augustus implementing in the lane. Local commit/merge, push and release remain unapproved.
+- Why: Engram's 0.2.4 → 0.2.9 update overwrote the project's own root `AGENTS.md` and its locally edited `onboarding.md`/`claudia.md`, deleting the custom Apollo role and breaking its routing. Cause: root `AGENTS.md` and every role/method file are copied unconditionally by `update` (`bin/hai-harness.mjs` `scaffoldPaths`/`refreshPath`); nothing records what was shipped; there is no extension point, so customizing means editing core files. `init` meanwhile skips an existing `AGENTS.md`, so such projects are never wired in.
+- User direction (2026-10-08): HAI acts as a plugin, not the main block of the repository. Everything lives in one `.hai/` folder; the user's root `AGENTS.md` stays theirs and HAI owns only a marked block with the startup rules; users keep their own custom skills and custom agents across updates; an unnamed message is always Claudia, and Claudia sees custom roles — "this part we need to play carefully so agent dont make mistake".
+- Conflicts applied: supersedes the 2026-10-07 decision's CLI path (`node Agents/hai-harness.mjs` becomes `node .hai/Agents/hai-harness.mjs`) and the scaffold-installs-as-whole-root-`AGENTS.md` behavior. Default-Claudia (2026-09-29) and provider neutrality (2026-09-10) stand.
+- Design (agent-resolved, in the contract): `.hai/Agents` + `.hai/Human` + receipt; marked block; content-hash ownership guard with the history of every shipped core file; `migrate` command for root-layout installs; `custom/roles` and `custom/skills` with frontmatter and eight routing safeguards; `hai-meta` targets the repository root.
+- Queue: one serial Augustus worker (CLI foundation → layout/block → migrate → custom-role rules → docs → focused tests → sync → written scenario check); then a fresh read-only Julius review; then Claudia's live agent replays on an Engram-shaped fixture. Parallel Split Gate fails: docs, CLI and tests share the paths being moved.
+- Lane `task/plugin-layout` (base `cf3aefe`); contract [plugin-layout](tasks/plugin-layout.md); packet Git common `hai-harness/tasks/81130ee4e3c0691707adc3e16d8c673f0478786052d3c137a4178ff43be98fd4`.
+- Traffic: CLEAR. Retained `task/task-cleanup` (conflict copies, untouched). Peer controller `task/sol-medium-vibe-eval` (2026-10-12) runs an evaluation on frozen `cf3aefe` with fixtures under `/private/tmp`; no product-source writes, only its own task file, so no overlap. If both lanes edit `planning.md`, approve keeps both sides. Local `main` is two commits behind `origin/main` (v0.2.9 release merge, PR #21); reconcile in the lane before any push.
+- Decision needed from user later: release version. The planner bumps the patch automatically; a layout change that needs `migrate` probably warrants 0.3.0.
+
+## Iteration — field reliability, 2026-10-07
+
+- Closeout: merged to local `main` as `cf3aefe`; `origin/main` shows the v0.2.9 release merge (PR #21).
 
 - Status: verified; user approved the decision entry, local integration and push on 2026-10-07, conditional on an optimized AGENTS.md, and on 2026-10-08 asked to confirm the shortening kept quality before merge and release. Both conditions met. Integrating with `worktree approve` from the lane, then push; the release PR still needs the repository's GitHub review.
 - Why: portfolio-2026 traces showed sessions skipping Claudia's startup on coding requests, a bare `hai-harness` that was never on PATH, hand-made lanes that later broke approve/cleanup (and forged `hai*` config), and iCloud conflict copies corrupting Git refs.
