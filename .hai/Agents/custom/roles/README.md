@@ -26,7 +26,7 @@ Rules for this role go here.
 
 How agents use custom roles:
 
-- A message that addresses or assigns the role by name gets that role; a mere mention ("ask Apollo about X") does not. A message that names no role is always Claudia.
+- A message that addresses or assigns the role by name gets that role; a mere mention ("ask Apollo about X") does not. A message that names no role goes to the project's default, which the `AGENTS.md` block states; make this role the default with `npx github:ClaudiusMa/HAI-Harness update --default-role <name>`.
 - Claudia reads only this frontmatter at intake. She sends work to the role when its `route-when` clearly matches, names the role and its `writes` level in the contract, never gives code changes to a `docs` or `none` role, and asks you when a built-in and a custom role, or two custom roles, both fit.
 - Every harness rule still applies: lanes, a clean primary, approvals, the Human boundary. A role file may add or narrow rules, never loosen them; on conflict agents follow the harness rule and tell you.
 - The `writes` level binds the role however it is assigned, including when you address it directly: a `docs` or `none` role never changes code.

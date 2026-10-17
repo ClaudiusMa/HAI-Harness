@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { once } from "node:events";
 
@@ -24,8 +24,13 @@ function git(cwd, ...args) {
   return result.stdout.trim();
 }
 
+// init asks a person whether Claudia is the default when a project has no
+// AGENTS.md; fixtures answer yes up front, as the user would.
 function harness(cwd, ...args) {
-  return run(process.execPath, [cli, ...args], cwd);
+  const target = args.includes("--target") ? args[args.indexOf("--target") + 1] : cwd;
+  const ownEntry = existsSync(path.join(target, "AGENTS.md")) && readFileSync(path.join(target, "AGENTS.md"), "utf8").trim() !== "";
+  const answered = args[0] === "init" && !args.includes("--default-role") && !ownEntry ? [...args, "--default-role", "claudia"] : args;
+  return run(process.execPath, [cli, ...answered], cwd);
 }
 
 // A session in an installed project: no `hai-harness` on PATH, no npm, no network.
@@ -406,7 +411,7 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(entryFile, /node \.hai\/Agents\/hai-harness\.mjs worktree create <task-slug>/);
   // AGENTS.md carries one block: the always-loaded startup rules, three start steps, at most eight one-line invariants, a small word budget.
   const body = await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8");
-  assert.equal(entryFile, `<!-- hai-harness:start -->\n${entryFile.split("\n")[1]}\n\n${body.trim()}\n<!-- hai-harness:end -->\n`);
+  assert.equal(entryFile, `<!-- hai-harness:start default=claudia -->\n${entryFile.split("\n")[1]}\n\n${body.trim()}\n<!-- hai-harness:end -->\n`);
   assert.ok(body.split(/\s+/).filter(Boolean).length <= 450, "scaffold/AGENTS.md must stay at 450 words or fewer; put detail in Agents/onboarding.md");
   assert.equal((body.match(/^\d\. \*\*/gm) ?? []).length, 3);
   const always = body.match(/### Always\n\n((?:- .*\n)+)/)?.[1].trim().split("\n") ?? [];
@@ -518,7 +523,7 @@ test("the AGENTS.md block is the only part of the project's file HAI-Harness wri
   await fs.writeFile(entry, own);
   assert.equal(harness(project, "init", "--target", project).status, 0);
   let content = await fs.readFile(entry, "utf8");
-  assert.ok(content.startsWith(`${own}\n\n<!-- hai-harness:start -->\n`));
+  assert.ok(content.startsWith(`${own}\n\n<!-- hai-harness:start default=own -->\n`));
   assert.ok(content.endsWith("<!-- hai-harness:end -->\n"));
   const block = content.slice(own.length + 2);
 
@@ -540,7 +545,7 @@ test("the AGENTS.md block is the only part of the project's file HAI-Harness wri
   assert.match(harness(project, "doctor", "--target", project).stdout, /AGENTS\.md has no HAI-Harness block/);
   // init puts it back on request.
   assert.equal(harness(project, "init", "--target", project).status, 0);
-  assert.match(await fs.readFile(entry, "utf8"), /^# Engram\n\nNo harness here\.\n\n<!-- hai-harness:start -->/);
+  assert.match(await fs.readFile(entry, "utf8"), /^# Engram\n\nNo harness here\.\n\n<!-- hai-harness:start default=own -->/);
 
   // Duplicate or unbalanced markers: the file is left untouched.
   for (const broken of [`${block}${block}`, "x\n<!-- hai-harness:start -->\ny\n", "<!-- hai-harness:end -->\nx\n<!-- hai-harness:start -->\n"]) {
@@ -673,7 +678,7 @@ test("update moves a root-layout install into .hai and reports what it cannot cl
   assert.equal(JSON.parse(await fs.readFile(path.join(repo, ".hai/.hai-harness.json"), "utf8")).checkEnabled, false);
   assert.equal(await fs.stat(path.join(repo, ".hai/AGENTS.md")).catch(() => null), null);
   const entry = await fs.readFile(path.join(repo, "AGENTS.md"), "utf8");
-  assert.ok(entry.startsWith(`${own}\n<!-- hai-harness:start -->`));
+  assert.ok(entry.startsWith(`${own}\n<!-- hai-harness:start default=own -->`));
   // Git sees the move as renames, so history follows.
   assert.match(git(repo, "status", "--porcelain"), /^R {2}Agents\/planning\.md -> \.hai\/Agents\/planning\.md$/m);
   git(repo, "add", "-A");
@@ -697,7 +702,7 @@ test("update moves a root-layout install into .hai and reports what it cannot cl
     git(fresh.repo, "add", "-A");
     git(fresh.repo, "commit", "-m", "Root-layout install");
     assert.equal(harness(fresh.repo, "update", "--target", fresh.repo).status, 0);
-    assert.match(await fs.readFile(path.join(fresh.repo, "AGENTS.md"), "utf8"), /^<!-- hai-harness:start -->\n[\s\S]*<!-- hai-harness:end -->\n$/);
+    assert.match(await fs.readFile(path.join(fresh.repo, "AGENTS.md"), "utf8"), /^<!-- hai-harness:start default=claudia -->\n[\s\S]*<!-- hai-harness:end -->\n$/);
   }
 });
 
@@ -800,6 +805,101 @@ test("migrate refuses to expose ignored files and resumes a move that stopped pa
   assert.equal(await fs.readFile(path.join(repo, ".hai/Human/private/notes.md"), "utf8"), "private\n");
   git(repo, "add", "-A");
   assert.doesNotMatch(git(repo, "status", "--porcelain"), /private/);
+});
+
+test("init asks before making Claudia the default for a project with no AGENTS.md", async (t) => {
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-ask-"));
+  t.after(() => fs.rm(project, { recursive: true, force: true }));
+  // An agent or script cannot answer for the user: init stops and says what to ask.
+  const unattended = run(process.execPath, [cli, "init", "--target", project], project);
+  assert.notEqual(unattended.status, 0);
+  assert.match(unattended.stderr, /has no AGENTS\.md of its own[\s\S]*Ask the user[\s\S]*--default-role claudia[\s\S]*--default-role own/);
+  assert.deepEqual(await fs.readdir(project), []);
+  assert.match(run(process.execPath, [cli, "init", "--dry-run", "--target", project], project).stdout, /init will ask this/);
+  assert.deepEqual(await fs.readdir(project), []);
+  // The user's answer, passed on.
+  assert.equal(run(process.execPath, [cli, "init", "--default-role", "own", "--target", project], project).status, 0);
+  assert.match(await fs.readFile(path.join(project, "AGENTS.md"), "utf8"), /^<!-- hai-harness:start default=own -->[\s\S]*this block does not apply/);
+  // A person at a terminal is asked; "no" keeps HAI to named roles, "yes" makes Claudia the default.
+  // A pseudo-terminal stands in for the person; the first answer is not y/n, so it asks again.
+  const tty = `import os, pty, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execv(sys.argv[1], sys.argv[1:-1])
+out = b""
+for answer in (b"maybe\\n", sys.argv[-1].encode() + b"\\n"):
+    while b"[y/n]" not in out[-200:]:
+        out += os.read(fd, 4096)
+    out = out.replace(b"[y/n]", b"[asked]", 1)
+    os.write(fd, answer)
+while True:
+    try:
+        chunk = os.read(fd, 4096)
+    except OSError:
+        break
+    if not chunk:
+        break
+    out += chunk
+sys.stdout.write(out.decode(errors="replace"))
+sys.exit(os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]))`;
+  if (run("python3", ["-c", "import pty"], project).status === 0) {
+    for (const [answer, role] of [["n", "own"], ["y", "claudia"]]) {
+      const fresh = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-tty-"));
+      t.after(() => fs.rm(fresh, { recursive: true, force: true }));
+      const asked = spawnSync("python3", ["-c", tty, process.execPath, cli, "init", "--target", fresh, answer], { encoding: "utf8", timeout: 60_000 });
+      assert.equal(asked.status, 0, asked.stdout + asked.stderr);
+      assert.match(asked.stdout, /Should agents answer any message that names no role as Claudia/);
+      assert.match(await fs.readFile(path.join(fresh, "AGENTS.md"), "utf8"), new RegExp(`^<!-- hai-harness:start default=${role} -->`));
+    }
+  }
+  // A project with its own AGENTS.md is not asked: its workflow stays in charge.
+  const existing = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-own-"));
+  t.after(() => fs.rm(existing, { recursive: true, force: true }));
+  await fs.writeFile(path.join(existing, "AGENTS.md"), "# Our rules\n");
+  assert.equal(run(process.execPath, [cli, "init", "--target", existing], existing).status, 0);
+  assert.match(await fs.readFile(path.join(existing, "AGENTS.md"), "utf8"), /<!-- hai-harness:start default=own -->/);
+});
+
+test("the project sets who answers an unnamed message once, in the block marker", async (t) => {
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-default-"));
+  t.after(() => fs.rm(project, { recursive: true, force: true }));
+  const entry = path.join(project, "AGENTS.md");
+  const own = "# Engram\n\nOur workflow: plan in docs/, Apollo owns schemas.\n";
+  await fs.writeFile(entry, own);
+  // A project with its own AGENTS.md keeps its workflow: HAI applies only when a HAI role is named.
+  const installed = harness(project, "init", "--target", project);
+  assert.match(installed.stdout, /name no role go to this project's own instructions/);
+  let content = await fs.readFile(entry, "utf8");
+  assert.ok(content.startsWith(`${own}\n<!-- hai-harness:start default=own -->\n`));
+  assert.match(content, /When it names none, this block does not apply: follow this project's own instructions outside it\./);
+  assert.match(content, /Otherwise no HAI role applies; do not take one or ask the user to pick\./);
+  assert.doesNotMatch(content, /Otherwise you are Claudia/);
+  assert.match(harness(project, "doctor", "--target", project).stdout, /name no role go to this project's own instructions/);
+
+  // Changing it once rewrites only the block; later updates keep the choice.
+  assert.equal(harness(project, "update", "--target", project, "--default-role", "claudia").status, 0);
+  content = await fs.readFile(entry, "utf8");
+  assert.ok(content.startsWith(`${own}\n<!-- hai-harness:start default=claudia -->\n`));
+  assert.match(content, /Otherwise you are Claudia, even for a plain coding request/);
+  for (const [value, message] of [["augustus", /is not one/], ["apollo", /add \.hai\/Agents\/custom\/roles\/apollo\.md first/], ["Bad Name", /is not one/]]) {
+    const refused = harness(project, "update", "--target", project, "--default-role", value);
+    assert.notEqual(refused.status, 0, value);
+    assert.match(refused.stderr, message, value);
+  }
+  assert.equal(await fs.readFile(entry, "utf8"), content);
+  await fs.writeFile(path.join(project, ".hai/Agents/custom/roles/apollo.md"), "---\nname: Apollo\ndescription: Schema architect.\nroute-when: schema changes\nwrites: code\n---\n");
+  assert.equal(harness(project, "update", "--target", project, "--default-role", "apollo").status, 0);
+  assert.equal(harness(project, "update", "--target", project).status, 0);
+  content = await fs.readFile(entry, "utf8");
+  assert.match(content, /<!-- hai-harness:start default=apollo -->/);
+  assert.match(content, /Otherwise you are Apollo, this project's default role \(`\.hai\/Agents\/custom\/roles\/apollo\.md`\)/);
+  await fs.rm(path.join(project, ".hai/Agents/custom/roles/apollo.md"));
+  assert.match(harness(project, "doctor", "--target", project).stdout, /names apollo as the default role, but[^\n]*apollo\.md is missing/);
+
+  // A marker written before defaults existed means Claudia.
+  await fs.writeFile(entry, `${own}\n<!-- hai-harness:start -->\nold\n<!-- hai-harness:end -->\n`);
+  assert.equal(harness(project, "update", "--target", project).status, 0);
+  assert.match(await fs.readFile(entry, "utf8"), /<!-- hai-harness:start default=claudia -->[\s\S]*Otherwise you are Claudia/);
 });
 
 function trailEntry(id, origin, area, change = `change ${id}`) {
@@ -1792,13 +1892,14 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
   const target = path.join(root, ".hai");
   const meta = (...args) => run("bash", [path.join(root, "hai-meta"), ...args], os.tmpdir());
   // The product's own Agents/ at the repository root is source, not a root-layout install.
-  const repositoryNote = await fs.readFile(path.join(root, "AGENTS.md"), "utf8");
+  // The repository note is everything before this repository's own block.
+  const repositoryNote = (await fs.readFile(path.join(root, "AGENTS.md"), "utf8")).split("<!-- hai-harness:start")[0];
   const bootstrapped = meta("bootstrap");
   assert.equal(bootstrapped.status, 0, bootstrapped.stderr);
   assert.ok(await fs.stat(path.join(target, "Agents/onboarding.md")));
   const entry = await fs.readFile(path.join(root, "AGENTS.md"), "utf8");
   assert.ok(entry.startsWith(repositoryNote), "the repository note stays as written");
-  assert.match(entry, /<!-- hai-harness:start -->[\s\S]*node \.hai\/Agents\/hai-harness\.mjs[\s\S]*<!-- hai-harness:end -->\n$/);
+  assert.match(entry, /<!-- hai-harness:start default=claudia -->[\s\S]*node \.hai\/Agents\/hai-harness\.mjs[\s\S]*<!-- hai-harness:end -->\n$/);
   assert.equal(await fs.stat(path.join(target, "AGENTS.md")).catch(() => null), null);
   const records = [
     ".hai/Agents/planning.md", ".hai/Agents/project_context.md", ".hai/Agents/design.md",

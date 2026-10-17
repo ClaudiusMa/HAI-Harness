@@ -8,6 +8,7 @@ import process from "node:process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import readline from "node:readline/promises";
 
 const runFile = promisify(execFile);
 const scriptPath = fileURLToPath(import.meta.url);
@@ -202,7 +203,7 @@ const usage = `HAI-Harness
 
 Usage:
   ${cliCommand} init              [--target <project>] [--force] [--dry-run]
-  ${cliCommand} update            [--target <project>] [--dry-run] [--accept-upstream <path>]...
+  ${cliCommand} update            [--target <project>] [--dry-run] [--accept-upstream <path>]... [--default-role <role>]
   ${cliCommand} migrate           [--target <project>] [--dry-run]
   ${cliCommand} doctor            [--target <project>]
   ${cliCommand} human-sync        [capture|status|init|acknowledge|checkpoint] [--target <dir>]
@@ -247,6 +248,10 @@ Options:
                        the current directory. human-sync resolves a project root to its ${harnessDirectory}/ folder.
   --force              (init only) Overwrite existing harness files.
   --dry-run            (init/update/migrate only) Show what would change without writing files.
+  --default-role <role> (init/update/migrate) Who answers a message that names no HAI role: claudia,
+                       own (the project's own AGENTS.md instructions; HAI applies only when a HAI
+                       role is named), or a custom role. Stored once in the AGENTS.md block marker.
+                       First install: own when the project already had an AGENTS.md, else claudia.
   --accept-upstream <path>
                        (update only, repeatable) Replace this one edited core file, such as
                        Agents/onboarding.md, with the shipped version.
@@ -288,8 +293,10 @@ async function main() {
     await humanSyncCommand(args);
     return;
   }
-  const options = parseOptions(args, new Set(["--target", "--force", "--dry-run", "--accept-upstream"]));
+  const options = parseOptions(args, new Set(["--target", "--force", "--dry-run", "--accept-upstream", "--default-role"]));
   rejectOption(options.acceptUpstream.length > 0 && command !== "update", "--accept-upstream is only valid with update.");
+  rejectOption(options.defaultRole !== undefined && command === "doctor", "--default-role is only valid with init, update and migrate.");
+  if (["init", "update", "migrate"].includes(command)) await assertDefaultRole(options.target, options);
   if (command === "init") {
     await init(options);
     return;
@@ -332,7 +339,8 @@ function parseOptions(args, allowed) {
     ["--head", "head"],
     ["--snapshot", "snapshot"],
     ["--output", "output"],
-    ["--quarantine", "quarantine"]
+    ["--quarantine", "quarantine"],
+    ["--default-role", "defaultRole"]
   ]);
 
   for (let index = 0; index < args.length; index += 1) {
@@ -380,6 +388,7 @@ async function init(options) {
   const layout = await layoutOf(options.target);
   if (layout.kind === "legacy" || layout.kind === "partial") throw new Error(legacyLayoutMessage(options.target, layout.kind));
   const harness = layout.harness;
+  await chooseDefaultRole(options);
   const receipt = await readReceipt(harness);
   const install = { ...options, base: options.target };
   const results = { created: [], overwritten: [], skipped: [] };
@@ -681,20 +690,88 @@ async function saveReceipt(harness, receipt, changes) {
   await fs.rename(temporaryPath, statePath);
 }
 
-function renderEntryBlock(body) {
-  return `${blockStart}\n${blockNotice}\n\n${body.trim()}\n${blockEnd}\n`;
+// What a message that names no HAI role gets: "claudia", "own" (the project's
+// own instructions; HAI applies only when a HAI role is named) or a custom role.
+// It lives in the start marker, so it is set once, travels with the tracked
+// AGENTS.md, and costs agents nothing beyond the block they already read.
+const startMarker = /^\uFEFF?<!-- hai-harness:start(?: default=([a-z][a-z0-9-]*))? -->[ \t\r]*$/gm;
+const startSteps = "Do these in order, before anything else.";
+const claudiaDefault = "Otherwise you are Claudia, even for a plain coding request; do not ask the user to pick.";
+
+function renderEntryBlock(body, defaultRole) {
+  let text = body.trim();
+  const swap = (from, to) => {
+    if (!text.includes(from)) throw new Error(`${entryBlockSource} no longer contains "${from}"; update renderEntryBlock.`);
+    text = text.replace(from, to);
+  };
+  if (defaultRole === "own") {
+    swap(startSteps, "When the user's message or your task contract names a HAI role (step 2), do these in order, before anything else. When it names none, this block does not apply: follow this project's own instructions outside it.");
+    swap(claudiaDefault, "Otherwise no HAI role applies; do not take one or ask the user to pick.");
+  } else if (defaultRole !== "claudia") {
+    const name = `${defaultRole[0].toUpperCase()}${defaultRole.slice(1)}`;
+    swap(claudiaDefault, `Otherwise you are ${name}, this project's default role (\`.hai/Agents/custom/roles/${defaultRole}.md\`), even for a plain coding request; do not ask the user to pick.`);
+  }
+  return `<!-- hai-harness:start default=${defaultRole} -->\n${blockNotice}\n\n${text}\n${blockEnd}\n`;
 }
 
 function findEntryBlock(content) {
-  const line = (marker) => new RegExp(`^\uFEFF?${marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[ \\t\\r]*$`, "gm");
-  const starts = [...content.matchAll(line(blockStart))];
-  const ends = [...content.matchAll(line(blockEnd))];
+  const ends = [...content.matchAll(new RegExp(`^${blockEnd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[ \\t\\r]*$`, "gm"))];
+  const starts = [...content.matchAll(startMarker)];
   if (starts.length === 0 && ends.length === 0) return { state: "none" };
   if (starts.length !== 1 || ends.length !== 1 || ends[0].index < starts[0].index) return { state: "malformed" };
   let end = ends[0].index + ends[0][0].length;
   if (content[end] === "\n") end += 1;
-  // A byte-order mark before the first marker stays in place.
-  return { state: "one", start: starts[0].index + (starts[0][0].startsWith("\uFEFF") ? 1 : 0), end };
+  // A byte-order mark before the first marker stays in place. A marker
+  // written before defaults existed means Claudia.
+  return { state: "one", start: starts[0].index + (starts[0][0].startsWith("\uFEFF") ? 1 : 0), end, defaultRole: starts[0][1] ?? "claudia" };
+}
+
+function describeDefault(defaultRole) {
+  if (defaultRole === "claudia") return "Claudia";
+  if (defaultRole === "own") return "this project's own instructions (HAI applies only when a HAI role is named)";
+  return `the custom role ${defaultRole}`;
+}
+
+// A project with no AGENTS.md of its own has no workflow to keep, so the user
+// decides whether Claudia answers unnamed messages. Only a person at a terminal
+// can answer; an agent or script is told to ask the user and pass the choice.
+async function chooseDefaultRole(options) {
+  if (options.defaultRole !== undefined) return;
+  const raw = await readOptional(path.join(options.target, entryFile));
+  const content = raw === null ? "" : raw.toString("utf8");
+  if (findEntryBlock(content).state !== "none" || withoutEntryBlock(content).trim() !== "") return;
+  const question = `This project has no ${entryFile} of its own. Should agents answer any message that names no role as Claudia, HAI-Harness's lead, who plans and builds under its rules (lanes, clean main, approvals)?`;
+  if (options.dryRun) {
+    console.log(`${question}\n(init will ask this; the dry run assumes yes.)\n`);
+    options.defaultRole = "claudia";
+    return;
+  }
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error(`${question}\nAsk the user, then run init again with their answer; nothing was written:\n  ${upstreamCommand} init --default-role claudia   (yes: Claudia answers)\n  ${upstreamCommand} init --default-role own       (no: HAI applies only when a HAI role is named)`);
+  }
+  const prompt = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    for (;;) {
+      const answer = (await prompt.question(`${question} [y/n] `)).trim().toLowerCase();
+      if (["y", "yes"].includes(answer)) { options.defaultRole = "claudia"; break; }
+      if (["n", "no"].includes(answer)) { options.defaultRole = "own"; break; }
+    }
+  } finally {
+    prompt.close();
+  }
+}
+
+// --default-role takes claudia, own, or an existing custom role.
+async function assertDefaultRole(projectRoot, options) {
+  const value = options.defaultRole;
+  if (value === undefined || value === "claudia" || value === "own") return;
+  if (!/^[a-z][a-z0-9-]*$/.test(value) || builtInRoles.includes(value)) {
+    throw new Error(`--default-role takes claudia, own, or the lowercase name of a custom role; "${value}" is not one.`);
+  }
+  for (const base of [path.join(projectRoot, harnessDirectory), projectRoot]) {
+    if (await exists(path.join(base, customRolesPath, `${value}.md`))) return;
+  }
+  throw new Error(`--default-role ${value}: add ${harnessDirectory}/${customRolesPath}/${value}.md first.`);
 }
 
 function withoutEntryBlock(content) {
@@ -711,29 +788,31 @@ async function refreshEntryBlock(projectRoot, options, { adopt, replaceWhole = f
   const file = path.join(projectRoot, entryFile);
   const body = await readOptional(path.join(packageRoot, entryBlockSource));
   if (body === null) return { status: "noSource", installed: false };
-  const block = renderEntryBlock(body.toString("utf8"));
   const raw = await readOptional(file);
   const current = raw === null ? null : raw.toString("utf8");
+  const found = current === null || replaceWhole ? { state: "none" } : findEntryBlock(current);
+  if (found.state === "malformed") return { status: "malformed", installed: false };
+  // First install picks once: a project that already has its own AGENTS.md
+  // keeps its own workflow; one without gets Claudia. Later the marker decides.
+  const ownText = current !== null && !replaceWhole && withoutEntryBlock(current).trim() !== "";
+  const defaultRole = options.defaultRole ?? found.defaultRole ?? (ownText ? "own" : "claudia");
+  const block = renderEntryBlock(body.toString("utf8"), defaultRole);
   let next;
   let status;
   if (current === null || replaceWhole) {
     if (current === null && !adopt) return { status: "missing", installed: false };
     next = block;
     status = current === null ? "created" : "replaced";
+  } else if (found.state === "none") {
+    if (!adopt) return { status: "removed", installed: false };
+    next = current === "" ? block : `${current}${current.endsWith("\n") ? "" : "\n"}\n${block}`;
+    status = "appended";
   } else {
-    const found = findEntryBlock(current);
-    if (found.state === "malformed") return { status: "malformed", installed: false };
-    if (found.state === "none") {
-      if (!adopt) return { status: "removed", installed: false };
-      next = current === "" ? block : `${current}${current.endsWith("\n") ? "" : "\n"}\n${block}`;
-      status = "appended";
-    } else {
-      next = `${current.slice(0, found.start)}${block}${current.slice(found.end)}`;
-      status = next === current ? "current" : "updated";
-    }
+    next = `${current.slice(0, found.start)}${block}${current.slice(found.end)}`;
+    status = next === current ? "current" : "updated";
   }
   if (!options.dryRun && next !== current) await fs.writeFile(file, next);
-  return { status, installed: true };
+  return { status, installed: true, defaultRole };
 }
 
 async function entryBlockProblem(projectRoot) {
@@ -743,6 +822,12 @@ async function entryBlockProblem(projectRoot) {
   if (found.state === "none") return `${entryFile} has no HAI-Harness block, so agents never see the startup rules. "${upstreamCommand} init" adds it back.`;
   if (found.state === "malformed") return `${entryFile} has duplicate or unbalanced HAI-Harness markers; update leaves the file alone until exactly one ${blockStart} … ${blockEnd} pair remains.`;
   return null;
+}
+
+async function entryDefault(projectRoot) {
+  const raw = await readOptional(path.join(projectRoot, entryFile));
+  const found = raw === null ? { state: "none" } : findEntryBlock(raw.toString("utf8"));
+  return found.state === "one" ? found.defaultRole : null;
 }
 
 async function doctor(options) {
@@ -804,7 +889,12 @@ async function doctor(options) {
       if (stdout.trim()) updateStatus = stdout.trim();
     } catch {}
   }
+  const defaultRole = await entryDefault(projectRoot);
+  const defaultWarnings = defaultRole && !["claudia", "own"].includes(defaultRole) && !(await exists(path.join(harness, customRolesPath, `${defaultRole}.md`)))
+    ? [`The AGENTS.md block names ${defaultRole} as the default role, but ${harnessDirectory}/${customRolesPath}/${defaultRole}.md is missing. Add it or run "${upstreamCommand} update --default-role claudia".`]
+    : [];
   const warnings = [
+    ...defaultWarnings,
     ...await editedCoreWarnings(projectRoot, harness),
     ...await customWarnings(projectRoot, harness),
     ...await humanSyncWarnings(harness),
@@ -813,6 +903,7 @@ async function doctor(options) {
   ];
   if (missing.length === 0 && oversized.length === 0 && !entryProblem) {
     console.log(`HAI-Harness looks installed in ${projectRoot}`);
+    if (defaultRole) console.log(`Messages that name no role go to ${describeDefault(defaultRole)}.`);
     if (warnings.length > 0) {
       printWarnings(warnings);
       console.log("");
@@ -2196,7 +2287,7 @@ function printRefreshDetails(results) {
 }
 
 function entrySummary(entry) {
-  return {
+  const text = {
     created: `${entryFile}: created with the HAI-Harness block.`,
     appended: `${entryFile}: HAI-Harness block added at the end; the rest of the file is unchanged.`,
     updated: `${entryFile}: HAI-Harness block refreshed; everything outside the markers is unchanged.`,
@@ -2207,6 +2298,7 @@ function entrySummary(entry) {
     malformed: `${entryFile} has duplicate or unbalanced HAI-Harness markers and was left unchanged. Keep exactly one ${blockStart} … ${blockEnd} pair, then run update.`,
     noSource: `${entryFile} was left unchanged: this package has no ${entryBlockSource}.`
   }[entry?.status] ?? "";
+  return entry?.defaultRole ? `${text}\nMessages that name no role go to ${describeDefault(entry.defaultRole)}. To change this once: ${upstreamCommand} update --default-role claudia|own|<custom role>` : text;
 }
 
 function printMigrateSummary(root, options, moves, results, report) {
