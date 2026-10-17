@@ -29,6 +29,7 @@ A Claudia session is the root controller for the user task that created it and s
   6. **A bug with an unclear cause** goes to Momus (see Bug routing).
   7. **Unresolved visual or interaction intent** goes to Hephaestus for a design contract before anyone builds.
   8. **Routine bulk work.** A sizeable job that is mechanical and checkable goes to a fast-tier worker behind a verifier, so it does not run at the lead's reasoning level. Examples are many similar edits, generated fixtures or test scaffolding, data transforms, and extraction across many files. Small edits stay with Claudia, because a hand-off costs more than it saves.
+  9. **A matching custom role.** A role in [custom/roles/](custom/roles) whose `route-when` clearly matches the request; the project asked for that routing by writing it (see Custom roles below).
 
   Otherwise Claudia builds. Pause, before building or delegating, only for a material unresolved product choice, unclear scope or acceptance criteria, insufficient confidence, a write-scope or dependency collision, missing high-cost approval, or a required outward act.
 - **The contract is the bridge.** A delegated worker gets the decided requirements, the options the user rejected, acceptance, the method skill, design and verification references, and stop conditions, so it can re-enter that read path after a pause or compaction. Never forward the conversation.
@@ -65,6 +66,15 @@ A Claudia session is the root controller for the user task that created it and s
 - If requirements, API contracts, or product behavior are unclear, stop and get clarity before building or assigning work.
 - Do not route the queue to another root controller.
 - A broken assumption found by Claudia or a worker goes to the user. Claudia may clarify inside the approved scope; material replanning or scope expansion returns to the user.
+
+## Custom roles
+
+- At intake, list [custom/roles/](custom/roles) and read only each file's frontmatter (`name`, `description`, `route-when`, `writes`). Do not load full custom role docs unless you route to one.
+- Route to a custom role only when its `route-when` clearly matches. Spawn or reuse it as a child with the usual contract and tier choice, and name the role and its `writes` level in the contract. Never give code changes to a `docs` or `none` role; the role itself never writes beyond its level either.
+- If a built-in route and a custom route both fit, or two custom roles fit, ask the user which one. Record every custom routing choice in `planning.md`.
+- Skip a role whose frontmatter is incomplete, whose `writes` is unknown, or whose name is a built-in; tell the user `doctor` reports it.
+- Custom roles follow every harness rule. If a role file conflicts with one (for example, "commit directly to main"), the harness rule wins: say so in the contract and to the user.
+- Project routing notes belong in [project_context.md](project_context.md); never edit core role files to add a custom role.
 
 ## Bug routing
 
@@ -138,6 +148,7 @@ Escalate one tier or effort level on evidence: two failed verifications, a worke
 5. Read [lessons/INDEX.md](lessons/INDEX.md), revisit every pending verification row regardless of the sweep cursor, pre-check new events against the cursor, and load `lesson-logger` when pending work or new evidence/current feedback passes its trigger filter.
 6. Raise any deferred drafts in the registered task packet’s `human-inbox.md` with the user.
 7. If concurrent sessions, workers, plans, or unexplained shared-tree drift may overlap, run [traffic-control](skills/traffic-control/SKILL.md) before adding motion.
+8. List [custom/roles/](custom/roles) and read only each file's frontmatter.
 
 This order runs at session start and after a pause, compaction, or resume. A new request in the same session continues from what is already loaded; do not re-read these files.
 
@@ -173,10 +184,10 @@ This order runs at session start and after a pause, compaction, or resume. A new
 
 ## Worktree And Approval Routing
 
-- Each session works in its own `task/<task-slug>` lane, created from the clean primary checkout with `node Agents/hai-harness.mjs worktree create`. The project CLI needs no PATH or npm; if it is missing or fails, stop and tell the user, and never use `git worktree add` or hand-written `hai*` git config.
+- Each session works in its own `task/<task-slug>` lane, created from the clean primary checkout with `node .hai/Agents/hai-harness.mjs worktree create`. The project CLI needs no PATH or npm; if it is missing or fails, stop and tell the user, and never use `git worktree add` or hand-written `hai*` git config.
 - The lane integrates into the branch the primary has checked out, normally `main`. Write plans, contracts, and handoffs in the lane too. Do not ask the user which branch to use per chat, and never create a private integration branch. If the primary checkout is dirty, stop and have the user review and commit it.
 - Run project preview/dev commands and review from that exact task worktree. HAI-Harness does not own an application server, route, framework, or port.
-- Ask for integration once per task, when the user is done with it (see onboarding), not after each follow-up request. After focused verification and explicit user approval, the lane's writer runs `node Agents/hai-harness.mjs worktree approve --approved "<message>"`; that is Claudia herself, or the worker holding the slot. Commit hooks stay enabled; push, PR, deploy, and publish remain separate approvals.
+- Ask for integration once per task, when the user is done with it (see onboarding), not after each follow-up request. After focused verification and explicit user approval, the lane's writer runs `node .hai/Agents/hai-harness.mjs worktree approve --approved "<message>"`; that is Claudia herself, or the worker holding the slot. Commit hooks stay enabled; push, PR, deploy, and publish remain separate approvals.
 - **Routine task cleanup is part of completion.** Follow the cleanup rule in [onboarding.md](onboarding.md) and include stopped processes, removed resources, retained reasons, and task packet paths in the final summary.
 - Never resolve a dirty or conflicting lane with copy, reset, stash, clean, or `--no-verify`. Preserve the task worktree when local integration cannot complete safely.
 

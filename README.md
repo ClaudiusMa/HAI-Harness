@@ -26,9 +26,9 @@ The collaboration harness is built on one simple idea: humans and AI don’t nee
 
 The foundational architecture for durable memory, context control, planning, and task routing is in place.
 
-- `Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents keep it current for you and change it only with your approval; they don't read it unless explicitly instructed.
-- `Agents/`: The operating layer for current product truth, planning, task contracts, design contracts, handoffs, lessons, and archived history.
-- When the user names no role, the session is Claudia; follow the Claudia required read order in `Agents/onboarding.md`.
+- `.hai/Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents keep it current for you and change it only with your approval; they don't read it unless explicitly instructed.
+- `.hai/Agents/`: The operating layer for current product truth, planning, task contracts, design contracts, handoffs, lessons, and archived history.
+- When the user names no role, the session is Claudia; follow the Claudia required read order in `.hai/Agents/onboarding.md`.
 - Claudia leads: she plans and, by default, builds in the task lane herself, so decisions, code and verification share one context. She delegates to Augustus or Julius only on a trigger: you ask, heavy prior discussion, wide reading, risk review, independent parallel pieces, or routine bulk work that can run on a lighter tier. For unclear bug causes, failed repairs without an established cause, or investigations needing runtime/intermittent/cross-component evidence, Claudia selectively routes to [Momus](Agents/momus.md). Known, reproduced, bounded fixes stay with the lane's current writer using [debugging](Agents/skills/debugging/SKILL.md); an ordinary bug does not add another agent or report cycle.
 - Hephaestus owns non-code human-interface design and design review. Athena independently reviews enterprise product design. Both work against `Agents/design.md`.
 - Active task authority lives in `Agents/planning.md` and `Agents/tasks/`; handoffs carry the contract across role boundaries, not chat memory.
@@ -91,7 +91,7 @@ Today, archive structure and compact promotion exist, but background cleanup and
 
 ## Installing HAI-Harness Into An Existing Project
 
-HAI-Harness is a repository overlay, not a runtime dependency. It adds the `Agents/` and `Human/` collaboration layer plus a root `AGENTS.md` entry point alongside the project files you already have. It does not replace your app structure.
+HAI-Harness is a plugin for your repository, not a runtime dependency and not a new project structure. Everything it ships or stores lives in one `.hai/` folder. Outside that folder it owns exactly one thing: a marked block in your own `AGENTS.md`, which carries the short startup rules every agent must see. The rest of your `AGENTS.md`, your other agent configuration, and your app stay yours.
 
 ### First-time install
 
@@ -104,33 +104,68 @@ npx github:ClaudiusMa/HAI-Harness init
 
 After install you'll have:
 
-- `AGENTS.md` at the project root — the provider-neutral entry point for AI agents. It points the agent at `Agents/onboarding.md` and explicitly tells it not to read `Human/`.
-- `Agents/` — the agent operating layer, including `Agents/hai-harness.mjs`, the project's own dependency-free copy of the CLI. Agents run lanes with `node Agents/hai-harness.mjs …`, which needs no PATH entry, npm, or network.
-- `Human/` — your human-owned workspace for product thinking. Visibility follows your project's sharing and version-control policy; agents do not read it by default.
-- `.hai-harness.json` — the installed-version receipt and update-check preference.
+- `AGENTS.md` at the project root — yours. `init` creates it if you have none; otherwise it appends the HAI-Harness block between `<!-- hai-harness:start -->` and `<!-- hai-harness:end -->` and leaves everything else as you wrote it. The block points agents at `.hai/Agents/onboarding.md` and tells them not to read `.hai/Human/`.
+- `.hai/Agents/` — the agent operating layer, including `.hai/Agents/hai-harness.mjs`, the project's own dependency-free copy of the CLI. Agents run lanes with `node .hai/Agents/hai-harness.mjs …`, which needs no PATH entry, npm, or network.
+- `.hai/Agents/custom/roles/` and `.hai/Agents/custom/skills/` — your own agents and skills (see below).
+- `.hai/Human/` — your human-owned workspace for product thinking. Visibility follows your project's sharing and version-control policy; agents do not read it by default.
+- `.hai/.hai-harness.json` — the installed-version receipt, update-check preference, and the hashes of the core files as installed.
 
 Verify the install at any time:
 
 ```sh
 npx github:ClaudiusMa/HAI-Harness doctor
-node Agents/hai-harness.mjs doctor
+node .hai/Agents/hai-harness.mjs doctor
 ```
 
-### Safe scaffold updates
+### Safe updates
 
 HAI-Harness evolves. To pull the latest role definitions and onboarding files without touching your project-specific content:
 
 ```sh
+npx github:ClaudiusMa/HAI-Harness update --dry-run
 npx github:ClaudiusMa/HAI-Harness update
 ```
 
-`update` refreshes stable method files and generic infrastructure: the root entry point, the project's copy of the CLI (`Agents/hai-harness.mjs`), onboarding and role methods, task/handoff/lesson/archive templates and README files, reusable skills, and `Human/onboarding.md`. It creates a missing lesson index or generated worker task file but never replaces populated project state.
+`update` refreshes core files (the project's copy of the CLI, onboarding and built-in role methods, shipped skills, templates and README files, and `.hai/Human/onboarding.md`) and the block in your `AGENTS.md`. It creates a missing lesson index or generated worker task file but never replaces populated project state.
 
-Project-authored planning, context, design, worker queues, handoff entries, lesson index/content, legacy decision trail and inbox entries, archive entries, and Human workspace content remain untouched. Preview the refresh with `--dry-run`; reserve `init --force` for an intentional full reset. `init` and `update` carry the packaged templates, so they run only from the published package; the project copy of the CLI refuses them and prints the `npx github:ClaudiusMa/HAI-Harness …` command to run instead.
+It never overwrites your edits:
+
+- A core file is replaced only while it still holds a version HAI-Harness shipped. The package lists every version it has ever shipped, and the receipt records what was installed. A core file your project edited is kept and listed as "Locally modified, kept". Move the customization into a custom role or skill, or `project_context.md`, then take the shipped version for that one file with `update --accept-upstream .hai/Agents/onboarding.md`. `doctor` keeps reporting edited core files until then.
+- Only the text between the markers in `AGENTS.md` is rewritten. If you delete the block, `update` leaves it out and `doctor` tells you agents will not see the startup rules; `init` puts it back. Duplicate or unbalanced markers leave the file untouched.
+- Files HAI-Harness no longer ships are removed only when unedited; edited ones are kept and reported.
+- Planning, context, design, worker queues, handoffs, lessons, archives, `custom/`, and `Human/` content remain untouched.
+
+Reserve `init --force` for an intentional full reset. `init`, `update` and `migrate` carry the packaged templates, so they run only from the published package; the project copy of the CLI refuses them and prints the `npx github:ClaudiusMa/HAI-Harness …` command to run instead.
+
+### Custom roles and skills
+
+Add your own agents in `.hai/Agents/custom/roles/<name>.md` and your own skills in `.hai/Agents/custom/skills/<name>/SKILL.md`. `update` never touches those folders except their READMEs, which give the format. A role starts with frontmatter naming it, describing it, saying which requests Claudia routes to it (`route-when`), and what it may change (`writes: code | docs | none`).
+
+The rules are deliberately strict so agents do not mistake or misuse a custom role:
+
+- A message that names no role is always Claudia. Addressing a custom role by name ("Apollo, …") selects it; mentioning it ("ask Apollo …") does not.
+- Built-in role and skill names win; a custom file that reuses one is ignored.
+- Every harness rule binds custom roles (lanes, a clean primary, approvals, the Human boundary). A role file may add or narrow rules, never loosen them.
+- A role never writes beyond its `writes` level, however it is assigned.
+- Claudia reads only each role's frontmatter, routes to it only when `route-when` clearly matches, never gives code to a `docs` or `none` role, and asks you when a built-in and a custom role both fit.
+- `doctor` reports incomplete or shadowing custom roles and skills.
+
+Project-wide routing notes belong in `.hai/Agents/project_context.md`, never in core role files.
+
+### Upgrading from the root layout (0.2.x)
+
+Earlier releases installed `Agents/` and `Human/` at the project root and owned the whole root `AGENTS.md`. There is nothing extra to run: the ordinary `update`, from a clean task lane, moves the install into `.hai/` and then updates it.
+
+```sh
+npx github:ClaudiusMa/HAI-Harness update --dry-run
+npx github:ClaudiusMa/HAI-Harness update
+```
+
+The move uses `git mv`, so history follows. An unedited old `AGENTS.md` becomes just the block; an `AGENTS.md` you wrote keeps its content and gains the block. Core files you edited are kept and reported. `update` stops and explains, without moving anything, when the checkout has uncommitted changes or when a gitignored file would stop being ignored at its new `.hai/` path (add the ignore rule, commit, and run it again). If a move is ever interrupted, the next `update` finishes it. Files it cannot classify are reported, never moved: a role-like file such as `Agents/apollo.md` (move it to `custom/roles/` and add the frontmatter), a skill HAI-Harness does not ship (move it to `custom/skills/`), project notes still saying `node Agents/…`, and other open task lanes, which merge `main` after the move lands. `migrate` remains available as the move on its own.
 
 ### Update Beacon
 
-Installed projects run `node Agents/check-for-update.mjs` at session startup. The dependency-free checker makes at most one weekly HTTPS `GET` to GitHub's latest published Release endpoint. It sends no project content, identifiers, file paths, telemetry, or account data. Drafts, prereleases, and version metadata merged to `main` cannot trigger a notice; only a published stable GitHub Release can. Current and offline checks are silent; when a newer stable release exists, the checker shows one notice for that release and offers:
+Installed projects run `node .hai/Agents/check-for-update.mjs` at session startup. The dependency-free checker makes at most one weekly HTTPS `GET` to GitHub's latest published Release endpoint. It sends no project content, identifiers, file paths, telemetry, or account data. Drafts, prereleases, and version metadata merged to `main` cannot trigger a notice; only a published stable GitHub Release can. Current and offline checks are silent; when a newer stable release exists, the checker shows one notice for that release and offers:
 
 ```sh
 npx github:ClaudiusMa/HAI-Harness update --dry-run
@@ -139,11 +174,11 @@ npx github:ClaudiusMa/HAI-Harness update --dry-run
 The beacon never downloads or applies an update. Disable or re-enable it for a project with:
 
 ```sh
-node Agents/check-for-update.mjs --disable
-node Agents/check-for-update.mjs --enable
+node .hai/Agents/check-for-update.mjs --disable
+node .hai/Agents/check-for-update.mjs --enable
 ```
 
-`doctor` reports the cached or newly checked state as `current`, `update available`, `disabled`, or `unknown/offline`. The `.hai-harness.json` receipt records only the installed version, stable channel, and project preference; `init` and `update` refresh its installed version while preserving an opt-out. Cadence, cached results, and last-notified state stay in Git-local metadata (or the user's local cache outside Git), so routine checks do not dirty the project worktree. Teams that commit installed harness files should decide explicitly whether the stable receipt belongs in version control.
+`doctor` reports the cached or newly checked state as `current`, `update available`, `disabled`, or `unknown/offline`. The `.hai/.hai-harness.json` receipt records the installed version, stable channel, project preference, whether the `AGENTS.md` block was installed, and the hashes of core files as installed; `init` and `update` refresh it while preserving an opt-out. Cadence, cached results, and last-notified state stay in Git-local metadata (or the user's local cache outside Git), so routine checks do not dirty the project worktree. Teams that commit installed harness files should decide explicitly whether the stable receipt belongs in version control.
 
 ### Source task template and installed task state
 
@@ -152,9 +187,9 @@ The published upstream contains only `Agents/tasks/TEMPLATE.md`. During `init`, 
 ### Native task worktrees
 
 ```sh
-node Agents/hai-harness.mjs worktree create my-task --integration develop
-node Agents/hai-harness.mjs worktree status
-node Agents/hai-harness.mjs worktree approve --approved "Complete my task"
+node .hai/Agents/hai-harness.mjs worktree create my-task --integration develop
+node .hai/Agents/hai-harness.mjs worktree status
+node .hai/Agents/hai-harness.mjs worktree approve --approved "Complete my task"
 ```
 
 Create runs from the clean primary checkout and creates `task/<task-slug>` from the branch it has checked out, normally `main`. `worktree status --all` lists lanes and the files they share. Approval runs from the task lane and preserves Git hooks. It first merges the latest `main` into the lane. If that brought changes, it stops so you can re-test. If it conflicts, it changes nothing and lists the files. Otherwise it fast-forwards `main` to a local merge commit. A dirty primary checkout blocks both create and approve. No push, PR, deployment, or publication is performed.
@@ -163,9 +198,9 @@ Lanes must come from `worktree create`. A branch made with plain `git worktree a
 
 ### Cloud-sync conflict copies
 
-Projects kept in iCloud Drive or a similar sync service can collect duplicates named `<name> <N>` (`index 2`, `notes 2.md`, `refs/heads/task/x 2`), including inside `.git`, where a ref copy surfaces as `fatal: bad object`. Repositories and lanes stay where they are and keep syncing. Instead, `worktree create`, `approve`, and `cleanup` sweep the Git common directory, registered worktree admin directories, harness task packets, and untracked files in the primary and the current lane before they act; `node Agents/hai-harness.mjs worktree sweep` does the same on demand, and `doctor` reports the findings without moving anything.
+Projects kept in iCloud Drive or a similar sync service can collect duplicates named `<name> <N>` (`index 2`, `notes 2.md`, `refs/heads/task/x 2`), including inside `.git`, where a ref copy surfaces as `fatal: bad object`. Repositories and lanes stay where they are and keep syncing. Instead, `worktree create`, `approve`, and `cleanup` sweep the Git common directory, registered worktree admin directories, harness task packets, and untracked files in the primary and the current lane before they act; `node .hai/Agents/hai-harness.mjs worktree sweep` does the same on demand, and `doctor` reports the findings without moving anything.
 
-A copy moves to a reversible quarantine (a dated folder under the Git common directory's `hai-harness/quarantine/`, same relative paths, with a manifest) only when it is provably redundant: byte-identical to the original, a loose ref copy whose commit is already contained in the real ref, or a Git `index <N>` cache copy. Tracked files are never touched and nothing is deleted. Everything else is kept and reported with both paths and a next step. A kept copy that Git or the harness reads (a ref, `HEAD`, a worktree admin directory, a task-packet directory) stops the lane commands until you resolve it, and `approve` refuses while a differing sync duplicate of an existing file, or an untracked directory beside a directory of the original name, sits in the lane it would commit; if such a path is intentional, renaming it or staging it explicitly with `git add` lets approve proceed. For a path you have approved, `node Agents/hai-harness.mjs worktree sweep --quarantine <path>` moves that one copy (Git metadata, or an untracked file of this checkout; a relative path is resolved against `--target`, default the current directory) into the same quarantine; its manifest line is marked user-directed.
+A copy moves to a reversible quarantine (a dated folder under the Git common directory's `hai-harness/quarantine/`, same relative paths, with a manifest) only when it is provably redundant: byte-identical to the original, a loose ref copy whose commit is already contained in the real ref, or a Git `index <N>` cache copy. Tracked files are never touched and nothing is deleted. Everything else is kept and reported with both paths and a next step. A kept copy that Git or the harness reads (a ref, `HEAD`, a worktree admin directory, a task-packet directory) stops the lane commands until you resolve it, and `approve` refuses while a differing sync duplicate of an existing file, or an untracked directory beside a directory of the original name, sits in the lane it would commit; if such a path is intentional, renaming it or staging it explicitly with `git add` lets approve proceed. For a path you have approved, `node .hai/Agents/hai-harness.mjs worktree sweep --quarantine <path>` moves that one copy (Git metadata, or an untracked file of this checkout; a relative path is resolved against `--target`, default the current directory) into the same quarantine; its manifest line is marked user-directed.
 
 ### Keeping Human/ current
 
@@ -174,9 +209,9 @@ Agents keep Human records current through [human-scribe](Agents/skills/human-scr
 In a recognized task lane, explicitly adopt the scope once:
 
 ```sh
-node Agents/hai-harness.mjs human-sync init --target .
-node Agents/hai-harness.mjs human-sync status --target .
-node Agents/hai-harness.mjs human-sync --target .
+node .hai/Agents/hai-harness.mjs human-sync init --target .
+node .hai/Agents/hai-harness.mjs human-sync status --target .
+node .hai/Agents/hai-harness.mjs human-sync --target .
 ```
 
 Use `init --migrate` instead when both legacy Agents trail/inbox files exist. It verifies exact copies, saves a supersession receipt, then retires the sources; partial or populated storage is never blindly overwritten. Initialization adopts the current state as baseline and cannot reconstruct earlier history. `status` returns the physical packet directory, identity, HEAD and snapshot. Append trace entries and drafts only there, serialized with the task lane writer.
@@ -186,8 +221,8 @@ Default capture is offline, deterministic and read-only: no model or network cal
 `doctor` warns about waiting drafts and dirty or committed traced-path drift. After appending a valid new trace entry naming every changed traced path, use the exact observations from `status`:
 
 ```sh
-node Agents/hai-harness.mjs human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
-node Agents/hai-harness.mjs human-sync checkpoint --output /private/checkpoints/task.json --target .
+node .hai/Agents/hai-harness.mjs human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
+node .hai/Agents/hai-harness.mjs human-sync checkpoint --output /private/checkpoints/task.json --target .
 ```
 
 Replace the placeholders and use the actual new trace ID. Acknowledgment does not approve Human drafts; committing an acknowledged dirty change requires another trace and acknowledgment. The checkpoint parent must exist and its new file must be outside every registered repository worktree. Packets remain in Git common metadata after lane cleanup, but Git push/fetch never transfers them. Transfer the checkpoint explicitly for cross-machine recovery and reconcile the original identity; import automation is not implemented. Retain the lane and packet for unfinished work and record the physical packet/checkpoint in its handoff.
@@ -253,9 +288,12 @@ When you sit down to work, follow this loop:
 ## Developing this project
 
 We use HAI-Harness to develop itself through the same local-source installer and
-updater used by other projects. The repository root `AGENTS.md` routes contributors
-into the checked-in `.hai/` operating layer, while `scaffold/AGENTS.md` is installed
-as the root entry point in other projects. The [contributor guide](https://github.com/ClaudiusMa/HAI-Harness/blob/main/CONTRIBUTING.md)
+updater used by other projects: `./hai-meta sync` runs `update` against the
+repository root, so this repository's harness lives in `.hai/` and its root
+`AGENTS.md` holds a repository note plus the same managed block other projects get.
+The product's own `Agents/`, `Human/` and `scaffold/AGENTS.md` (the block's source)
+are templates, not this repository's live context. When you change a core file, run
+`node scripts/shipped-hashes.mjs` so installs recognize the new version; a test checks. The [contributor guide](https://github.com/ClaudiusMa/HAI-Harness/blob/main/CONTRIBUTING.md)
 links current direction, confirmed decisions, active work, open questions, and
 recorded history, and explains the source-to-`.hai/` workflow.
 Development records, the root redirect, and `hai-meta` are tracked in the repository

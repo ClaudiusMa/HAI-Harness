@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "version": "0.2.9",
-  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.9",
-  "summary": "HAI-Harness 0.2.9: Merge task/field-reliability: Field reliability: in-project CLI, lean AGENTS.md startup gate, conflict-copy sweep; Merge branch 'main' into task/field-reliability; Restore rules lost in the AGENTS.md shortening and close out field reliability; Lean AGENTS.md startup gate and code-quality pass; Merge main into task/field-reliability (+1 more)"
+  "version": "0.2.10",
+  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.10",
+  "summary": "HAI-Harness 0.2.10: Merge task/lead-builds: Make Claudia the lead who builds by default and routes worker models per task; Merge remote-tracking branch 'origin/main' into task/lead-builds; Make Claudia the lead who builds by default and routes worker models per task; Merge task/harness-overhead: Cut harness coordination overhead and route worker models by task; Cut harness coordination overhead and route worker models by task",
+  "minimumNextVersion": "0.3.0"
 }
