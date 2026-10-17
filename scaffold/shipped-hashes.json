@@ -1,6 +1,6 @@
 {
  "schemaVersion": 1,
- "generatedFrom": "e4e6bc34e1e19dce8d773159cb2bcbca49775547",
+ "generatedFrom": "62f2b0586af07cff153cce890c97d2409367a171",
  "hashes": {
   "AGENTS.md": [
    "0a7f1443fa198c3a33c34bb6a0e556f8daca99a65ebf2280ef7acdae13280523",
@@ -76,6 +76,7 @@
    "fba1a497e33cb61e9901968b0bfad307fed54f0395141df74152648edcae4bcb"
   ],
   "Agents/custom/roles/README.md": [
+   "159b6346447d993b62ae06db20edc883ea61778f24dbab831a1fd3ab421e6ee7",
    "b389d63d587913d4b4e555189d5e20d49423c6361f44956ff82673178bc0ee18"
   ],
   "Agents/custom/skills/README.md": [
@@ -95,6 +96,7 @@
   ],
   "Agents/hai-harness.mjs": [
    "1cbbaa00ab4cc8a78252364ec1309ddefbdd0f3a946b07dfabdac43cfed3d8b5",
+   "1e07f5c453f02250c7c7731bbeb4b8c33538a83b36264ce99771a91c9f565b89",
    "1eb12de01b38507a0d2123b72cf20f2aacd6f8fe8cc73e4c9a0a04a2efff9c7b",
    "26701a37ef973509fdd7f0af0189036b8f464e87691648642ed262f130530f27",
    "282c82cfa824ff907e2b3220f75d60906a8f7ed1cf5d16d01f5998c96b5a2d75",
@@ -160,6 +162,7 @@
   "Agents/onboarding.md": [
    "00231b5d6412b5c8350df4dbbe0f1b2d2bb78655aa185b19ace5949f94558024",
    "1ef8a79e28b824429e8d46293f7fb8dee6cce78a07e4e3eaf50f621f9378a54e",
+   "22cc339a45e550580836c24dd323361aff5adca64aac7dc2cf7a619a9b528dd7",
    "254b908d33929984311a76a69bd2f9e7fb9e332e9b02769fca65e9d5f47ce164",
    "3dfae647c401e72aee51f8287217ca4add4def08987395c37db16f078d135bab",
    "4c60bf9f33872da46bfc18f5fce5285b244ec5c7d4c70d6bc465c7f56fb1e91d",

@@ -17,7 +17,7 @@ Every inner scaffold change is incomplete until `./hai-meta sync` runs and the
 outer planning, task, handoff, and confirmed-decision state is updated in the
 same iteration. Keep all live project state out of the inner templates.
 
-<!-- hai-harness:start -->
+<!-- hai-harness:start default=claudia -->
 <!-- Managed by HAI-Harness: update rewrites everything between these markers. Keep your own instructions outside them. -->
 
 ## HAI-Harness

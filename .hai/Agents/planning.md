@@ -9,6 +9,14 @@ Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
 
+## Current iteration — project default role, 2026-10-17
+
+- Status: built and verified in lane `task/default-role`; local integration and push awaiting user approval. Ships inside 0.3.0 (release PR #23 is still unmerged).
+- User direction (2026-10-17): with no role named, a project with its own workflow (Engram) must not default to Claudia. "ideally project picks, but ... if theres a better way to set this up one time never worry then we use project pick, if not, only mention claudia will route to hai". HAI safety rules apply only while a HAI role is active.
+- Conflict applied: supersedes "an unnamed message is always Claudia" (2026-10-08 direction, 2026-10-17 decision) for projects whose default is not Claudia.
+- Design: the default lives in the block's start marker (`default=claudia|own|<custom role>`), set once, tracked with `AGENTS.md`, no extra reads. First install picks `own` when the project already had `AGENTS.md` text, else `claudia`; an old marker means Claudia. `--default-role` changes it; `doctor` shows it. The `own` block makes the start steps and rules conditional on a named HAI role.
+- Verification: 43/43 focused tests; real v0.2.4 Engram install upgrades to `default=own`; this repository stays `default=claudia`.
+
 ## Current iteration — plugin layout, 2026-10-08 (rebased 2026-10-16)
 
 - Status: built by Claudia, independently reviewed (deep tier) with all confirmed findings fixed, 42/42 focused tests, end-to-end upgrade of a real v0.2.4 Engram-shaped install by a single `update`. 2026-10-17 user chose option A ("go with a, but make sure it does the work"): `update` performs the move into `.hai/` itself; `migrate` remains as the bare move. User approved the decision record, local integration, version 0.3.0 and push ("decison looks good, approave all"). The release PR still needs the repository's GitHub review.
