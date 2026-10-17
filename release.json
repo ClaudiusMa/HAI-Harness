@@ -1,8 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "version": "0.2.10",
-  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.10",
-  "summary": "HAI-Harness 0.2.10: Merge task/lead-builds: Make Claudia the lead who builds by default and routes worker models per task; Merge remote-tracking branch 'origin/main' into task/lead-builds; Make Claudia the lead who builds by default and routes worker models per task; Merge task/harness-overhead: Cut harness coordination overhead and route worker models by task; Cut harness coordination overhead and route worker models by task",
-  "minimumNextVersion": "0.3.0"
+  "version": "0.3.0",
+  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.3.0",
+  "summary": "HAI-Harness 0.3.0: Merge task/default-role: Let each project choose who answers an unnamed message; ask before defaulting to Claudia; Record the project default-role decision; Ask before making Claudia the default for a project with no AGENTS.md; Let each project choose who answers an unnamed message; Merge task/plugin-layout: Make HAI-Harness a plugin: .hai/ folder, AGENTS.md block, edit-safe updates, custom roles (+4 more)"
 }
