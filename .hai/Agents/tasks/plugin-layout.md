@@ -1,7 +1,7 @@
 # Plugin layout
 
-Owner: Augustus child of the current Claudia. Updated 2026-10-12.
-Status: executable. The user approved the resolved design on 2026-10-12 ("yes"). Active writer: Augustus.
+Owner: Claudia (lead, one writer in this lane). Updated 2026-10-16.
+Status: executable. Design approved 2026-10-12 ("yes"); rebased on v0.2.10 (lead model) 2026-10-16. The first delegated worker stopped on a usage limit before any source change. Review: fresh read-only reviewer, deep tier, high effort (installer, CLI and migration are risk areas).
 
 ## Problem
 
@@ -76,13 +76,13 @@ writes: code | docs | none
 
 The body holds the role's read path and rules. Skill: `custom/skills/<name>/SKILL.md` with `name` and `description` frontmatter, like shipped skills.
 
-Rules, worded tightly across the block, `onboarding.md` and `claudia.md` without long duplication:
+Rules, worded tightly across the block, `onboarding.md` and `claudia.md` (including its delegation-trigger list) without long duplication. Keep every v0.2.10 lead-model rule intact:
 
 1. An unnamed message is Claudia, always. A custom role is never the default.
 2. A message that addresses or assigns a built-in or custom role by name takes that role (misspellings count); a mere mention assigns nothing. For a name that is not built in, check `.hai/Agents/custom/roles/<name>.md`; if it does not exist, the session is Claudia.
 3. Built-ins win. A custom role or skill whose name matches a built-in role (Claudia, Momus, Augustus, Julius, Athena, Hephaestus) or shipped skill is ignored and reported.
 4. Core rules bind every custom role: the block's Always rules and onboarding's Core Rules (lanes, clean primary, approvals, `Human/` boundary, outward acts). A custom role may add or narrow rules, never loosen them. When its file conflicts, follow the core rule and tell the user.
-5. Claudia at intake lists `custom/roles/` and reads frontmatter only. She routes to a custom role only when its `route-when` clearly matches, spawns it as a child under the same contract rules as Augustus and Julius, and names the role and its `writes` level in the contract. A `docs` or `none` role never receives code changes. If a built-in and a custom route both fit, or two custom roles fit, she asks the user. Every custom routing choice appears in her plan.
+5. Claudia at intake lists `custom/roles/` and reads frontmatter only. A custom role whose `route-when` clearly matches the request is a delegation trigger, like Momus for an unclear bug or Hephaestus for unresolved design: the project asked for that routing by writing it. She spawns or reuses that role as a child with the usual contract (one writer per lane, tier and effort chosen per task) and names the role and its `writes` level in it. Otherwise she leads as usual. A `docs` or `none` role never receives code changes. If a built-in and a custom route both fit, or two custom roles fit, she asks the user. Every custom routing choice appears in her plan.
 6. Invalid frontmatter (missing field, unknown `writes`) → Claudia does not route to it and `doctor` reports it. A user may still address it by name; the agent warns that the role file is incomplete.
 7. Custom skills: read `custom/skills/` frontmatter when choosing a method; load one when the contract names it or its description clearly fits. Shipped skills win on a name collision.
 8. Custom role docs are traced like built-in role docs: human-sync traced paths include `Agents/custom/roles`.
@@ -95,11 +95,11 @@ Rules, worded tightly across the block, `onboarding.md` and `claudia.md` without
 
 ## Write scope
 
-Product: `bin/hai-harness.mjs`, the hash generator script and shipped hash list (list must ship in the package, e.g. under `scaffold/`), `test/hai-harness.test.mjs`, `scaffold/AGENTS.md`, `Agents/**` method files and the new `Agents/custom/*/README.md`, `Agents/check-for-update.mjs`, `Human/onboarding.md`, `README.md`, `CONTRIBUTING.md`, `hai-meta`, `package.json` only if `files` needs it, the root `AGENTS.md` repository note, `.hai/README.md`. Other outer `.hai/` paths change only through `./hai-meta sync`. Evidence: `.hai/Agents/handoffs/plugin-layout.md`. Do not edit outer planning, task files, project context, packet or Human state; report anything there that needs changing.
+Product: `bin/hai-harness.mjs`, the hash generator script and shipped hash list (list must ship in the package, e.g. under `scaffold/`), `test/hai-harness.test.mjs`, `scaffold/AGENTS.md`, `Agents/**` method files and the new `Agents/custom/*/README.md`, `Agents/check-for-update.mjs`, `Human/onboarding.md`, `README.md`, `CONTRIBUTING.md`, `hai-meta`, `package.json` only if `files` needs it, the root `AGENTS.md` repository note, `.hai/README.md`. Other outer `.hai/` paths change only through `./hai-meta sync`. Evidence: `.hai/Agents/handoffs/plugin-layout.md`. Outer planning, this contract, project context and the packet are Claudia's as lead; `Human/` only through `human-scribe` with approval.
 
 ## Method and sequence
 
-Read root `AGENTS.md`, `.hai/AGENTS.md`, outer onboarding and project context, `.hai/Agents/augustus.md`, this contract, then `.hai/Agents/skills/implement/SKILL.md`. Work only in `/Users/claudiusma/Documents/ProductLab/HAI-Harness-worktrees/plugin-layout`, branch `task/plugin-layout`. Run the CLI as `node bin/hai-harness.mjs`.
+Claudia builds, following `.hai/Agents/skills/implement/SKILL.md`. Work only in `/Users/claudiusma/Documents/ProductLab/HAI-Harness-worktrees/plugin-layout`, branch `task/plugin-layout`. Run the CLI as `node bin/hai-harness.mjs`.
 
 1. R3 ownership guard and hash list (everything else builds on it).
 2. R1 layout and R2 block in `init`/`update`/`doctor`, then R4 `migrate`.
@@ -114,7 +114,7 @@ Read root `AGENTS.md`, `.hai/AGENTS.md`, outer onboarding and project context, `
    - doctor: custom role missing frontmatter, built-in name collision, invalid `writes` → reported.
    - this repository's shape (root product `Agents/` plus `.hai/Agents/`) → treated as new layout.
 6. `./hai-meta sync` (now the root target). Check: root `AGENTS.md` repository note intact plus block; `.hai/AGENTS.md` retired; outer project state preserved; source/outer mirror parity.
-7. Written scenario check (do not spawn agents): state the first actions the block and onboarding require for an unnamed coding request; "Apollo, …" with a valid custom role; "ask Apollo to …" (a mention); an unnamed schema-change request where Apollo's `route-when` matches; a message naming a role that does not exist; a custom role file named `claudia.md`; an Apollo file that says "commit directly to main". Claudia runs live agent replays afterwards.
-8. Report files, results and limits in `.hai/Agents/handoffs/plugin-layout.md`; release the writer slot for an independent read-only review.
+7. Written scenario check: state the first actions the block and onboarding require for an unnamed coding request; "Apollo, …" with a valid custom role; "ask Apollo to …" (a mention); an unnamed schema-change request where Apollo's `route-when` matches; a message naming a role that does not exist; a custom role file named `claudia.md`; an Apollo file that says "commit directly to main". Live agent replays of these openings follow review, only if the user asks (the paired test waits until the harness is declared ready to deploy).
+8. Report files, results and limits in `.hai/Agents/handoffs/plugin-layout.md`; freeze source for the independent read-only review; Claudia fixes confirmed findings.
 
-Dependencies: one serial worker; the reviewer waits for frozen source. `node --test test/hai-harness.test.mjs` is the focused suite. No dependency installation, network checks, or mutation of real projects outside test fixtures. Approval boundary: execution approved 2026-10-12; local commit/merge, push and release unapproved. Do not commit.
+Dependencies: one writer; the reviewer waits for frozen source. `node --test test/hai-harness.test.mjs` is the focused suite. No dependency installation, network checks, or mutation of real projects outside test fixtures. Approval boundary: execution approved 2026-10-12; local commit/merge, push and release unapproved. Do not commit.

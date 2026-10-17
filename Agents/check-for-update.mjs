@@ -8,6 +8,7 @@ import process from "node:process";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 
 const stateFileName = ".hai-harness.json";
 const defaultManifestUrl = "https://api.github.com/repos/ClaudiusMa/HAI-Harness/releases/latest";
@@ -15,6 +16,9 @@ const checkIntervalMs = 7 * 24 * 60 * 60 * 1000;
 const maxResponseBytes = 16 * 1024;
 const requestTimeoutMs = 4_000;
 const runFile = promisify(execFile);
+// The receipt sits beside this script's Agents/ folder (.hai/ in a project), so
+// the check works from any working directory.
+const harnessRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 main().catch(() => {
   // Update discovery must never block normal project work.
@@ -69,7 +73,7 @@ async function main() {
 
 function parseOptions(args) {
   const options = {
-    target: process.cwd(),
+    target: harnessRoot,
     status: false,
     force: false,
     disable: false,
@@ -103,7 +107,9 @@ async function readState(statePath) {
   if (parsed.schemaVersion !== 1 || !isVersion(parsed.installedVersion)) {
     throw new Error("Invalid HAI-Harness installed-state receipt.");
   }
+  // Keep the receipt's other fields (core file hashes, block state) on rewrite.
   return {
+    ...parsed,
     schemaVersion: 1,
     installedVersion: parsed.installedVersion,
     channel: typeof parsed.channel === "string" ? parsed.channel : "stable",

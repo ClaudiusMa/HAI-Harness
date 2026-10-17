@@ -14,11 +14,23 @@ const scriptPath = fileURLToPath(import.meta.url);
 const scriptDirectory = path.dirname(scriptPath);
 const packageRoot = path.resolve(scriptDirectory, "..");
 const templateDirs = ["Agents", "Human"];
-const rootInstructionFile = { source: "scaffold/AGENTS.md", target: "AGENTS.md" };
+// HAI-Harness is a plugin: everything it ships or stores lives in one folder of
+// the project. Outside that folder it owns only a marked block in the project's
+// own AGENTS.md, which carries the always-loaded startup rules.
+const harnessDirectory = ".hai";
+const entryFile = "AGENTS.md";
+const entryBlockSource = "scaffold/AGENTS.md";
+const blockStart = "<!-- hai-harness:start -->";
+const blockEnd = "<!-- hai-harness:end -->";
+const blockNotice = "<!-- Managed by HAI-Harness: update rewrites everything between these markers. Keep your own instructions outside them. -->";
+// Every version of every core file HAI-Harness has shipped (scripts/shipped-hashes.mjs).
+// A core file is replaced only when it is one of these or the receipt's hash.
+const shippedHashesSource = "scaffold/shipped-hashes.json";
 // `init` and `update` install this very file into the project, so the lane and
 // human-sync commands need no PATH entry, network or npm. The installed copy
 // has no packaged templates, so it can never install or update anything.
 const installedCliPath = "Agents/hai-harness.mjs";
+const projectCliPath = `${harnessDirectory}/${installedCliPath}`;
 const cliFile = { source: "bin/hai-harness.mjs", target: installedCliPath };
 // `init` and `update` run only from the real package, identified positively:
 // <package>/bin/hai-harness.mjs beside a package.json named hai-harness. Any
@@ -37,7 +49,7 @@ const cliCommand = (() => {
   return `node ${shellWord((inside ? relative : scriptPath).split(path.sep).join("/"))}`;
 })();
 const upstreamCommand = "npx github:ClaudiusMa/HAI-Harness";
-const templateFiles = [rootInstructionFile, cliFile];
+const templateFiles = [cliFile];
 const ignoredNames = new Set([".DS_Store"]);
 const taskBranchPrefix = "task/";
 const taskMetadataKeys = {
@@ -54,10 +66,11 @@ const generatedTaskRoles = [
   { slug: "julius", name: "Julius" }
 ];
 
-// Stable method files are safe to refresh. Project-owned state is never
+// Core files: shipped method files, paths relative to the harness folder.
+// `update` refreshes one only while it still holds a version HAI-Harness
+// shipped; a project's edit is kept and reported. Project-owned state is never
 // overwritten by `update`.
 const scaffoldPaths = [
-  rootInstructionFile,
   cliFile,
   ...[
   "Agents/check-for-update.mjs",
@@ -87,13 +100,27 @@ const scaffoldPaths = [
   "Agents/skills/traffic-control/SKILL.md",
   "Agents/skills/lesson-logger/SKILL.md",
   "Agents/skills/retrospective/SKILL.md",
+  "Agents/custom/roles/README.md",
+  "Agents/custom/skills/README.md",
   "Human/onboarding.md"
   ].map((relativePath) => ({ source: relativePath, target: relativePath }))
 ];
+const corePaths = new Set(scaffoldPaths.map((item) => item.target));
+// Shipped once, no longer: removed when untouched, kept and reported when edited.
+const retiredPaths = ["AGENTS.md"];
 
 // These files hold project-owned state after installation. `update` creates
 // them only when absent.
 const createOnlyPaths = ["Agents/lessons/INDEX.md"];
+// Top-level Agents/*.md files that are project state or tombstones, not roles.
+const projectStateDocs = new Set(["planning.md", "project_context.md", "design.md", "patterns.md", "graveyard.md", "decision-trail.md", "human-inbox.md"]);
+
+// Projects extend the harness here; `update` never writes inside except the READMEs.
+const customRolesPath = "Agents/custom/roles";
+const customSkillsPath = "Agents/custom/skills";
+const builtInRoles = ["claudia", "momus", "augustus", "julius", "athena", "hephaestus"];
+const shippedSkillNames = new Set(scaffoldPaths.map((item) => item.target.match(/^Agents\/skills\/([^/]+)\/SKILL\.md$/)?.[1]).filter(Boolean));
+const roleWriteLevels = ["code", "docs", "none"];
 
 const decisionTrailPath = "decision-trail.md";
 const humanInboxPath = "human-inbox.md";
@@ -130,16 +157,15 @@ Captured through: none
 };
 const captureAreas = new Set(["product", "design", "process"]);
 // Same set the trail duty covers. Role docs are the ones named in the
-// onboarding role index. The trail, the inbox, task contracts, and handoffs
-// are excluded on purpose.
+// onboarding role index, plus the project's custom roles. The trail, the
+// inbox, task contracts, and handoffs are excluded on purpose.
 const roleDocs = [
-  "Agents/claudia.md",
-  "Agents/augustus.md",
-  "Agents/julius.md",
-  "Agents/athena.md",
-  "Agents/hephaestus.md",
-  "Agents/momus.md"
+  ...builtInRoles.map((role) => `Agents/${role}.md`),
+  customRolesPath
 ];
+// Traced after packets already existed: an older packet has no hash for them,
+// which reads as drift until an ordinary trace acknowledgment adopts it.
+const laterTracedPaths = new Set(["Agents/momus.md", customRolesPath]);
 const tracedPaths = [
   "Agents/planning.md",
   "Agents/project_context.md",
@@ -175,9 +201,10 @@ const quarantineAdvice = `"${cliCommand} worktree sweep --quarantine <path>" mov
 const usage = `HAI-Harness
 
 Usage:
-  ${cliCommand} init              [--target <dir>] [--force] [--dry-run]
-  ${cliCommand} update            [--target <dir>] [--dry-run]
-  ${cliCommand} doctor            [--target <dir>]
+  ${cliCommand} init              [--target <project>] [--force] [--dry-run]
+  ${cliCommand} update            [--target <project>] [--dry-run] [--accept-upstream <path>]...
+  ${cliCommand} migrate           [--target <project>] [--dry-run]
+  ${cliCommand} doctor            [--target <project>]
   ${cliCommand} human-sync        [capture|status|init|acknowledge|checkpoint] [--target <dir>]
     init [--migrate]
     acknowledge --through T<n> --head <HEAD> --snapshot <digest>
@@ -190,14 +217,23 @@ Usage:
   ${cliCommand} help
 
 Commands:
-  init       Copy the HAI-Harness files, including this CLI as ${installedCliPath}, into an existing project.
-  update     Refresh stable method files and create missing generic infrastructure.
-             Never overwrite project-owned planning, context, task, handoff, or lesson state.
-             init and update need the packaged templates: run them as
-             ${upstreamCommand} <init|update>
+  init       Install HAI-Harness into ${harnessDirectory}/ of an existing project, including this CLI as
+             ${projectCliPath}, and add the HAI-Harness block to the project's own ${entryFile}
+             (created when missing). Nothing else outside ${harnessDirectory}/ is written.
+  update     Refresh core method files and the ${entryFile} block; create missing generic infrastructure.
+             A core file is replaced only while it holds a version HAI-Harness shipped: a file the
+             project edited is kept and reported until --accept-upstream names it. Never touches
+             project-owned planning, context, task, handoff, lesson, Human or custom/ content, or
+             anything in ${entryFile} outside the block.
+             On an older root-layout install (Agents/, Human/ at the project root), update first
+             moves it into ${harnessDirectory}/ (needs a clean Git checkout); custom files are reported.
+  migrate    Only the move that update performs for a root-layout install.
+             init, update and migrate need the packaged templates: run them as
+             ${upstreamCommand} <init|update|migrate>
              (the project copy of this CLI refuses them and prints that form).
-  doctor     Check whether the target project has the expected harness files and report
-             cloud-sync conflict copies ("<name> <N>") without moving anything.
+  doctor     Check the installed files, the ${entryFile} block, edited core files and custom
+             roles and skills, and report cloud-sync conflict copies ("<name> <N>") without
+             moving anything.
   human-sync List decision-trail entries after the inbox cursor that the user should review.
              Read-only; makes no model or network call.
   worktree   Create, inspect, or explicitly approve a native Git task lane.
@@ -207,9 +243,13 @@ Commands:
              refuses while a kept copy sits in the lane it would commit.
 
 Options:
-  --target <dir>       Project or worktree directory. Defaults to the current directory.
+  --target <dir>       Project root (init, update, migrate, doctor) or checkout directory. Defaults to
+                       the current directory. human-sync resolves a project root to its ${harnessDirectory}/ folder.
   --force              (init only) Overwrite existing harness files.
-  --dry-run            (init/update only) Show what would change without writing files.
+  --dry-run            (init/update/migrate only) Show what would change without writing files.
+  --accept-upstream <path>
+                       (update only, repeatable) Replace this one edited core file, such as
+                       Agents/onboarding.md, with the shipped version.
   --integration <name> (worktree create only) Local branch to integrate into. Defaults to the
                        branch checked out in the primary checkout, including main.
   --all                (worktree status only) List every task lane, how far behind it is,
@@ -235,7 +275,7 @@ async function main() {
     return;
   }
 
-  if (runsFromProject && (command === "init" || command === "update")) {
+  if (runsFromProject && (command === "init" || command === "update" || command === "migrate")) {
     throw new Error(`${command} copies the packaged templates, which this project copy of the CLI does not carry. Run it from the published package instead:\n  ${upstreamCommand} ${[command, ...args].map(shellWord).join(" ")}`);
   }
 
@@ -248,7 +288,8 @@ async function main() {
     await humanSyncCommand(args);
     return;
   }
-  const options = parseOptions(args, new Set(["--target", "--force", "--dry-run"]));
+  const options = parseOptions(args, new Set(["--target", "--force", "--dry-run", "--accept-upstream"]));
+  rejectOption(options.acceptUpstream.length > 0 && command !== "update", "--accept-upstream is only valid with update.");
   if (command === "init") {
     await init(options);
     return;
@@ -256,6 +297,11 @@ async function main() {
   if (command === "update") {
     rejectOption(options.force, "--force is only valid with init.");
     await update(options);
+    return;
+  }
+  if (command === "migrate") {
+    rejectOption(options.force, "--force is only valid with init.");
+    await migrate(options);
     return;
   }
   if (command === "doctor") {
@@ -275,6 +321,7 @@ function parseOptions(args, allowed) {
     all: false,
     integration: undefined,
     approved: undefined,
+    acceptUpstream: [],
     positional: []
   };
   const valueOptions = new Map([
@@ -293,6 +340,14 @@ function parseOptions(args, allowed) {
     if (arg === "--force" || arg === "--dry-run" || arg === "--migrate" || arg === "--all" || arg === "--keep-worktree") {
       if (!allowed.has(arg)) throw new Error(`Unknown option "${arg}".`);
       options[{ "--force": "force", "--migrate": "migrate", "--all": "all", "--keep-worktree": "keepWorktree" }[arg] || "dryRun"] = true;
+      continue;
+    }
+    if (arg === "--accept-upstream") {
+      if (!allowed.has(arg)) throw new Error(`Unknown option "${arg}".`);
+      const value = args[index + 1];
+      if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
+      options.acceptUpstream.push(value);
+      index += 1;
       continue;
     }
     if (valueOptions.has(arg)) {
@@ -320,52 +375,534 @@ function shellWord(word) {
 }
 
 async function init(options) {
+  assertProjectRoot(options.target, "init");
   await assertDirectory(options.target);
+  const layout = await layoutOf(options.target);
+  if (layout.kind === "legacy" || layout.kind === "partial") throw new Error(legacyLayoutMessage(options.target, layout.kind));
+  const harness = layout.harness;
+  const receipt = await readReceipt(harness);
+  const install = { ...options, base: options.target };
   const results = { created: [], overwritten: [], skipped: [] };
   for (const dir of templateDirs) {
-    await copyDirectory(path.join(packageRoot, dir), path.join(options.target, dir), options, results);
+    await copyDirectory(path.join(packageRoot, dir), path.join(harness, dir), install, results);
   }
   for (const file of templateFiles) {
-    await copyFile(path.join(packageRoot, file.source), path.join(options.target, file.target), options, results);
+    await copyFile(path.join(packageRoot, file.source), path.join(harness, file.target), install, results);
   }
   for (const role of generatedTaskRoles) {
-    await generateTaskFile(role, options, results, options.force);
+    await generateTaskFile(role, { ...install, target: harness }, results, options.force);
   }
-  await refreshInstalledState(options);
+  results.entry = await refreshEntryBlock(options.target, options, { adopt: true });
+  if (!options.dryRun) {
+    await saveReceipt(harness, receipt, { block: Boolean(receipt.block || results.entry.installed), files: await installedCoreHashes(harness, receipt) });
+  }
   printInitSummary(options.target, options, results);
 }
 
 async function update(options) {
+  assertProjectRoot(options.target, "update");
   await assertDirectory(options.target);
-  const results = { updated: [], created: [], preserved: [], missingSource: [] };
-
-  for (const pathMapping of scaffoldPaths) {
-    await refreshPath(pathMapping, options, results, false);
+  const layout = await layoutOf(options.target);
+  // An install from before the plugin layout moves into .hai/ as part of the
+  // update, with migrate's safety checks; nothing extra for the user to run.
+  if (layout.kind === "legacy" || layout.kind === "partial") {
+    await migrate(options);
+    return;
   }
-  for (const relativePath of createOnlyPaths) {
-    await refreshPath(relativePath, options, results, true);
+  if (layout.kind === "none") {
+    throw new Error(`HAI-Harness is not installed in ${options.target}. Install it with:\n  ${upstreamCommand} init --target ${shellWord(options.target)}`);
   }
-  for (const role of generatedTaskRoles) {
-    await generateTaskFile(role, options, results, false);
-  }
-  await refreshInstalledState(options);
+  const results = await refreshHarness(options.target, layout.harness, options);
   printUpdateSummary(options.target, options, results);
 }
 
-async function refreshInstalledState(options) {
-  if (options.dryRun) return;
-  const statePath = path.join(options.target, ".hai-harness.json");
-  const current = await readJson(statePath).catch(() => ({}));
+// Refreshes core files, generic infrastructure and the AGENTS.md block of an
+// install whose harness folder is `harness`. `readRoot` is where the files sit
+// now; it differs from `harness` only for a migrate dry run, which classifies
+// the root-layout files as if they had already moved.
+async function refreshHarness(projectRoot, harness, options, { readRoot = harness, entry, adoptEntry } = {}) {
+  const results = { created: [], updated: [], accepted: [], kept: [], current: [], retired: [], retiredKept: [], preserved: [], missingSource: [], entry: null };
+  const receipt = await readReceipt(readRoot);
+  const shipped = await readShippedHashes();
+  const accept = new Set(options.acceptUpstream.map((item) => item.replaceAll("\\", "/").replace(/^\.\//, "").replace(new RegExp(`^${harnessDirectory}/`), "")));
+  for (const relativePath of accept) {
+    if (!corePaths.has(relativePath)) throw new Error(`--accept-upstream takes a core file such as Agents/onboarding.md; ${relativePath} is not one.`);
+  }
+  // Add a missing block only to an install that predates it: an old receipt or
+  // the retired whole-file entry. A missing receipt (often gitignored, so absent
+  // on a fresh clone) never re-adds a block the project removed.
+  const predatesBlock = adoptEntry ?? (receipt.block === undefined && (receipt.installedVersion !== undefined || await exists(path.join(harness, "AGENTS.md"))));
+  const files = { ...(receipt.files ?? {}) };
+  for (const { source, target } of scaffoldPaths) {
+    const sourcePath = path.join(packageRoot, source);
+    if (!(await exists(sourcePath))) {
+      results.missingSource.push(source);
+      continue;
+    }
+    const upstreamHash = contentHash(await fs.readFile(sourcePath));
+    const current = await readOptional(path.join(readRoot, target));
+    const shown = shownPath(projectRoot, harness, target);
+    if (current === null) results.created.push(shown);
+    else if (contentHash(current) === upstreamHash) results.current.push(shown);
+    else if (accept.has(target)) results.accepted.push(shown);
+    else if (wasShipped(shipped, receipt, target, contentHash(current))) results.updated.push(shown);
+    else {
+      results.kept.push(shown);
+      continue;
+    }
+    files[target] = upstreamHash;
+    if (!options.dryRun && (current === null || contentHash(current) !== upstreamHash)) {
+      await fs.mkdir(path.dirname(path.join(harness, target)), { recursive: true });
+      await fs.copyFile(sourcePath, path.join(harness, target));
+    }
+  }
+  for (const relativePath of createOnlyPaths) {
+    const shown = shownPath(projectRoot, harness, relativePath);
+    if (await exists(path.join(readRoot, relativePath))) {
+      results.preserved.push(shown);
+      continue;
+    }
+    results.created.push(shown);
+    if (!options.dryRun) {
+      await fs.mkdir(path.dirname(path.join(harness, relativePath)), { recursive: true });
+      await fs.copyFile(path.join(packageRoot, relativePath), path.join(harness, relativePath));
+    }
+  }
+  for (const role of generatedTaskRoles) {
+    await generateTaskFile(role, { ...options, target: readRoot, base: projectRoot, shownAs: harness }, results, false);
+  }
+  for (const relativePath of retiredPaths) {
+    const file = path.join(harness, relativePath);
+    const current = await readOptional(file);
+    if (current === null) continue;
+    const shown = shownPath(projectRoot, harness, relativePath);
+    if (wasShipped(shipped, receipt, relativePath, contentHash(current))) {
+      results.retired.push(shown);
+      if (!options.dryRun) await fs.unlink(file);
+    } else {
+      results.retiredKept.push(shown);
+    }
+  }
+  results.entry = entry ?? await refreshEntryBlock(projectRoot, options, { adopt: predatesBlock });
+  if (!options.dryRun) await saveReceipt(harness, receipt, { block: Boolean(receipt.block || results.entry.installed), files });
+  return results;
+}
+
+// Moves a root-layout install into the harness folder, then refreshes it like
+// `update`. Files the harness cannot classify are reported, never moved. A move
+// that stopped partway resumes with the pieces still at the root.
+async function migrate(options) {
+  assertProjectRoot(options.target, "migrate");
+  await assertDirectory(options.target);
+  const root = options.target;
+  const layout = await layoutOf(root);
+  if (layout.kind === "plugin") {
+    console.log(`HAI-Harness already lives in ${harnessDirectory}/ in ${root}; nothing to migrate.`);
+    return;
+  }
+  if (layout.kind === "none") throw new Error(`No HAI-Harness install found in ${root}.`);
+  const harness = path.join(root, harnessDirectory);
+  const moves = [];
+  const both = [];
+  for (const name of [...templateDirs, ".hai-harness.json"]) {
+    if (!(await exists(path.join(root, name)))) continue;
+    if (await exists(path.join(harness, name))) both.push(name);
+    else moves.push(name);
+  }
+  if (both.length > 0) throw new Error(`${both.map((name) => `${name} and ${harnessDirectory}/${name}`).join(", ")} both exist. Reconcile each pair by hand (keep one), then run migrate again; nothing was moved.`);
+  const gitRoot = await gitOptional(root, ["rev-parse", "--show-toplevel"]);
+  if (gitRoot) {
+    const dirty = await dirtyPaths(root);
+    if (dirty.length > 0) throw new Error(`migrate needs a clean checkout so the move can be reviewed on its own. Commit or set aside first: ${dirty.slice(0, 5).join(", ")}${dirty.length > 5 ? ", ..." : ""}`);
+  }
+  // Ignore rules anchored at the old paths stop matching after the move, and
+  // approve would then commit those files. Find them before moving anything.
+  const exposed = [];
+  if (gitRoot && moves.length > 0) {
+    const ignored = (await gitOptional(root, ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "--", ...moves])).split("\n").filter(Boolean);
+    const moved = ignored.map((item) => `${harnessDirectory}/${item}`);
+    const still = moved.length === 0 ? "" : await runFile("git", ["check-ignore", "--", ...moved], { cwd: root, maxBuffer: 1024 * 1024 }).then((result) => result.stdout, (error) => error.stdout ?? "");
+    const stillIgnored = new Set(still.split("\n").filter(Boolean));
+    exposed.push(...moved.filter((item) => !stillIgnored.has(item)));
+  }
+  if (exposed.length > 0 && !options.dryRun) {
+    throw new Error(`These files are gitignored now but would not be after the move, so approve would commit them:\n${exposed.map((item) => `  - ${item}`).join("\n")}\nAdd ignore rules for the ${harnessDirectory}/ paths to .gitignore and commit that first; nothing was moved.`);
+  }
+  const agentsAtRoot = moves.includes("Agents");
+  const report = await migrationReport(root, gitRoot, agentsAtRoot ? root : harness);
+  report.exposed = exposed;
+  const entryContent = await readOptional(path.join(root, entryFile));
+  const shippedEntry = entryContent !== null && ((await readShippedHashes())[entryFile] ?? []).includes(contentHash(entryContent));
+  report.entryReview = entryContent !== null && !shippedEntry && findEntryBlock(entryContent.toString("utf8")).state === "none";
+  if (!options.dryRun) {
+    await fs.mkdir(harness, { recursive: true });
+    for (const name of moves) {
+      const tracked = gitRoot ? await git(root, ["ls-files", "--", name]) : "";
+      if (tracked) await git(root, ["mv", "-k", name, `${harnessDirectory}/${name}`]);
+      // git mv carries tracked files; ignored or untracked ones follow on disk.
+      await moveRemaining(path.join(root, name), path.join(harness, name));
+    }
+  }
+  const entry = shippedEntry ? await refreshEntryBlock(root, options, { adopt: true, replaceWhole: true }) : undefined;
+  const results = await refreshHarness(root, harness, options, { readRoot: options.dryRun && agentsAtRoot ? root : harness, entry, adoptEntry: true });
+  printMigrateSummary(root, options, moves, results, report);
+}
+
+async function moveRemaining(source, destination) {
+  const stat = await fs.lstat(source).catch(() => null);
+  if (!stat) return;
+  if (!stat.isDirectory()) {
+    if (await exists(destination)) throw new Error(`Cannot move ${source}: ${destination} already exists.`);
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    await fs.rename(source, destination);
+    return;
+  }
+  if (!(await exists(destination))) {
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    await fs.rename(source, destination);
+    return;
+  }
+  for (const child of await fs.readdir(source)) await moveRemaining(path.join(source, child), path.join(destination, child));
+  await fs.rmdir(source);
+}
+
+async function migrationReport(root, gitRoot, agentsBase) {
+  const agents = path.join(agentsBase, "Agents");
+  const roles = [];
+  const skills = [];
+  for (const entry of await fs.readdir(agents, { withFileTypes: true }).catch(() => [])) {
+    if (entry.isFile() && entry.name.endsWith(".md") && !corePaths.has(`Agents/${entry.name}`) && !projectStateDocs.has(entry.name)) roles.push(`${harnessDirectory}/Agents/${entry.name}`);
+  }
+  for (const entry of await fs.readdir(path.join(agents, "skills"), { withFileTypes: true }).catch(() => [])) {
+    if (entry.isDirectory() && !shippedSkillNames.has(entry.name)) skills.push(`${harnessDirectory}/Agents/skills/${entry.name}`);
+  }
+  const oldCommand = /node Agents\/(?:hai-harness|check-for-update)\.mjs/;
+  const stale = [];
+  const entry = await readOptional(path.join(root, entryFile));
+  if (entry !== null && oldCommand.test(withoutEntryBlock(entry.toString("utf8")))) stale.push(entryFile);
+  const scan = async (directory, relative) => {
+    for (const item of await fs.readdir(directory, { withFileTypes: true }).catch(() => [])) {
+      const childRelative = `${relative}/${item.name}`;
+      if (item.isDirectory()) await scan(path.join(directory, item.name), childRelative);
+      else if (item.name.endsWith(".md") && !corePaths.has(childRelative) && oldCommand.test(await fs.readFile(path.join(directory, item.name), "utf8"))) stale.push(`${harnessDirectory}/${childRelative}`);
+    }
+  };
+  await scan(agents, "Agents");
+  const lanes = gitRoot
+    ? (await listWorktrees(root)).filter((item) => item.branch.startsWith(taskBranchPrefix) && !samePath(item.root, gitRoot)).map((item) => item.branch)
+    : [];
+  return { roles, skills, stale, lanes };
+}
+
+// The HAI-Harness source repository keeps its templates in Agents/ and Human/
+// at its root; those are never a root-layout install.
+async function layoutOf(projectRoot) {
+  const harness = path.join(projectRoot, harnessDirectory);
+  const packageSource = await readJson(path.join(projectRoot, "package.json")).then((value) => value.name === "hai-harness", () => false);
+  const rootInstall = !packageSource && (await exists(path.join(projectRoot, "Agents/onboarding.md")) || await exists(path.join(projectRoot, "Human/onboarding.md")) || await exists(path.join(projectRoot, ".hai-harness.json")));
+  // Both places hold harness files when a migrate stopped partway.
+  if (await exists(path.join(harness, "Agents"))) return { kind: rootInstall ? "partial" : "plugin", harness };
+  if (rootInstall) return { kind: "legacy", harness: projectRoot };
+  return { kind: "none", harness };
+}
+
+function assertProjectRoot(target, command) {
+  if (path.basename(target) === harnessDirectory) {
+    throw new Error(`${command} takes the project root, not its ${harnessDirectory}/ folder: --target ${shellWord(path.dirname(target))}`);
+  }
+}
+
+function legacyLayoutMessage(root, kind = "legacy") {
+  return [
+    kind === "partial"
+      ? `A move of HAI-Harness into ${harnessDirectory}/ in ${root} stopped partway: harness files are both in ${harnessDirectory}/ and at the project root.`
+      : `HAI-Harness is installed in ${root} in the old root layout (Agents/ and Human/ at the project root). It now lives in ${harnessDirectory}/ and owns only a marked block in your ${entryFile}.`,
+    `Nothing was changed. From a clean task lane, update moves it (preview first):`,
+    `  ${upstreamCommand} update --dry-run --target ${shellWord(root)}`,
+    `  ${upstreamCommand} update --target ${shellWord(root)}`
+  ].join("\n");
+}
+
+// Human-sync works on the harness folder; a project root resolves to it.
+async function harnessRootFor(target) {
+  return (await exists(path.join(target, harnessDirectory, "Agents"))) ? path.join(target, harnessDirectory) : target;
+}
+
+function shownPath(projectRoot, harness, relativePath) {
+  return path.relative(projectRoot, path.join(harness, relativePath)).split(path.sep).join("/");
+}
+
+async function readOptional(file) {
+  return fs.readFile(file).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+}
+
+// Without the list nothing counts as shipped, so every differing file is kept.
+async function readShippedHashes() {
+  return (await readJson(path.join(packageRoot, shippedHashesSource)).catch(() => ({}))).hashes ?? {};
+}
+
+function wasShipped(shipped, receipt, relativePath, hash) {
+  return (shipped[relativePath] ?? []).includes(hash) || receipt.files?.[relativePath] === hash;
+}
+
+// After init, a core file belongs to the harness only while it matches what this
+// package ships; a kept edit keeps its earlier recorded hash, if any.
+async function installedCoreHashes(harness, receipt) {
+  const files = { ...(receipt.files ?? {}) };
+  for (const { source, target } of scaffoldPaths) {
+    const current = await readOptional(path.join(harness, target));
+    const upstream = await readOptional(path.join(packageRoot, source));
+    if (current !== null && upstream !== null && contentHash(current) === contentHash(upstream)) files[target] = contentHash(upstream);
+  }
+  return files;
+}
+
+async function readReceipt(harness) {
+  return readJson(path.join(harness, ".hai-harness.json")).catch(() => ({}));
+}
+
+async function saveReceipt(harness, receipt, changes) {
+  const statePath = path.join(harness, ".hai-harness.json");
   const packageMetadata = await readJson(path.join(packageRoot, "package.json"));
   const state = {
+    ...receipt,
     schemaVersion: 1,
     installedVersion: packageMetadata.version,
-    channel: typeof current.channel === "string" ? current.channel : "stable",
-    checkEnabled: current.checkEnabled !== false
+    channel: typeof receipt.channel === "string" ? receipt.channel : "stable",
+    checkEnabled: receipt.checkEnabled !== false,
+    ...changes
   };
+  await fs.mkdir(harness, { recursive: true });
   const temporaryPath = `${statePath}.${process.pid}.tmp`;
   await fs.writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
   await fs.rename(temporaryPath, statePath);
+}
+
+function renderEntryBlock(body) {
+  return `${blockStart}\n${blockNotice}\n\n${body.trim()}\n${blockEnd}\n`;
+}
+
+function findEntryBlock(content) {
+  const line = (marker) => new RegExp(`^\uFEFF?${marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[ \\t\\r]*$`, "gm");
+  const starts = [...content.matchAll(line(blockStart))];
+  const ends = [...content.matchAll(line(blockEnd))];
+  if (starts.length === 0 && ends.length === 0) return { state: "none" };
+  if (starts.length !== 1 || ends.length !== 1 || ends[0].index < starts[0].index) return { state: "malformed" };
+  let end = ends[0].index + ends[0][0].length;
+  if (content[end] === "\n") end += 1;
+  // A byte-order mark before the first marker stays in place.
+  return { state: "one", start: starts[0].index + (starts[0][0].startsWith("\uFEFF") ? 1 : 0), end };
+}
+
+function withoutEntryBlock(content) {
+  const found = findEntryBlock(content);
+  return found.state === "one" ? `${content.slice(0, found.start)}${content.slice(found.end)}` : content;
+}
+
+// Writes or refreshes the HAI-Harness block in the project's own AGENTS.md and
+// never changes a byte outside it. `adopt` adds a block the file lacks (install,
+// or the first update of an install that predates the block); otherwise a
+// missing block was removed on purpose and stays removed. `replaceWhole` is for
+// migrate, when the file is an unedited copy of the old whole-file entry.
+async function refreshEntryBlock(projectRoot, options, { adopt, replaceWhole = false }) {
+  const file = path.join(projectRoot, entryFile);
+  const body = await readOptional(path.join(packageRoot, entryBlockSource));
+  if (body === null) return { status: "noSource", installed: false };
+  const block = renderEntryBlock(body.toString("utf8"));
+  const raw = await readOptional(file);
+  const current = raw === null ? null : raw.toString("utf8");
+  let next;
+  let status;
+  if (current === null || replaceWhole) {
+    if (current === null && !adopt) return { status: "missing", installed: false };
+    next = block;
+    status = current === null ? "created" : "replaced";
+  } else {
+    const found = findEntryBlock(current);
+    if (found.state === "malformed") return { status: "malformed", installed: false };
+    if (found.state === "none") {
+      if (!adopt) return { status: "removed", installed: false };
+      next = current === "" ? block : `${current}${current.endsWith("\n") ? "" : "\n"}\n${block}`;
+      status = "appended";
+    } else {
+      next = `${current.slice(0, found.start)}${block}${current.slice(found.end)}`;
+      status = next === current ? "current" : "updated";
+    }
+  }
+  if (!options.dryRun && next !== current) await fs.writeFile(file, next);
+  return { status, installed: true };
+}
+
+async function entryBlockProblem(projectRoot) {
+  const raw = await readOptional(path.join(projectRoot, entryFile));
+  if (raw === null) return `${entryFile} is missing, so agents never see the HAI-Harness startup rules. "${upstreamCommand} init" restores the block.`;
+  const found = findEntryBlock(raw.toString("utf8"));
+  if (found.state === "none") return `${entryFile} has no HAI-Harness block, so agents never see the startup rules. "${upstreamCommand} init" adds it back.`;
+  if (found.state === "malformed") return `${entryFile} has duplicate or unbalanced HAI-Harness markers; update leaves the file alone until exactly one ${blockStart} … ${blockEnd} pair remains.`;
+  return null;
+}
+
+async function doctor(options) {
+  await assertDirectory(options.target);
+  const projectRoot = path.basename(options.target) === harnessDirectory ? path.dirname(options.target) : options.target;
+  const layout = await layoutOf(projectRoot);
+  if (layout.kind === "legacy" || layout.kind === "partial") {
+    console.log(`HAI-Harness needs attention in ${projectRoot}\n`);
+    console.log(legacyLayoutMessage(projectRoot, layout.kind));
+    process.exitCode = 1;
+    return;
+  }
+  const harness = layout.harness;
+  const requiredPaths = [
+    ".hai-harness.json",
+    installedCliPath,
+    "Agents/check-for-update.mjs",
+    "Agents/onboarding.md",
+    "Agents/project_context.md",
+    "Agents/planning.md",
+    "Agents/design.md",
+    ...builtInRoles.map((role) => `Agents/${role}.md`),
+    "Agents/tasks/augustus.md",
+    "Agents/tasks/julius.md",
+    "Agents/lessons/INDEX.md",
+    "Agents/lessons/README.md",
+    "Agents/lessons/TEMPLATE.md",
+    "Agents/skills/code-review/SKILL.md",
+    "Agents/skills/implement/SKILL.md",
+    "Agents/skills/debugging/SKILL.md",
+    "Agents/skills/traffic-control/SKILL.md",
+    "Agents/skills/lesson-logger/SKILL.md",
+    "Agents/skills/human-scribe/SKILL.md",
+    "Human/onboarding.md",
+    "Human/brief.md",
+    "Human/decisions.md"
+  ];
+  const missing = [];
+  for (const relativePath of requiredPaths) {
+    if (!(await exists(path.join(harness, relativePath)))) missing.push(shownPath(projectRoot, harness, relativePath));
+  }
+  const entryProblem = await entryBlockProblem(projectRoot);
+  const oversized = [];
+  for (const [relativePath, maxLines] of promptHygieneLimits) {
+    const targetPath = path.join(harness, relativePath);
+    if (!(await exists(targetPath))) continue;
+    const lineCount = countLines(await fs.readFile(targetPath, "utf8"));
+    if (lineCount > maxLines) oversized.push({ relativePath: shownPath(projectRoot, harness, relativePath), lineCount, maxLines });
+  }
+  let updateStatus = "Update status: unknown/offline";
+  const checker = path.join(harness, "Agents/check-for-update.mjs");
+  if (await exists(path.join(harness, ".hai-harness.json")) && await exists(checker)) {
+    try {
+      const { stdout } = await runFile(process.execPath, [checker, "--status", "--target", harness], {
+        cwd: projectRoot,
+        timeout: 6_000,
+        maxBuffer: 32 * 1024
+      });
+      if (stdout.trim()) updateStatus = stdout.trim();
+    } catch {}
+  }
+  const warnings = [
+    ...await editedCoreWarnings(projectRoot, harness),
+    ...await customWarnings(projectRoot, harness),
+    ...await humanSyncWarnings(harness),
+    ...await primaryCheckoutWarnings(projectRoot),
+    ...await conflictCopyWarnings(projectRoot)
+  ];
+  if (missing.length === 0 && oversized.length === 0 && !entryProblem) {
+    console.log(`HAI-Harness looks installed in ${projectRoot}`);
+    if (warnings.length > 0) {
+      printWarnings(warnings);
+      console.log("");
+    }
+    console.log(updateStatus);
+    return;
+  }
+  console.log(`HAI-Harness needs attention in ${projectRoot}`);
+  if (missing.length > 0) {
+    console.log("\nMissing:");
+    for (const relativePath of missing) console.log(`  - ${relativePath}`);
+  }
+  if (entryProblem) console.log(`\n${entryProblem}`);
+  if (oversized.length > 0) {
+    console.log("\nOversized mandatory startup context:");
+    for (const item of oversized) {
+      console.log(`  - ${item.relativePath}: ${item.lineCount} lines (limit ${item.maxLines})`);
+    }
+    console.log("Move completed queues and historical evidence to Agents/handoffs/ or Agents/_archive/; keep live planning and task files current-only.");
+  }
+  printWarnings(warnings);
+  console.log(`\n${updateStatus}`);
+  process.exitCode = 1;
+}
+
+async function editedCoreWarnings(projectRoot, harness) {
+  const receipt = await readReceipt(harness);
+  const edited = [];
+  for (const target of corePaths) {
+    const recorded = receipt.files?.[target];
+    const current = await readOptional(path.join(harness, target));
+    if (recorded && current !== null && contentHash(current) !== recorded) edited.push(target);
+  }
+  if (edited.length === 0) return [];
+  return [`Core files edited in this project, which update keeps: ${edited.map((item) => shownPath(projectRoot, harness, item)).join(", ")}. Move the change into ${harnessDirectory}/${customRolesPath}/, ${harnessDirectory}/${customSkillsPath}/ or project_context.md, then take the shipped version with "${upstreamCommand} update --accept-upstream <path>".`];
+}
+
+function frontmatter(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/);
+  if (!match) return null;
+  const fields = {};
+  for (const line of match[1].split(/\r?\n/)) {
+    const field = line.match(/^([A-Za-z][\w-]*):\s*(.*)$/);
+    if (field) fields[field[1].toLowerCase()] = field[2].trim().replace(/^(["'])(.*)\1$/, "$2");
+  }
+  return fields;
+}
+
+// Custom roles and skills are found by file name and frontmatter. Anything
+// incomplete or shadowing a built-in is reported here, and agents ignore it.
+async function customWarnings(projectRoot, harness) {
+  const warnings = [];
+  const rolesDirectory = path.join(harness, customRolesPath);
+  for (const entry of await fs.readdir(rolesDirectory, { withFileTypes: true }).catch(() => [])) {
+    if (!entry.isFile() || !entry.name.endsWith(".md") || entry.name === "README.md") continue;
+    const shown = shownPath(projectRoot, harness, `${customRolesPath}/${entry.name}`);
+    const slug = entry.name.slice(0, -3);
+    const fields = frontmatter(await fs.readFile(path.join(rolesDirectory, entry.name), "utf8")) ?? {};
+    if (builtInRoles.includes(slug.toLowerCase()) || builtInRoles.includes((fields.name ?? "").toLowerCase())) {
+      warnings.push(`Custom role ${shown} uses a built-in role name; agents ignore it. Rename it.`);
+      continue;
+    }
+    const problems = ["name", "description", "route-when", "writes"].filter((field) => !fields[field]).map((field) => `missing ${field}`);
+    if (fields.writes && !roleWriteLevels.includes(fields.writes)) problems.push(`writes must be ${roleWriteLevels.join(", ")}`);
+    if (fields.name && fields.name.toLowerCase() !== slug) problems.push(`file name must be the lowercase role name (${fields.name.toLowerCase()}.md)`);
+    if (problems.length > 0) warnings.push(`Custom role ${shown} is incomplete (${problems.join("; ")}); Claudia does not route to it. See ${harnessDirectory}/${customRolesPath}/README.md.`);
+  }
+  const skillsDirectory = path.join(harness, customSkillsPath);
+  for (const entry of await fs.readdir(skillsDirectory, { withFileTypes: true }).catch(() => [])) {
+    if (!entry.isDirectory()) continue;
+    const shown = shownPath(projectRoot, harness, `${customSkillsPath}/${entry.name}`);
+    if (shippedSkillNames.has(entry.name)) {
+      warnings.push(`Custom skill ${shown} uses a shipped skill name; agents use the shipped skill. Rename it.`);
+      continue;
+    }
+    const skill = await readOptional(path.join(skillsDirectory, entry.name, "SKILL.md"));
+    const fields = skill === null ? {} : frontmatter(skill.toString("utf8")) ?? {};
+    const problems = skill === null ? ["missing SKILL.md"] : ["name", "description"].filter((field) => !fields[field]).map((field) => `missing ${field}`);
+    if (fields.name && fields.name !== entry.name) problems.push(`name must match its folder (${entry.name})`);
+    if (problems.length > 0) warnings.push(`Custom skill ${shown} is incomplete (${problems.join("; ")}); agents skip it. See ${harnessDirectory}/${customSkillsPath}/README.md.`);
+  }
+  for (const entry of await fs.readdir(path.join(harness, "Agents/skills"), { withFileTypes: true }).catch(() => [])) {
+    if (entry.isDirectory() && !shippedSkillNames.has(entry.name)) warnings.push(`${shownPath(projectRoot, harness, `Agents/skills/${entry.name}`)} is not a shipped skill. Move it to ${harnessDirectory}/${customSkillsPath}/${entry.name}/ so agents find it.`);
+  }
+  for (const entry of await fs.readdir(path.join(harness, "Agents"), { withFileTypes: true }).catch(() => [])) {
+    if (entry.isFile() && entry.name.endsWith(".md") && !corePaths.has(`Agents/${entry.name}`) && !projectStateDocs.has(entry.name)) {
+      warnings.push(`${shownPath(projectRoot, harness, `Agents/${entry.name}`)} is not a harness file. If it is a custom role, move it to ${harnessDirectory}/${customRolesPath}/${entry.name.toLowerCase()} with the frontmatter in that folder's README.`);
+    }
+  }
+  return warnings;
 }
 
 async function readJson(filePath) {
@@ -374,8 +911,9 @@ async function readJson(filePath) {
 
 async function generateTaskFile(role, options, results, overwrite) {
   const sourcePath = path.join(packageRoot, "Agents/tasks/TEMPLATE.md");
-  const relativePath = `Agents/tasks/${role.slug}.md`;
-  const targetPath = path.join(options.target, relativePath);
+  const targetPath = path.join(options.target, `Agents/tasks/${role.slug}.md`);
+  // Report the path where the file ends up, relative to the project root.
+  const relativePath = path.relative(options.base ?? options.target, path.join(options.shownAs ?? options.target, `Agents/tasks/${role.slug}.md`)).split(path.sep).join("/");
   if (!(await exists(sourcePath))) {
     results.missingSource?.push("Agents/tasks/TEMPLATE.md");
     return;
@@ -398,109 +936,6 @@ async function generateTaskFile(role, options, results, overwrite) {
   results[key].push(relativePath);
 }
 
-async function refreshPath(pathMapping, options, results, createOnly) {
-  const sourceRelativePath = typeof pathMapping === "string" ? pathMapping : pathMapping.source;
-  const targetRelativePath = typeof pathMapping === "string" ? pathMapping : pathMapping.target;
-  const sourcePath = path.join(packageRoot, sourceRelativePath);
-  const targetPath = path.join(options.target, targetRelativePath);
-  if (!(await exists(sourcePath))) {
-    results.missingSource.push(sourceRelativePath);
-    return;
-  }
-
-  const targetExists = await exists(targetPath);
-  if (createOnly && targetExists) {
-    results.preserved.push(targetRelativePath);
-    return;
-  }
-  if (!options.dryRun) {
-    await fs.mkdir(path.dirname(targetPath), { recursive: true });
-    await fs.copyFile(sourcePath, targetPath);
-  }
-  results[targetExists ? "updated" : "created"].push(targetRelativePath);
-}
-
-async function doctor(options) {
-  await assertDirectory(options.target);
-  const requiredPaths = [
-    "AGENTS.md",
-    ".hai-harness.json",
-    installedCliPath,
-    "Agents/check-for-update.mjs",
-    "Agents/onboarding.md",
-    "Agents/project_context.md",
-    "Agents/planning.md",
-    "Agents/design.md",
-    "Agents/claudia.md",
-    "Agents/augustus.md",
-    "Agents/julius.md",
-    "Agents/athena.md",
-    "Agents/hephaestus.md",
-    "Agents/momus.md",
-    "Agents/tasks/augustus.md",
-    "Agents/tasks/julius.md",
-    "Agents/lessons/INDEX.md",
-    "Agents/lessons/README.md",
-    "Agents/lessons/TEMPLATE.md",
-    "Agents/skills/code-review/SKILL.md",
-    "Agents/skills/implement/SKILL.md",
-    "Agents/skills/debugging/SKILL.md",
-    "Agents/skills/traffic-control/SKILL.md",
-    "Agents/skills/lesson-logger/SKILL.md",
-    "Agents/skills/human-scribe/SKILL.md",
-    "Human/onboarding.md",
-    "Human/brief.md",
-    "Human/decisions.md"
-  ];
-  const missing = [];
-  for (const relativePath of requiredPaths) {
-    if (!(await exists(path.join(options.target, relativePath)))) missing.push(relativePath);
-  }
-  const oversized = [];
-  for (const [relativePath, maxLines] of promptHygieneLimits) {
-    const targetPath = path.join(options.target, relativePath);
-    if (!(await exists(targetPath))) continue;
-    const lineCount = countLines(await fs.readFile(targetPath, "utf8"));
-    if (lineCount > maxLines) oversized.push({ relativePath, lineCount, maxLines });
-  }
-  let updateStatus = "Update status: unknown/offline";
-  if (missing.includes(".hai-harness.json") === false && missing.includes("Agents/check-for-update.mjs") === false) {
-    try {
-      const { stdout } = await runFile(process.execPath, [path.join(options.target, "Agents/check-for-update.mjs"), "--status", "--target", options.target], {
-        cwd: options.target,
-        timeout: 6_000,
-        maxBuffer: 32 * 1024
-      });
-      if (stdout.trim()) updateStatus = stdout.trim();
-    } catch {}
-  }
-  const warnings = [...await humanSyncWarnings(options.target), ...await primaryCheckoutWarnings(options.target), ...await conflictCopyWarnings(options.target)];
-  if (missing.length === 0 && oversized.length === 0) {
-    console.log(`HAI-Harness looks installed in ${options.target}`);
-    if (warnings.length > 0) {
-      printWarnings(warnings);
-      console.log("");
-    }
-    console.log(updateStatus);
-    return;
-  }
-  console.log(`HAI-Harness needs attention in ${options.target}`);
-  if (missing.length > 0) {
-    console.log("\nMissing:");
-    for (const relativePath of missing) console.log(`  - ${relativePath}`);
-  }
-  if (oversized.length > 0) {
-    console.log("\nOversized mandatory startup context:");
-    for (const item of oversized) {
-      console.log(`  - ${item.relativePath}: ${item.lineCount} lines (limit ${item.maxLines})`);
-    }
-    console.log("Move completed queues and historical evidence to Agents/handoffs/ or Agents/_archive/; keep live planning and task files current-only.");
-  }
-  printWarnings(warnings);
-  console.log(`\n${updateStatus}`);
-  process.exitCode = 1;
-}
-
 function printWarnings(warnings) {
   if (warnings.length === 0) return;
   console.log("\nWarnings:");
@@ -510,6 +945,12 @@ function printWarnings(warnings) {
 // Packets are local task metadata, not tracked harness or Human content.
 function digest(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+// Core files compare as text with CRLF folded to LF, so a checkout with
+// core.autocrlf does not make every core file look edited.
+function contentHash(value) {
+  return digest(Buffer.from(value).toString("utf8").replaceAll("\r\n", "\n"));
 }
 
 async function taskPacket(target) {
@@ -583,11 +1024,11 @@ async function legacyPacketPaths(lane) {
 async function readPacket(lane) {
   if (!(await exists(lane.metadata))) throw new Error(`Missing task packet. Run "${cliCommand} human-sync init" in this recognized task lane (use --migrate for legacy Agents files).`);
   const packet = await readJson(lane.metadata);
-  // Pre-Momus packets have no hash for this newly traced role. Keep their
-  // existing digest/history intact; snapshot comparison reports the absent
-  // hash as drift until an ordinary trace acknowledgment adopts it.
+  // Older packets have no hash for later traced paths. Keep their existing
+  // digest/history intact; snapshot comparison reports the absent hash as
+  // drift until an ordinary trace acknowledgment adopts it.
   const validPathHash = (name) =>
-    (name === "Agents/momus.md" && packet.acknowledged?.paths && !Object.hasOwn(packet.acknowledged.paths, name)) ||
+    (laterTracedPaths.has(name) && packet.acknowledged?.paths && !Object.hasOwn(packet.acknowledged.paths, name)) ||
     (typeof packet.acknowledged?.paths?.[name] === "string" && /^[0-9a-f]{64}$/.test(packet.acknowledged.paths[name]));
   if (packet.schemaVersion !== 1 || JSON.stringify(packet.identity) !== JSON.stringify(lane.identity) || !/^[0-9a-f]{40,64}$/.test(packet.acknowledged?.head ?? "") || tracedPaths.some((name) => !validPathHash(name)) || digest(JSON.stringify(packet.acknowledged?.paths)) !== packet.acknowledged?.digest || typeof packet.trail !== "string") {
     throw new Error("Invalid task packet identity or baseline; preserve it and restore this lane's verified checkpoint.");
@@ -640,7 +1081,7 @@ async function humanSyncCommand(args) {
   if (options.migrate && action !== "init") throw new Error("--migrate requires human-sync init.");
   if ((options.through || options.head || options.snapshot) && action !== "acknowledge") throw new Error("--through, --head and --snapshot require acknowledge.");
   if (options.output && action !== "checkpoint") throw new Error("--output requires checkpoint.");
-  const lane = await taskPacket(options.target);
+  const lane = await taskPacket(await harnessRootFor(options.target));
   if (action === "init") {
     if (await exists(lane.directory)) throw new Error("Task packet already exists; preserve it and use status or restore its checkpoint.");
     const legacy = await legacyPacketPaths(lane);
@@ -1674,7 +2115,7 @@ async function moveToQuarantine(scope, session, item) {
 
 async function copyFile(sourcePath, targetPath, options, results) {
   if (!(await exists(sourcePath))) return;
-  const relativePath = path.relative(options.target, targetPath);
+  const relativePath = path.relative(options.base ?? options.target, targetPath).split(path.sep).join("/");
   const targetExists = await exists(targetPath);
   if (targetExists && !options.force) {
     results.skipped.push(relativePath);
@@ -1723,20 +2164,82 @@ function printInitSummary(target, options, results) {
   printCount("Created", results.created);
   printCount("Overwritten", results.overwritten);
   printCount("Skipped existing", results.skipped);
+  console.log(`\n${entrySummary(results.entry)}`);
   if (results.skipped.length > 0 && !options.force) {
     console.log("\nExisting files were left unchanged. Re-run with --force to overwrite harness files.");
   }
 }
 
 function printUpdateSummary(target, options, results) {
-  console.log(`${options.dryRun ? "Dry run complete" : "HAI-Harness scaffold updated"} for ${target}\n`);
+  console.log(`${options.dryRun ? "Dry run complete" : "HAI-Harness updated"} for ${target}\n`);
+  printRefreshDetails(results);
+  console.log("\nProject-authored planning, context, design, task queues, handoffs, lessons, archives, custom roles and skills, and Human content were left untouched.");
+  console.log(`Run \`${upstreamCommand} init --force\` only when you intentionally want to overwrite everything.`);
+}
+
+function printRefreshDetails(results) {
   printCount("Updated", results.updated);
   printCount("Created", results.created);
+  if (results.accepted.length > 0) printCount("Replaced with the shipped version (--accept-upstream)", results.accepted);
+  console.log(`Already current: ${results.current.length}`);
   printCount("Preserved project state", results.preserved);
+  if (results.retired.length > 0) printCount("Retired (no longer shipped, unedited)", results.retired);
+  if (results.retiredKept.length > 0) printCount("No longer shipped but edited here (kept; review and remove when done)", results.retiredKept);
   if (results.missingSource.length > 0) printCount("Missing in package (skipped)", results.missingSource);
-  console.log("\nProject-authored planning, context, design, task queues, handoff entries, lesson state, decision trail, human inbox, archive entries, and Human workspace content were left untouched.");
-  console.log("Stable scaffold methods, templates, README files, and Human/onboarding.md were refreshed.");
-  console.log(`Run \`${upstreamCommand} init --force\` only when you intentionally want to overwrite everything.`);
+  console.log(`\n${entrySummary(results.entry)}`);
+  if (results.kept.length > 0) {
+    console.log("");
+    printCount("Locally modified, kept (this project edited them)", results.kept);
+    console.log(`Move each customization into ${harnessDirectory}/${customRolesPath}/, ${harnessDirectory}/${customSkillsPath}/ or project_context.md,`);
+    console.log(`then take the shipped version: ${upstreamCommand} update --accept-upstream <path>`);
+  }
+}
+
+function entrySummary(entry) {
+  return {
+    created: `${entryFile}: created with the HAI-Harness block.`,
+    appended: `${entryFile}: HAI-Harness block added at the end; the rest of the file is unchanged.`,
+    updated: `${entryFile}: HAI-Harness block refreshed; everything outside the markers is unchanged.`,
+    current: `${entryFile}: HAI-Harness block already current.`,
+    replaced: `${entryFile}: it was an unedited copy of the old harness entry file, so it now holds just the HAI-Harness block.`,
+    removed: `${entryFile} has no HAI-Harness block, so it was left alone and agents will not see the startup rules. If that was not on purpose, "${upstreamCommand} init" adds it back.`,
+    missing: `${entryFile} is missing, so agents will not see the startup rules. "${upstreamCommand} init" restores it.`,
+    malformed: `${entryFile} has duplicate or unbalanced HAI-Harness markers and was left unchanged. Keep exactly one ${blockStart} … ${blockEnd} pair, then run update.`,
+    noSource: `${entryFile} was left unchanged: this package has no ${entryBlockSource}.`
+  }[entry?.status] ?? "";
+}
+
+function printMigrateSummary(root, options, moves, results, report) {
+  console.log(options.dryRun
+    ? `Migration dry run for ${root}: nothing was changed. Paths are shown where they will be after the move.\n`
+    : `HAI-Harness moved into ${harnessDirectory}/ in ${root}\n`);
+  printCount("Moved", moves.map((name) => `${name} -> ${harnessDirectory}/${name}`));
+  printRefreshDetails(results);
+  if (report.roles.length > 0) {
+    console.log("");
+    printCount(`Not harness files; if a file is a custom role, move it to ${harnessDirectory}/${customRolesPath}/ with the frontmatter in that folder's README`, report.roles);
+  }
+  if (report.skills.length > 0) {
+    console.log("");
+    printCount(`Not shipped skills; move each to ${harnessDirectory}/${customSkillsPath}/ so agents find it`, report.skills);
+  }
+  if (report.stale.length > 0) {
+    console.log("");
+    printCount(`Still say "node Agents/..."; change them to "node ${harnessDirectory}/Agents/..."`, report.stale);
+  }
+  if (report.entryReview) {
+    console.log(`\n${entryFile} keeps your own text. Check it for older harness instructions that still point at Agents/ or Human/ at the project root; they now live in ${harnessDirectory}/.`);
+  }
+  if (report.exposed.length > 0) {
+    console.log("");
+    printCount(`Gitignored now but not after the move; add ignore rules for these ${harnessDirectory}/ paths and commit before migrating`, report.exposed);
+  }
+  if (report.lanes.length > 0) {
+    console.log("");
+    printCount("Other open task lanes; each merges main after this lands (Git follows the renames). Their human-sync packets keep the old root scope, so capture or hand off any pending drafts there before they merge", report.lanes);
+  }
+  if (!options.dryRun) console.log(`\nReview the move in this lane, then integrate it with: node ${projectCliPath} worktree approve --approved "<message>"`);
+  else console.log(`\nRun the same command without --dry-run to move it.`);
 }
 
 function printCount(label, paths) {

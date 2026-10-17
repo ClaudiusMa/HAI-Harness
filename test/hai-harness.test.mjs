@@ -34,17 +34,22 @@ const noHarnessEnv = {
   PATH: (process.env.PATH ?? "").split(path.delimiter).filter((dir) => !existsSync(path.join(dir, "hai-harness"))).join(path.delimiter)
 };
 
-// Runs the project's own copy of the CLI (Agents/hai-harness.mjs) from `cwd`.
+// Runs the project's own copy of the CLI (.hai/Agents/hai-harness.mjs) from `cwd`.
 function projectCli(copyRoot, cwd, ...args) {
-  return run(process.execPath, [path.join(copyRoot, "Agents/hai-harness.mjs"), ...args], cwd, noHarnessEnv);
+  return run(process.execPath, [path.join(copyRoot, ".hai/Agents/hai-harness.mjs"), ...args], cwd, noHarnessEnv);
+}
+
+// The receipt lives in the harness folder: <project>/.hai once installed.
+function receiptRoot(cwd) {
+  return existsSync(path.join(cwd, ".hai", "Agents")) ? path.join(cwd, ".hai") : cwd;
 }
 
 function beacon(cwd, ...args) {
-  return run(process.execPath, [checker, "--target", cwd, "--cache", path.join(cwd, ".beacon-cache.json"), ...args], cwd);
+  return run(process.execPath, [checker, "--target", receiptRoot(cwd), "--cache", path.join(cwd, ".beacon-cache.json"), ...args], cwd);
 }
 
 function beaconWithLocalCache(cwd, ...args) {
-  return run(process.execPath, [checker, "--target", cwd, ...args], cwd);
+  return run(process.execPath, [checker, "--target", receiptRoot(cwd), ...args], cwd);
 }
 
 async function makeGitFixture(t) {
@@ -358,8 +363,9 @@ test("cleanup instruction replay stops owned preview, retries generated cache, a
 });
 
 test("init, update, and doctor preserve state and flag polluted startup context", async (t) => {
-  const target = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-install-"));
-  t.after(() => fs.rm(target, { recursive: true, force: true }));
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-install-"));
+  t.after(() => fs.rm(project, { recursive: true, force: true }));
+  const target = path.join(project, ".hai");
 
   const packageMetadata = JSON.parse(await fs.readFile(path.join(projectRoot, "package.json"), "utf8"));
   const releaseMetadata = JSON.parse(await fs.readFile(path.join(projectRoot, "release.json"), "utf8"));
@@ -370,15 +376,18 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(checkerSource, /api\.github\.com\/repos\/ClaudiusMa\/HAI-Harness\/releases\/latest/);
   assert.doesNotMatch(checkerSource, /raw\.githubusercontent\.com.*release\.json/);
 
-  const installed = harness(target, "init", "--target", target);
+  const installed = harness(project, "init", "--target", project);
   assert.equal(installed.status, 0, installed.stderr);
+  // Everything lives in .hai/; the only other file is the project's AGENTS.md.
+  assert.deepEqual((await fs.readdir(project)).sort(), [".hai", "AGENTS.md"]);
   assert.equal(
     await fs.readFile(path.join(target, "Agents/hai-harness.mjs"), "utf8"),
     await fs.readFile(cli, "utf8")
   );
   // Every installed instruction names the project CLI, never a bare command that is not on PATH.
-  const bareCommand = /(?<![\w/.-])hai-harness (?:worktree|human-sync|doctor|init|update)\b/;
-  const installedDocs = [];
+  const bareCommand = /(?<![\w/.-])hai-harness (?:worktree|human-sync|doctor|init|update|migrate)\b/;
+  const oldPath = /node Agents\/(?:hai-harness|check-for-update)\.mjs/;
+  const installedDocs = [path.join(project, "AGENTS.md")];
   const collectDocs = async (directory) => {
     for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
       const full = path.join(directory, entry.name);
@@ -389,71 +398,70 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   await collectDocs(target);
   assert.ok(installedDocs.length > 20);
   for (const doc of installedDocs) {
-    assert.doesNotMatch(await fs.readFile(doc, "utf8"), bareCommand, path.relative(target, doc));
+    const content = await fs.readFile(doc, "utf8");
+    assert.doesNotMatch(content, bareCommand, path.relative(project, doc));
+    assert.doesNotMatch(content, oldPath, path.relative(project, doc));
   }
-  assert.match(await fs.readFile(path.join(target, "AGENTS.md"), "utf8"), /node Agents\/hai-harness\.mjs worktree create <task-slug>/);
-  // AGENTS.md is the one always-loaded file: three start steps, at most eight one-line invariants, a small word budget.
-  const entry = await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8");
-  assert.ok(entry.split(/\s+/).filter(Boolean).length <= 450, "scaffold/AGENTS.md must stay at 450 words or fewer; put detail in Agents/onboarding.md");
-  assert.equal((entry.match(/^\d\. \*\*/gm) ?? []).length, 3);
-  const always = entry.match(/## Always\n\n((?:- .*\n)+)/)?.[1].trim().split("\n") ?? [];
+  const entryFile = await fs.readFile(path.join(project, "AGENTS.md"), "utf8");
+  assert.match(entryFile, /node \.hai\/Agents\/hai-harness\.mjs worktree create <task-slug>/);
+  // AGENTS.md carries one block: the always-loaded startup rules, three start steps, at most eight one-line invariants, a small word budget.
+  const body = await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8");
+  assert.equal(entryFile, `<!-- hai-harness:start -->\n${entryFile.split("\n")[1]}\n\n${body.trim()}\n<!-- hai-harness:end -->\n`);
+  assert.ok(body.split(/\s+/).filter(Boolean).length <= 450, "scaffold/AGENTS.md must stay at 450 words or fewer; put detail in Agents/onboarding.md");
+  assert.equal((body.match(/^\d\. \*\*/gm) ?? []).length, 3);
+  const always = body.match(/### Always\n\n((?:- .*\n)+)/)?.[1].trim().split("\n") ?? [];
   assert.ok(always.length > 0 && always.length <= 8, `Always lists ${always.length} invariants`);
-  for (const role of ["Claudia", "Momus", "Augustus", "Julius", "Athena", "Hephaestus"]) assert.ok(entry.includes(role), role);
-  assert.equal(
-    await fs.readFile(path.join(target, "AGENTS.md"), "utf8"),
-    await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8")
-  );
-  assert.notEqual(
-    await fs.readFile(path.join(target, "AGENTS.md"), "utf8"),
-    await fs.readFile(path.join(projectRoot, "AGENTS.md"), "utf8")
-  );
-  assert.equal(await fs.stat(path.join(target, "AGENTS.override.md")).catch(() => null), null);
-  assert.equal(await fs.stat(path.join(target, "CLAUDE.md")).catch(() => null), null);
+  for (const role of ["Claudia", "Momus", "Augustus", "Julius", "Athena", "Hephaestus"]) assert.ok(body.includes(role), role);
+  assert.match(body, /\.hai\/Agents\/custom\/roles\/<name>\.md/);
+  assert.equal(await fs.stat(path.join(target, "AGENTS.md")).catch(() => null), null);
+  assert.equal(await fs.stat(path.join(project, "AGENTS.override.md")).catch(() => null), null);
+  assert.equal(await fs.stat(path.join(project, "CLAUDE.md")).catch(() => null), null);
   const receipt = JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8"));
   assert.equal(receipt.schemaVersion, 1);
   assert.equal(receipt.installedVersion, installedVersion);
   assert.equal(receipt.channel, "stable");
   assert.equal(receipt.checkEnabled, true);
+  assert.equal(receipt.block, true);
+  assert.equal(receipt.files["Agents/onboarding.md"], createHash("sha256").update(await fs.readFile(path.join(projectRoot, "Agents/onboarding.md"))).digest("hex"));
+  for (const folder of ["roles", "skills"]) assert.ok(await fs.stat(path.join(target, `Agents/custom/${folder}/README.md`)));
   assert.deepEqual((await fs.readdir(path.join(projectRoot, "Agents/tasks"))).sort(), ["TEMPLATE.md"]);
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), /^# Augustus Tasks/m);
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/julius.md"), "utf8"), /^# Julius Tasks/m);
   assert.doesNotMatch(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), /\{\{ROLE_/);
   assert.equal(await fs.readFile(path.join(target, "Agents/momus.md"), "utf8"), await fs.readFile(path.join(projectRoot, "Agents/momus.md"), "utf8"));
   assert.equal(await fs.stat(path.join(target, "Agents/tasks/momus.md")).catch(() => null), null);
+  // A .hai folder is never a project root.
+  const nested = harness(project, "update", "--target", target);
+  assert.notEqual(nested.status, 0);
+  assert.match(nested.stderr, /takes the project root, not its \.hai\/ folder/);
+  assert.equal(await fs.stat(path.join(target, ".hai")).catch(() => null), null);
+
   const protectedRecords = new Map([
     ["Agents/project_context.md", "populated project context\n"],
     ["Human/decisions.md", "confirmed human decisions\n"],
-    ["Agents/handoffs/active-incident.md", "existing incident and attempt history\n"]
+    ["Agents/handoffs/active-incident.md", "existing incident and attempt history\n"],
+    ["Agents/custom/roles/apollo.md", "project role\n"],
+    ["Agents/custom/skills/release-notes/SKILL.md", "project skill\n"]
   ]);
-  for (const [file, content] of protectedRecords) await fs.writeFile(path.join(target, file), content);
-  const shippedSkills = ["code-review", "implement", "debugging"];
-  for (const skill of shippedSkills) {
-    const skillFile = `Agents/skills/${skill}/SKILL.md`;
-    assert.equal(
-      await fs.readFile(path.join(target, skillFile), "utf8"),
-      await fs.readFile(path.join(projectRoot, skillFile), "utf8")
-    );
+  for (const [file, content] of protectedRecords) {
+    await fs.mkdir(path.dirname(path.join(target, file)), { recursive: true });
+    await fs.writeFile(path.join(target, file), content);
   }
+  const shippedSkills = ["code-review", "implement", "debugging"];
   await fs.writeFile(path.join(target, "Agents/planning.md"), "project-owned planning\n");
   await fs.writeFile(path.join(target, "Agents/design.md"), "project-owned design guide\n");
   await fs.writeFile(path.join(target, "Agents/lessons/INDEX.md"), "project-owned lesson index\n");
   await fs.writeFile(path.join(target, "Agents/tasks/augustus.md"), "project-owned Augustus queue\n");
-  await fs.writeFile(path.join(target, "AGENTS.md"), "stale root entry point\n");
-  await fs.writeFile(path.join(target, "Agents/skills/decision-logger/SKILL.md"), "stale stable method\n");
-  for (const skill of shippedSkills) {
-    await fs.writeFile(path.join(target, `Agents/skills/${skill}/SKILL.md`), `stale ${skill} method\n`);
-    await fs.writeFile(path.join(target, `Agents/skills/${skill}/project-note.md`), `project-owned ${skill} note\n`);
-  }
-  await fs.writeFile(path.join(target, "Agents/handoffs/TEMPLATE.md"), "stale handoff template\n");
-  await fs.writeFile(path.join(target, "Agents/hai-harness.mjs"), "stale project copy of the CLI\n");
+  for (const skill of shippedSkills) await fs.writeFile(path.join(target, `Agents/skills/${skill}/project-note.md`), `project-owned ${skill} note\n`);
   // Upgrade a populated installation that does not yet have Momus/debugging.
   await fs.unlink(path.join(target, "Agents/momus.md"));
   await fs.unlink(path.join(target, "Agents/skills/debugging/SKILL.md"));
   await fs.unlink(path.join(target, "Agents/tasks/julius.md"));
-  const disabled = beacon(target, "--disable");
+  const disabled = beacon(project, "--disable");
   assert.equal(disabled.status, 0, disabled.stderr);
-  const updated = harness(target, "update", "--target", target);
+  const updated = harness(project, "update", "--target", project);
   assert.equal(updated.status, 0, updated.stderr);
+  assert.match(updated.stdout, /AGENTS\.md: HAI-Harness block already current/);
   for (const [file, content] of protectedRecords) assert.equal(await fs.readFile(path.join(target, file), "utf8"), content);
   assert.equal(await fs.readFile(path.join(target, "Agents/momus.md"), "utf8"), await fs.readFile(path.join(projectRoot, "Agents/momus.md"), "utf8"));
   assert.equal(await fs.stat(path.join(target, "Agents/tasks/momus.md")).catch(() => null), null);
@@ -461,70 +469,359 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.equal(await fs.readFile(path.join(target, "Agents/design.md"), "utf8"), "project-owned design guide\n");
   assert.equal(await fs.readFile(path.join(target, "Agents/lessons/INDEX.md"), "utf8"), "project-owned lesson index\n");
   assert.equal(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), "project-owned Augustus queue\n");
-  assert.equal(
-    await fs.readFile(path.join(target, "AGENTS.md"), "utf8"),
-    await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md"), "utf8")
-  );
-  assert.notEqual(await fs.readFile(path.join(target, "Agents/skills/decision-logger/SKILL.md"), "utf8"), "stale stable method\n");
   for (const skill of shippedSkills) {
     const skillFile = `Agents/skills/${skill}/SKILL.md`;
     assert.equal(await fs.readFile(path.join(target, skillFile), "utf8"), await fs.readFile(path.join(projectRoot, skillFile), "utf8"));
     assert.equal(await fs.readFile(path.join(target, `Agents/skills/${skill}/project-note.md`), "utf8"), `project-owned ${skill} note\n`);
   }
-  assert.notEqual(await fs.readFile(path.join(target, "Agents/handoffs/TEMPLATE.md"), "utf8"), "stale handoff template\n");
-  assert.equal(await fs.readFile(path.join(target, "Agents/hai-harness.mjs"), "utf8"), await fs.readFile(cli, "utf8"));
   assert.match(await fs.readFile(path.join(target, "Agents/tasks/julius.md"), "utf8"), /^# Julius Tasks/m);
   assert.equal(JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8")).checkEnabled, false);
   for (const skill of shippedSkills) await fs.unlink(path.join(target, `Agents/skills/${skill}/SKILL.md`));
   await fs.unlink(path.join(target, "Agents/hai-harness.mjs"));
   await fs.unlink(path.join(target, "Agents/momus.md"));
-  const missingReviewSkill = harness(target, "doctor", "--target", target);
+  const missingReviewSkill = harness(project, "doctor", "--target", project);
   assert.notEqual(missingReviewSkill.status, 0);
-  assert.match(missingReviewSkill.stdout, /Agents\/hai-harness\.mjs/);
-  assert.match(missingReviewSkill.stdout, /Agents\/skills\/code-review\/SKILL\.md/);
-  assert.match(missingReviewSkill.stdout, /Agents\/skills\/implement\/SKILL\.md/);
-  assert.match(missingReviewSkill.stdout, /Agents\/skills\/debugging\/SKILL\.md/);
-  assert.match(missingReviewSkill.stdout, /Agents\/momus\.md/);
-  const restoredReviewSkill = harness(target, "update", "--target", target);
+  assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/hai-harness\.mjs/);
+  assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/skills\/code-review\/SKILL\.md/);
+  assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/skills\/implement\/SKILL\.md/);
+  assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/skills\/debugging\/SKILL\.md/);
+  assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/momus\.md/);
+  const restoredReviewSkill = harness(project, "update", "--target", project);
   assert.equal(restoredReviewSkill.status, 0, restoredReviewSkill.stderr);
   assert.equal(await fs.readFile(path.join(target, "Agents/hai-harness.mjs"), "utf8"), await fs.readFile(cli, "utf8"));
   for (const skill of shippedSkills) {
     const skillFile = `Agents/skills/${skill}/SKILL.md`;
     assert.equal(await fs.readFile(path.join(target, skillFile), "utf8"), await fs.readFile(path.join(projectRoot, skillFile), "utf8"));
   }
-  const healthy = harness(target, "doctor", "--target", target);
-  assert.equal(healthy.status, 0, healthy.stderr);
+  // The incomplete custom role and skill are reported, not fatal.
+  const healthy = harness(project, "doctor", "--target", project);
+  assert.equal(healthy.status, 0, healthy.stdout + healthy.stderr);
   assert.match(healthy.stdout, /Update status: disabled/);
+  assert.match(healthy.stdout, /Custom role \.hai\/Agents\/custom\/roles\/apollo\.md is incomplete/);
+  // doctor accepts the .hai folder too and reads the same project.
+  assert.equal(harness(project, "doctor", "--target", target).status, 0);
 
   await fs.writeFile(path.join(target, "Agents/planning.md"), "planning\n".repeat(2633));
   await fs.writeFile(path.join(target, "Agents/tasks/julius.md"), "task\n".repeat(842));
-  const polluted = harness(target, "doctor", "--target", target);
+  const polluted = harness(project, "doctor", "--target", project);
   assert.notEqual(polluted.status, 0);
-  assert.match(polluted.stdout, /Agents\/planning\.md: 2633 lines \(limit 1200\)/);
-  assert.match(polluted.stdout, /Agents\/tasks\/julius\.md: 842 lines \(limit 400\)/);
+  assert.match(polluted.stdout, /\.hai\/Agents\/planning\.md: 2633 lines \(limit 1200\)/);
+  assert.match(polluted.stdout, /\.hai\/Agents\/tasks\/julius\.md: 842 lines \(limit 400\)/);
   assert.match(polluted.stdout, /handoffs\/ or Agents\/_archive\//);
+});
+
+test("the AGENTS.md block is the only part of the project's file HAI-Harness writes", async (t) => {
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-entry-"));
+  t.after(() => fs.rm(project, { recursive: true, force: true }));
+  const entry = path.join(project, "AGENTS.md");
+  const own = "# Engram\r\n\r\nOur own rules, with CRLF and no final newline.";
+  await fs.writeFile(entry, own);
+  assert.equal(harness(project, "init", "--target", project).status, 0);
+  let content = await fs.readFile(entry, "utf8");
+  assert.ok(content.startsWith(`${own}\n\n<!-- hai-harness:start -->\n`));
+  assert.ok(content.endsWith("<!-- hai-harness:end -->\n"));
+  const block = content.slice(own.length + 2);
+
+  // Text above and below the block survives an update byte for byte; only the block is rewritten.
+  const above = "# Engram\n\nSend schema changes to Apollo.\n\n";
+  const below = "\n## Our notes\n\nKeep these.\n";
+  await fs.writeFile(entry, `${above}${block.replace(/## HAI-Harness[\s\S]*<!-- hai-harness:end -->/, "stale block text\n<!-- hai-harness:end -->")}${below}`);
+  const refreshed = harness(project, "update", "--target", project);
+  assert.equal(refreshed.status, 0, refreshed.stderr);
+  assert.match(refreshed.stdout, /block refreshed/);
+  assert.equal(await fs.readFile(entry, "utf8"), `${above}${block}${below}`);
+
+  // A removed block stays removed, and doctor says so.
+  await fs.writeFile(entry, "# Engram\n\nNo harness here.\n");
+  const removed = harness(project, "update", "--target", project);
+  assert.equal(removed.status, 0, removed.stderr);
+  assert.match(removed.stdout, /no HAI-Harness block, so it was left alone/);
+  assert.equal(await fs.readFile(entry, "utf8"), "# Engram\n\nNo harness here.\n");
+  assert.match(harness(project, "doctor", "--target", project).stdout, /AGENTS\.md has no HAI-Harness block/);
+  // init puts it back on request.
+  assert.equal(harness(project, "init", "--target", project).status, 0);
+  assert.match(await fs.readFile(entry, "utf8"), /^# Engram\n\nNo harness here\.\n\n<!-- hai-harness:start -->/);
+
+  // Duplicate or unbalanced markers: the file is left untouched.
+  for (const broken of [`${block}${block}`, "x\n<!-- hai-harness:start -->\ny\n", "<!-- hai-harness:end -->\nx\n<!-- hai-harness:start -->\n"]) {
+    await fs.writeFile(entry, broken);
+    const result = harness(project, "update", "--target", project);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /duplicate or unbalanced HAI-Harness markers/);
+    assert.equal(await fs.readFile(entry, "utf8"), broken);
+  }
+});
+
+test("update replaces only core files it shipped, keeps edits, and retires unedited old files", async (t) => {
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-ownership-"));
+  t.after(() => fs.rm(project, { recursive: true, force: true }));
+  const target = path.join(project, ".hai");
+  assert.equal(harness(project, "init", "--target", project).status, 0);
+  const shipped = JSON.parse(await fs.readFile(path.join(projectRoot, "scaffold/shipped-hashes.json"), "utf8")).hashes;
+  const sha = (value) => createHash("sha256").update(value).digest("hex");
+  // Every file this package ships is listed, so a clone without a receipt still recognizes it.
+  const sources = [["AGENTS.md", "scaffold/AGENTS.md"], ["Agents/hai-harness.mjs", "bin/hai-harness.mjs"], ["Human/onboarding.md", "Human/onboarding.md"]];
+  const walk = async (relative) => {
+    for (const entry of await fs.readdir(path.join(projectRoot, relative), { withFileTypes: true })) {
+      if (entry.name === ".DS_Store") continue;
+      if (entry.isDirectory()) await walk(`${relative}/${entry.name}`);
+      else sources.push([`${relative}/${entry.name}`, `${relative}/${entry.name}`]);
+    }
+  };
+  await walk("Agents");
+  for (const [listed, source] of sources) {
+    assert.ok(shipped[listed]?.includes(sha(await fs.readFile(path.join(projectRoot, source)))), `${source} changed: run "node scripts/shipped-hashes.mjs" to list its new version`);
+  }
+  const older = (file) => run("git", ["show", `v0.2.4:${file}`], projectRoot);
+  const edited = "Project edit: Apollo routing\n";
+  await fs.writeFile(path.join(target, "Agents/onboarding.md"), edited);
+  await fs.writeFile(path.join(target, "Agents/claudia.md"), edited);
+  // An older shipped version (when this checkout has the tag) is replaced.
+  const oldJulius = older("Agents/julius.md");
+  const julius = await fs.readFile(path.join(projectRoot, "Agents/julius.md"), "utf8");
+  const replacesOld = oldJulius.status === 0 && oldJulius.stdout !== julius;
+  if (replacesOld) await fs.writeFile(path.join(target, "Agents/julius.md"), oldJulius.stdout);
+  await fs.writeFile(path.join(target, "AGENTS.md"), await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md")));
+  const preview = harness(project, "update", "--dry-run", "--target", project);
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.match(preview.stdout, /Locally modified, kept[^\n]*: 2\n  - \.hai\/Agents\/onboarding\.md\n  - \.hai\/Agents\/claudia\.md/);
+  assert.match(preview.stdout, /Retired \(no longer shipped, unedited\): 1\n  - \.hai\/AGENTS\.md/);
+  assert.equal(await fs.readFile(path.join(target, "Agents/onboarding.md"), "utf8"), edited);
+  assert.ok(await fs.stat(path.join(target, "AGENTS.md")));
+
+  const result = harness(project, "update", "--target", project);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.replace(/^HAI-Harness updated/, "Dry run complete"), preview.stdout);
+  assert.equal(await fs.readFile(path.join(target, "Agents/onboarding.md"), "utf8"), edited);
+  assert.equal(await fs.readFile(path.join(target, "Agents/claudia.md"), "utf8"), edited);
+  assert.equal(await fs.readFile(path.join(target, "Agents/julius.md"), "utf8"), julius);
+  if (replacesOld) assert.match(result.stdout, /Updated: 1\n  - \.hai\/Agents\/julius\.md/);
+  assert.equal(await fs.stat(path.join(target, "AGENTS.md")).catch(() => null), null);
+  assert.match(harness(project, "doctor", "--target", project).stdout, /Core files edited in this project[^\n]*\.hai\/Agents\/onboarding\.md, \.hai\/Agents\/claudia\.md/);
+
+  // An edited retired file is kept for review.
+  await fs.writeFile(path.join(target, "AGENTS.md"), "our own notes\n");
+  assert.match(harness(project, "update", "--target", project).stdout, /No longer shipped but edited here[^\n]*: 1\n  - \.hai\/AGENTS\.md/);
+  assert.equal(await fs.readFile(path.join(target, "AGENTS.md"), "utf8"), "our own notes\n");
+
+  // --accept-upstream takes the shipped version for exactly the named file.
+  assert.match(harness(project, "update", "--target", project, "--accept-upstream", "Agents/planning.md").stderr, /is not one/);
+  const accepted = harness(project, "update", "--target", project, "--accept-upstream", ".hai/Agents/onboarding.md");
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.match(accepted.stdout, /--accept-upstream\): 1\n  - \.hai\/Agents\/onboarding\.md/);
+  assert.equal(await fs.readFile(path.join(target, "Agents/onboarding.md"), "utf8"), await fs.readFile(path.join(projectRoot, "Agents/onboarding.md"), "utf8"));
+  assert.equal(await fs.readFile(path.join(target, "Agents/claudia.md"), "utf8"), edited);
+});
+
+test("update moves a root-layout install into .hai and reports what it cannot classify", async (t) => {
+  const { repo } = await makeGitFixture(t);
+  // A 0.2.x root install with a project's own customizations, as in the field.
+  for (const dir of ["Agents", "Human"]) await fs.cp(path.join(projectRoot, dir), path.join(repo, dir), { recursive: true });
+  await fs.rm(path.join(repo, "Agents/custom"), { recursive: true });
+  await fs.writeFile(path.join(repo, "Agents/hai-harness.mjs"), await fs.readFile(cli));
+  await fs.writeFile(path.join(repo, ".hai-harness.json"), JSON.stringify({ schemaVersion: 1, installedVersion: "0.2.4", channel: "stable", checkEnabled: false }));
+  await fs.writeFile(path.join(repo, ".gitignore"), ".hai-harness.json\ncache/\n");
+  await fs.mkdir(path.join(repo, ".hai"));
+  await fs.writeFile(path.join(repo, ".hai/AGENTS.md"), await fs.readFile(path.join(projectRoot, "scaffold/AGENTS.md")));
+  const own = "# Engram\n\nSend system and schema changes to Apollo.\nRun node Agents/hai-harness.mjs worktree create first.\n";
+  await fs.writeFile(path.join(repo, "AGENTS.md"), own);
+  await fs.appendFile(path.join(repo, "Agents/onboarding.md"), "- Apollo: system and schema architect.\n");
+  await fs.writeFile(path.join(repo, "Agents/apollo.md"), "# Apollo\n");
+  await fs.mkdir(path.join(repo, "Agents/skills/schema-check"));
+  await fs.writeFile(path.join(repo, "Agents/skills/schema-check/SKILL.md"), "---\nname: schema-check\ndescription: Check schemas.\n---\n");
+  await fs.writeFile(path.join(repo, "Agents/planning.md"), "Engram planning\n");
+  await fs.writeFile(path.join(repo, "Human/decisions.md"), "Engram decisions\n");
+  await fs.mkdir(path.join(repo, "Agents/cache"));
+  await fs.writeFile(path.join(repo, "Agents/cache/ignored.txt"), "ignored\n");
+  git(repo, "add", "-A");
+  git(repo, "commit", "-m", "Root-layout install");
+  assert.equal(harness(repo, "worktree", "create", "peer", "--target", repo).status, 0);
+  t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
+
+  assert.match(harness(repo, "doctor", "--target", repo).stdout, /old root layout[\s\S]*update --dry-run/);
+  assert.match(harness(repo, "init", "--target", repo).stderr, /old root layout/);
+
+  // The user runs the ordinary update; it performs the move.
+  const before = git(repo, "status", "--porcelain", "--ignored");
+  const preview = harness(repo, "update", "--dry-run", "--target", repo);
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.equal(git(repo, "status", "--porcelain", "--ignored"), before);
+  for (const expected of [
+    /Agents -> \.hai\/Agents/, /Human -> \.hai\/Human/, /\.hai-harness\.json -> \.hai\/\.hai-harness\.json/,
+    /Locally modified, kept[^\n]*: 1\n  - \.hai\/Agents\/onboarding\.md/,
+    /Retired[^\n]*: 1\n  - \.hai\/AGENTS\.md/,
+    /custom role[^\n]*: 1\n  - \.hai\/Agents\/apollo\.md/,
+    /Not shipped skills[^\n]*: 1\n  - \.hai\/Agents\/skills\/schema-check/,
+    /Still say "node Agents[^\n]*: 1\n  - AGENTS\.md/,
+    /Other open task lanes[^\n]*: 1\n  - task\/peer/,
+    /AGENTS\.md: HAI-Harness block added at the end/
+  ]) assert.match(preview.stdout, expected);
+
+  await fs.writeFile(path.join(repo, "dirty.txt"), "uncommitted\n");
+  assert.match(harness(repo, "update", "--target", repo).stderr, /needs a clean checkout/);
+  await fs.unlink(path.join(repo, "dirty.txt"));
+
+  const migrated = harness(repo, "update", "--target", repo);
+  assert.equal(migrated.status, 0, migrated.stderr);
+  assert.deepEqual((await fs.readdir(repo)).sort(), [".git", ".gitignore", ".hai", "AGENTS.md", "README.md"]);
+  assert.equal(await fs.readFile(path.join(repo, ".hai/Agents/planning.md"), "utf8"), "Engram planning\n");
+  assert.equal(await fs.readFile(path.join(repo, ".hai/Human/decisions.md"), "utf8"), "Engram decisions\n");
+  assert.match(await fs.readFile(path.join(repo, ".hai/Agents/onboarding.md"), "utf8"), /Apollo: system and schema architect/);
+  assert.equal(await fs.readFile(path.join(repo, ".hai/Agents/apollo.md"), "utf8"), "# Apollo\n");
+  assert.ok(await fs.stat(path.join(repo, ".hai/Agents/skills/schema-check/SKILL.md")));
+  assert.equal(await fs.readFile(path.join(repo, ".hai/Agents/cache/ignored.txt"), "utf8"), "ignored\n");
+  assert.equal(JSON.parse(await fs.readFile(path.join(repo, ".hai/.hai-harness.json"), "utf8")).checkEnabled, false);
+  assert.equal(await fs.stat(path.join(repo, ".hai/AGENTS.md")).catch(() => null), null);
+  const entry = await fs.readFile(path.join(repo, "AGENTS.md"), "utf8");
+  assert.ok(entry.startsWith(`${own}\n<!-- hai-harness:start -->`));
+  // Git sees the move as renames, so history follows.
+  assert.match(git(repo, "status", "--porcelain"), /^R {2}Agents\/planning\.md -> \.hai\/Agents\/planning\.md$/m);
+  git(repo, "add", "-A");
+  git(repo, "commit", "-m", "Migrate harness");
+  const again = harness(repo, "update", "--target", repo);
+  assert.equal(again.status, 0, again.stderr);
+  assert.match(again.stdout, /HAI-Harness updated/);
+  assert.equal(git(repo, "status", "--porcelain"), "");
+  assert.match(harness(repo, "migrate", "--target", repo).stdout, /nothing to migrate/);
+  const doctor = harness(repo, "doctor", "--target", repo).stdout;
+  assert.match(doctor, /\.hai\/Agents\/apollo\.md is not a harness file/);
+  assert.match(doctor, /\.hai\/Agents\/skills\/schema-check is not a shipped skill/);
+
+  // An unedited old whole-file entry becomes just the block.
+  const fresh = await makeGitFixture(t);
+  await fs.cp(path.join(projectRoot, "Agents"), path.join(fresh.repo, "Agents"), { recursive: true });
+  await fs.cp(path.join(projectRoot, "Human"), path.join(fresh.repo, "Human"), { recursive: true });
+  const shippedEntry = run("git", ["show", "v0.2.4:scaffold/AGENTS.md"], projectRoot);
+  if (shippedEntry.status === 0) {
+    await fs.writeFile(path.join(fresh.repo, "AGENTS.md"), shippedEntry.stdout);
+    git(fresh.repo, "add", "-A");
+    git(fresh.repo, "commit", "-m", "Root-layout install");
+    assert.equal(harness(fresh.repo, "update", "--target", fresh.repo).status, 0);
+    assert.match(await fs.readFile(path.join(fresh.repo, "AGENTS.md"), "utf8"), /^<!-- hai-harness:start -->\n[\s\S]*<!-- hai-harness:end -->\n$/);
+  }
+});
+
+test("doctor validates custom roles and skills, and traces custom role docs", async (t) => {
+  const { root, project, packet } = await makePacketFixture(t);
+  const roles = path.join(root, "Agents/custom/roles");
+  const skills = path.join(root, "Agents/custom/skills");
+  const role = (fields) => `---\n${Object.entries(fields).map(([key, value]) => `${key}: ${value}`).join("\n")}\n---\n\n# Role\n`;
+  await fs.writeFile(path.join(roles, "apollo.md"), role({ name: "Apollo", description: "Schema architect.", "route-when": "schema changes", writes: "code" }));
+  await fs.writeFile(path.join(roles, "hermes.md"), role({ name: "Hermes", description: "Messenger.", writes: "everything" }));
+  await fs.writeFile(path.join(roles, "claudia.md"), role({ name: "Claudia", description: "Impostor.", "route-when": "always", writes: "code" }));
+  await fs.writeFile(path.join(roles, "zeus.md"), role({ name: "Jupiter", description: "Mismatch.", "route-when": "x", writes: "none" }));
+  await fs.mkdir(path.join(skills, "release-notes"), { recursive: true });
+  await fs.writeFile(path.join(skills, "release-notes/SKILL.md"), "---\nname: release-notes\ndescription: Draft release notes.\n---\n");
+  await fs.mkdir(path.join(skills, "implement"));
+  await fs.writeFile(path.join(skills, "implement/SKILL.md"), "---\nname: implement\ndescription: Shadow.\n---\n");
+  await fs.mkdir(path.join(skills, "empty"));
+  const report = harness(project, "doctor", "--target", project).stdout;
+  assert.doesNotMatch(report, /apollo\.md/);
+  assert.doesNotMatch(report, /release-notes/);
+  assert.match(report, /hermes\.md is incomplete \(missing route-when; writes must be code, docs, none\)/);
+  assert.match(report, /claudia\.md uses a built-in role name; agents ignore it/);
+  assert.match(report, /zeus\.md is incomplete \(file name must be the lowercase role name \(jupiter\.md\)\)/);
+  assert.match(report, /custom\/skills\/implement uses a shipped skill name/);
+  assert.match(report, /custom\/skills\/empty is incomplete \(missing SKILL\.md\)/);
+  // Custom role docs are traced like built-in role docs.
+  assert.match(report, /no new entry: Agents\/custom\/roles/);
+  await appendTrail(packet, [trailEntry(1, "user", "process", "Agents/custom/roles Apollo, Hermes, Zeus")]);
+  assert.equal(acknowledge(root, "T1").status, 0);
+  assert.doesNotMatch(harness(project, "doctor", "--target", project).stdout, /no new entry/);
+  // A packet from before custom roles were traced stays valid until a trace adopts the path.
+  const file = path.join(packet, "packet.json");
+  const baseline = JSON.parse(await fs.readFile(file, "utf8"));
+  delete baseline.acknowledged.paths["Agents/custom/roles"];
+  baseline.acknowledged.digest = createHash("sha256").update(JSON.stringify(baseline.acknowledged.paths)).digest("hex");
+  await fs.writeFile(file, JSON.stringify(baseline));
+  assert.equal(harness(root, "human-sync", "status", "--target", root).status, 0);
+  assert.match(harness(project, "doctor", "--target", project).stdout, /no new entry: Agents\/custom\/roles/);
+});
+
+test("without a receipt a removed block stays removed, CRLF checkouts stay current, and a BOM keeps one block", async (t) => {
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-review-"));
+  t.after(() => fs.rm(project, { recursive: true, force: true }));
+  assert.equal(harness(project, "init", "--target", project).status, 0);
+  const entry = path.join(project, "AGENTS.md");
+  const receipt = path.join(project, ".hai/.hai-harness.json");
+  // A byte-order mark before the block is kept and does not hide the block.
+  const withBom = `\uFEFF${await fs.readFile(entry, "utf8")}`;
+  await fs.writeFile(entry, withBom);
+  assert.match(harness(project, "update", "--target", project).stdout, /block already current/);
+  assert.equal(harness(project, "init", "--target", project).status, 0);
+  assert.equal(await fs.readFile(entry, "utf8"), withBom);
+  // Core files checked out with CRLF line endings are the shipped version, not edits.
+  const onboarding = path.join(project, ".hai/Agents/onboarding.md");
+  const crlf = (await fs.readFile(onboarding, "utf8")).replaceAll("\n", "\r\n");
+  await fs.writeFile(onboarding, crlf);
+  // A fresh clone: receipts are often gitignored, and the project removed the block.
+  await fs.unlink(receipt);
+  await fs.writeFile(entry, "# Our rules\n");
+  const updated = harness(project, "update", "--target", project);
+  assert.equal(updated.status, 0, updated.stderr);
+  assert.doesNotMatch(updated.stdout, /Locally modified/);
+  assert.match(updated.stdout, /no HAI-Harness block, so it was left alone/);
+  assert.equal(await fs.readFile(entry, "utf8"), "# Our rules\n");
+  assert.equal(await fs.readFile(onboarding, "utf8"), crlf);
+  assert.doesNotMatch(harness(project, "doctor", "--target", project).stdout, /Core files edited/);
+});
+
+test("migrate refuses to expose ignored files and resumes a move that stopped partway", async (t) => {
+  const { repo } = await makeGitFixture(t);
+  for (const dir of ["Agents", "Human"]) await fs.cp(path.join(projectRoot, dir), path.join(repo, dir), { recursive: true });
+  await fs.rm(path.join(repo, "Agents/custom"), { recursive: true });
+  await fs.mkdir(path.join(repo, "Human/private"));
+  await fs.writeFile(path.join(repo, "Human/private/notes.md"), "private\n");
+  await fs.writeFile(path.join(repo, ".gitignore"), "/Human/private/\n");
+  git(repo, "add", "-A");
+  git(repo, "commit", "-m", "Root-layout install with private notes");
+  const preview = harness(repo, "update", "--dry-run", "--target", repo);
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.match(preview.stdout, /Gitignored now but not after the move[^\n]*: 1\n {2}- \.hai\/Human\/private\//);
+  const refused = harness(repo, "update", "--target", repo);
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /would not be after the move[\s\S]*\.hai\/Human\/private\//);
+  assert.ok(await fs.stat(path.join(repo, "Agents/onboarding.md")));
+  assert.equal(await fs.stat(path.join(repo, ".hai")).catch(() => null), null);
+
+  await fs.writeFile(path.join(repo, ".gitignore"), "/Human/private/\n/.hai/Human/private/\n");
+  git(repo, "commit", "-am", "Keep private notes ignored after the move");
+  // A move that stopped after Agents/ is not mistaken for a finished one.
+  await fs.mkdir(path.join(repo, ".hai"));
+  git(repo, "mv", "Agents", ".hai/Agents");
+  git(repo, "commit", "-m", "Interrupted move");
+  const stopped = harness(repo, "doctor", "--target", repo);
+  assert.notEqual(stopped.status, 0);
+  assert.match(stopped.stdout, /stopped partway/);
+  const resumed = harness(repo, "update", "--target", repo);
+  assert.equal(resumed.status, 0, resumed.stderr);
+  assert.match(resumed.stdout, /Moved: 1\n {2}- Human -> \.hai\/Human/);
+  assert.deepEqual((await fs.readdir(repo)).sort(), [".git", ".gitignore", ".hai", "AGENTS.md", "README.md"]);
+  assert.equal(await fs.readFile(path.join(repo, ".hai/Human/private/notes.md"), "utf8"), "private\n");
+  git(repo, "add", "-A");
+  assert.doesNotMatch(git(repo, "status", "--porcelain"), /private/);
 });
 
 function trailEntry(id, origin, area, change = `change ${id}`) {
   return `### T${id}\n- Date: 2026-09-30\n- Change: ${change}\n- Why: reason ${id}\n- Origin: ${origin}\n- Area: ${area}\n`;
 }
 
-async function makePacketFixture(t, scope = "") {
+// Installs into the project root, so the harness and its packet scope are .hai/.
+// `root` is the lane's harness folder; `project` is the lane itself.
+async function makePacketFixture(t) {
   const { repo } = await makeGitFixture(t);
-  const target = path.join(repo, scope);
-  await fs.mkdir(target, { recursive: true });
-  assert.equal(harness(target, "init", "--target", target).status, 0);
-  assert.equal(beacon(target, "--disable").status, 0);
+  assert.equal(harness(repo, "init", "--target", repo).status, 0);
+  assert.equal(beacon(path.join(repo, ".hai"), "--disable").status, 0);
   git(repo, "add", "-A");
   git(repo, "commit", "-m", "Install harness");
   assert.equal(harness(repo, "worktree", "create", "capture", "--target", repo).status, 0);
   const lane = `${repo}-worktrees/capture`;
   t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
-  const root = path.join(lane, scope);
+  const root = path.join(lane, ".hai");
   assert.equal(harness(root, "human-sync", "init", "--target", root).status, 0);
   const status = harness(root, "human-sync", "status", "--target", root);
   assert.equal(status.status, 0, status.stderr);
-  return { repo, lane, root, packet: JSON.parse(status.stdout).packet };
+  return { repo, lane, root, project: lane, packet: JSON.parse(status.stdout).packet };
 }
 
 async function appendTrail(packet, entries) {
@@ -610,11 +907,11 @@ test("human-sync rejects physical packet file and namespace redirects", async (t
 });
 
 test("human-sync init and update omit provisional Agents storage; explicit migration verifies and logs supersession", async (t) => {
-  const { root, packet } = await makePacketFixture(t);
+  const { root, project, packet } = await makePacketFixture(t);
   assert.equal(await fs.stat(path.join(root, "Agents/decision-trail.md")).catch(() => null), null);
   await appendTrail(packet, [trailEntry(1, "user", "product")]);
   const before = await fs.readFile(path.join(packet, "decision-trail.md"), "utf8");
-  assert.equal(harness(root, "update", "--target", root).status, 0);
+  assert.equal(harness(project, "update", "--target", project).status, 0);
   assert.equal(await fs.readFile(path.join(packet, "decision-trail.md"), "utf8"), before);
   assert.equal(await fs.stat(path.join(root, "Agents/human-inbox.md")).catch(() => null), null);
   // Simulate a pre-packet recognized lane without discarding populated files.
@@ -623,7 +920,7 @@ test("human-sync init and update omit provisional Agents storage; explicit migra
   const inbox = "Captured through: T1\n\n## Drafts\n### draft\n- Status: deferred\n";
   await fs.writeFile(path.join(root, "Agents/decision-trail.md"), trail);
   await fs.writeFile(path.join(root, "Agents/human-inbox.md"), inbox);
-  assert.equal(harness(root, "update", "--target", root).status, 0);
+  assert.equal(harness(project, "update", "--target", project).status, 0);
   assert.equal(await fs.readFile(path.join(root, "Agents/decision-trail.md"), "utf8"), trail);
   assert.match(harness(root, "human-sync", "init", "--target", root).stderr, /Legacy Agents storage/);
   const migrated = harness(root, "human-sync", "init", "--migrate", "--target", root);
@@ -638,7 +935,7 @@ test("human-sync init and update omit provisional Agents storage; explicit migra
 });
 
 test("human-sync migration refuses redirected legacy parents without adopting or retiring external state", async (t) => {
-  const { repo, lane, root, packet } = await makePacketFixture(t, ".hai");
+  const { repo, lane, root, packet } = await makePacketFixture(t);
   await fs.rm(packet, { recursive: true });
   const agents = path.join(root, "Agents");
   const saved = `${agents}.saved`;
@@ -848,7 +1145,7 @@ test("cleanup fails closed on missing or duplicate packet sections before draft 
 });
 
 test("human-sync resolves .hai traced scope, physical common metadata and retained checkpoints through cleanup", async (t) => {
-  const { repo, lane, root, packet } = await makePacketFixture(t, ".hai");
+  const { repo, lane, root, packet } = await makePacketFixture(t);
   const common = await fs.realpath(git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"));
   assert.ok(packet.startsWith(`${common}${path.sep}hai-harness${path.sep}`));
   await fs.appendFile(path.join(root, "Agents/design.md"), "\nToken.\n");
@@ -876,7 +1173,7 @@ async function makeInstalledProject(t) {
   const fixture = await makeGitFixture(t);
   const { repo } = fixture;
   assert.equal(harness(repo, "init", "--target", repo).status, 0);
-  assert.equal(beacon(repo, "--disable").status, 0);
+  assert.equal(beacon(path.join(repo, ".hai"), "--disable").status, 0);
   git(repo, "add", "-A");
   git(repo, "commit", "-m", "Install harness");
   return fixture;
@@ -886,7 +1183,7 @@ test("the project copy of the CLI runs lanes and human-sync with no PATH entry a
   const { repo } = await makeInstalledProject(t);
   const source = await fs.readFile(cli, "utf8");
   assert.notEqual(run("sh", ["-c", "command -v hai-harness"], repo, noHarnessEnv).status, 0);
-  assert.equal(await fs.readFile(path.join(repo, "Agents/hai-harness.mjs"), "utf8"), source);
+  assert.equal(await fs.readFile(path.join(repo, ".hai/Agents/hai-harness.mjs"), "utf8"), source);
   // The project holds no packaged templates, as in a real installation.
   assert.equal(await fs.stat(path.join(repo, "scaffold")).catch(() => null), null);
 
@@ -894,7 +1191,7 @@ test("the project copy of the CLI runs lanes and human-sync with no PATH entry a
   assert.equal(created.status, 0, created.stderr);
   const lane = `${repo}-worktrees/field`;
   // The lane carries its own tracked copy, so the same command works from inside it.
-  assert.equal(await fs.readFile(path.join(lane, "Agents/hai-harness.mjs"), "utf8"), source);
+  assert.equal(await fs.readFile(path.join(lane, ".hai/Agents/hai-harness.mjs"), "utf8"), source);
   const status = projectCli(lane, lane, "worktree", "status");
   assert.equal(status.status, 0, status.stderr);
   assert.match(status.stdout, /Branch:\s+task\/field/);
@@ -910,12 +1207,12 @@ test("the project copy of the CLI runs lanes and human-sync with no PATH entry a
   assert.match(doctor.stdout, /looks installed/);
 
   // init and update need the package's templates: the project copy points at npx instead of copying from the wrong root.
-  const receipt = await fs.readFile(path.join(lane, ".hai-harness.json"), "utf8");
+  const receipt = await fs.readFile(path.join(lane, ".hai/.hai-harness.json"), "utf8");
   const refusedInit = projectCli(lane, lane, "init", "--target", "/tmp/a project");
   assert.notEqual(refusedInit.status, 0);
   assert.match(refusedInit.stderr, /npx github:ClaudiusMa\/HAI-Harness init --target "\/tmp\/a project"/);
-  assert.equal(await fs.readFile(path.join(lane, ".hai-harness.json"), "utf8"), receipt);
-  assert.match(projectCli(lane, lane, "help").stdout, /node Agents\/hai-harness\.mjs worktree approve/);
+  assert.equal(await fs.readFile(path.join(lane, ".hai/.hai-harness.json"), "utf8"), receipt);
+  assert.match(projectCli(lane, lane, "help").stdout, /node \.hai\/Agents\/hai-harness\.mjs worktree approve/);
 
   // Approve from the lane's own copy; the copy is deleted with the lane while it runs.
   await fs.writeFile(path.join(lane, "result.txt"), "approved\n");
@@ -930,7 +1227,7 @@ test("the project copy of the CLI runs lanes and human-sync with no PATH entry a
   await fs.writeFile(path.join(second, "second.txt"), "approved\n");
   const kept = projectCli(second, second, "worktree", "approve", "--keep-worktree", "--approved", "Second fixture");
   assert.equal(kept.status, 0, kept.stderr);
-  assert.match(kept.stdout, new RegExp(`node Agents/hai-harness\\.mjs worktree cleanup task/second --target ${repo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  assert.match(kept.stdout, new RegExp(`node \\.hai/Agents/hai-harness\\.mjs worktree cleanup task/second --target ${repo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
   const cleaned = projectCli(repo, repo, "worktree", "cleanup", "task/second", "--target", repo);
   assert.equal(cleaned.status, 0, cleaned.stdout + cleaned.stderr);
   assert.equal(await fs.stat(second).catch(() => null), null);
@@ -947,7 +1244,7 @@ test("a lane made by hand is refused with the supported recovery and never gains
   const approve = projectCli(lane, lane, "worktree", "approve", "--approved", "Hand-made");
   assert.notEqual(approve.status, 0);
   assert.match(approve.stderr, /task\/by-hand was not created by the harness/);
-  assert.match(approve.stderr, /"node Agents\/hai-harness\.mjs worktree create <new-slug>"[\s\S]*git merge task\/by-hand/);
+  assert.match(approve.stderr, /"node \.hai\/Agents\/hai-harness\.mjs worktree create <new-slug>"[\s\S]*git merge task\/by-hand/);
   assert.doesNotMatch(approve.stderr, /"hai-harness /);
   assert.doesNotMatch(approve.stderr, /git config|haiBaseCommit|haiIntegrationBranch/);
   const cleanup = projectCli(repo, repo, "worktree", "cleanup", "task/by-hand", "--target", repo);
@@ -1214,7 +1511,7 @@ test("kept worktree admin and task-packet directory copies stop lane commands wi
   assert.match(adminBlocked.stderr, /Stopped: a cloud-sync conflict copy in Git metadata is not provably redundant/);
   assert.ok(adminBlocked.stderr.includes(`${admin} 2`));
   assert.match(adminBlocked.stderr, /Git lists a copy of a worktree admin directory as an extra worktree/);
-  assert.match(adminBlocked.stderr, /node Agents\/hai-harness\.mjs worktree sweep --quarantine <path>/);
+  assert.match(adminBlocked.stderr, /node \.hai\/Agents\/hai-harness\.mjs worktree sweep --quarantine <path>/);
   assert.equal(await fs.stat(`${repo}-worktrees/beta`).catch(() => null), null);
   assert.equal(projectCli(repo, repo, "worktree", "sweep", "--quarantine", `${admin} 2`).status, 0);
   assert.equal(await fs.stat(`${admin} 2`).catch(() => null), null);
@@ -1282,6 +1579,7 @@ test("init and update run only from the identified package; every other location
   };
   const target = path.join(root, "target");
   await fs.mkdir(target);
+  assert.equal(harness(target, "init", "--target", target).status, 0);
   const update = (script, ...args) => run(process.execPath, [script, "update", "--dry-run", ...args], root, noHarnessEnv);
 
   // bin/hai-harness.mjs beside a package.json named hai-harness is the package
@@ -1289,7 +1587,7 @@ test("init and update run only from the identified package; every other location
   assert.equal(real.status, 0, real.stderr);
   assert.match(real.stdout, /Dry run complete/);
   // the same file under another package name, or under Agents/, is an installed copy
-  for (const [script, name] of [["other/bin/hai-harness.mjs", "someone-else"], ["agents/Agents/hai-harness.mjs", "hai-harness"]]) {
+  for (const [script, name] of [["other/bin/hai-harness.mjs", "someone-else"], ["agents/Agents/hai-harness.mjs", "hai-harness"], ["plugin/.hai/Agents/hai-harness.mjs", "hai-harness"]]) {
     const refused = update(await place(script, name), "--target", target);
     assert.notEqual(refused.status, 0, script);
     assert.match(refused.stderr, /npx github:ClaudiusMa\/HAI-Harness update --dry-run --target/);
@@ -1303,12 +1601,12 @@ test("init and update run only from the identified package; every other location
   await fs.mkdir(path.join(project, "scaffold"));
   await fs.writeFile(path.join(project, "scaffold/AGENTS.md"), "the project's own template\n");
   await fs.writeFile(path.join(project, "AGENTS.md"), "the project's own entry point\n");
-  const receipt = await fs.readFile(path.join(project, ".hai-harness.json"), "utf8");
+  const receipt = await fs.readFile(path.join(project, ".hai/.hai-harness.json"), "utf8");
   const live = projectCli(project, project, "update");
   assert.notEqual(live.status, 0);
   assert.match(live.stderr, /npx github:ClaudiusMa\/HAI-Harness update/);
   assert.equal(await fs.readFile(path.join(project, "AGENTS.md"), "utf8"), "the project's own entry point\n");
-  assert.equal(await fs.readFile(path.join(project, ".hai-harness.json"), "utf8"), receipt);
+  assert.equal(await fs.readFile(path.join(project, ".hai/.hai-harness.json"), "utf8"), receipt);
 });
 
 test("--quarantine resolves relative paths against --target and refuses files owned by a nested repository", async (t) => {
@@ -1422,14 +1720,16 @@ test("update beacon is weekly, private, resilient, and notifies once per release
   assert.equal(nextRelease.status, 0, nextRelease.stderr);
   assert.match(nextRelease.stdout, /HAI-Harness 0\.4\.0 is available/);
 
-  const updatedReceipt = JSON.parse(await fs.readFile(path.join(target, ".hai-harness.json"), "utf8"));
+  const updatedReceipt = JSON.parse(await fs.readFile(path.join(target, ".hai/.hai-harness.json"), "utf8"));
   updatedReceipt.installedVersion = "0.4.0";
-  await fs.writeFile(path.join(target, ".hai-harness.json"), `${JSON.stringify(updatedReceipt, null, 2)}\n`);
+  await fs.writeFile(path.join(target, ".hai/.hai-harness.json"), `${JSON.stringify(updatedReceipt, null, 2)}\n`);
   const updatedStatus = beacon(target, "--status", "--now", "2026-08-20T00:00:00.000Z", "--manifest", malformedManifest);
   assert.equal(updatedStatus.status, 0, updatedStatus.stderr);
   assert.match(updatedStatus.stdout, /Update status: current \(0\.4\.0\)/);
 
   assert.equal(beacon(target, "--disable").status, 0);
+  // Toggling checks rewrites the receipt but keeps its core-file hashes.
+  assert.deepEqual(JSON.parse(await fs.readFile(path.join(target, ".hai/.hai-harness.json"), "utf8")).files, updatedReceipt.files);
   const beforeDisabledCheck = JSON.parse(await fs.readFile(cachePath, "utf8")).lastCheckedAt;
   const optedOut = beacon(target, "--force", "--now", "2026-09-01T00:00:00.000Z", "--manifest", availableManifest);
   assert.equal(optedOut.status, 0, optedOut.stderr);
@@ -1491,14 +1791,23 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
   }
   const target = path.join(root, ".hai");
   const meta = (...args) => run("bash", [path.join(root, "hai-meta"), ...args], os.tmpdir());
-  assert.equal(meta("bootstrap").status, 0);
+  // The product's own Agents/ at the repository root is source, not a root-layout install.
+  const repositoryNote = await fs.readFile(path.join(root, "AGENTS.md"), "utf8");
+  const bootstrapped = meta("bootstrap");
+  assert.equal(bootstrapped.status, 0, bootstrapped.stderr);
+  assert.ok(await fs.stat(path.join(target, "Agents/onboarding.md")));
+  const entry = await fs.readFile(path.join(root, "AGENTS.md"), "utf8");
+  assert.ok(entry.startsWith(repositoryNote), "the repository note stays as written");
+  assert.match(entry, /<!-- hai-harness:start -->[\s\S]*node \.hai\/Agents\/hai-harness\.mjs[\s\S]*<!-- hai-harness:end -->\n$/);
+  assert.equal(await fs.stat(path.join(target, "AGENTS.md")).catch(() => null), null);
   const records = [
     ".hai/Agents/planning.md", ".hai/Agents/project_context.md", ".hai/Agents/design.md",
     ".hai/Agents/tasks/augustus.md", ".hai/Agents/tasks/julius.md",
     ".hai/Agents/handoffs/project.md", ".hai/Agents/lessons/INDEX.md",
     ".hai/Agents/lessons/project.md", ".hai/Agents/_archive/project.md",
     ".hai/Human/brief.md", ".hai/Human/decisions.md", ".hai/Human/open_questions.md",
-    ".hai/Human/reflections.md", ".hai/README.md", "AGENTS.md",
+    ".hai/Human/reflections.md", ".hai/README.md",
+    ".hai/Agents/custom/roles/apollo.md", ".hai/Agents/custom/skills/local-only/SKILL.md",
     ".hai/Agents/skills/local-only/SKILL.md", ".hai/Agents/skills/decision-logger/local-note.md",
     ".hai/Agents/skills/code-review/project-note.md", ".hai/Agents/skills/implement/project-note.md"
   ];
@@ -1516,7 +1825,7 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
     "Agents/skills/code-review/SKILL.md",
     "Agents/skills/implement/SKILL.md"
   ];
-  for (const stable of stableSkills) await fs.writeFile(path.join(target, stable), "stale method\n");
+  for (const stable of stableSkills) await fs.writeFile(path.join(target, stable), "edited here\n");
   for (const command of ["bootstrap", "sync", "sync"]) {
     const result = meta(command);
     assert.equal(result.status, 0, result.stderr);
@@ -1524,6 +1833,21 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
       assert.equal(await fs.readFile(path.join(root, record), "utf8"), `Project record: ${record}\n`, record);
     }
   }
+  // A block the project removed stays removed on sync.
+  await fs.writeFile(path.join(root, "AGENTS.md"), "Project record: AGENTS.md\n");
+  // Edited core files are kept and reported, never overwritten.
+  const reported = meta("sync");
+  assert.equal(await fs.readFile(path.join(root, "AGENTS.md"), "utf8"), "Project record: AGENTS.md\n");
+  for (const stable of stableSkills) {
+    assert.equal(await fs.readFile(path.join(target, stable), "utf8"), "edited here\n");
+    assert.match(reported.stdout, new RegExp(`Locally modified[\\s\\S]*\\.hai/${stable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  }
+  // A version the receipt recorded as installed is the harness's own, so it refreshes.
+  const receiptPath = path.join(target, ".hai-harness.json");
+  const receipt = JSON.parse(await fs.readFile(receiptPath, "utf8"));
+  for (const stable of stableSkills) receipt.files[stable] = createHash("sha256").update("edited here\n").digest("hex");
+  await fs.writeFile(receiptPath, JSON.stringify(receipt));
+  assert.equal(meta("sync").status, 0);
   for (const stable of stableSkills) {
     assert.equal(await fs.readFile(path.join(target, stable), "utf8"), await fs.readFile(path.join(root, stable), "utf8"));
   }
@@ -1537,19 +1861,14 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
   const ownCopy = run(process.execPath, [path.join(target, "Agents/hai-harness.mjs"), "update"], root, noHarnessEnv);
   assert.notEqual(ownCopy.status, 0);
   assert.match(ownCopy.stderr, /npx github:ClaudiusMa\/HAI-Harness update/);
-  // Doctor delegates successfully without rewriting canonical redirects.
-  const receiptPath = path.join(target, ".hai-harness.json");
-  const receipt = JSON.parse(await fs.readFile(receiptPath, "utf8"));
-  receipt.checkEnabled = false;
-  await fs.writeFile(receiptPath, JSON.stringify(receipt));
+  // Doctor reports the removed block but rewrites nothing.
+  const disabled = JSON.parse(await fs.readFile(receiptPath, "utf8"));
+  disabled.checkEnabled = false;
+  await fs.writeFile(receiptPath, JSON.stringify(disabled));
   const checked = meta("doctor");
-  assert.equal(checked.status, 0, checked.stderr);
   assert.match(checked.stdout, /Update status: disabled/);
+  assert.match(checked.stdout, /AGENTS\.md has no HAI-Harness block/);
   assert.equal(await fs.readFile(path.join(root, "AGENTS.md"), "utf8"), "Project record: AGENTS.md\n");
-  assert.equal(
-    await fs.readFile(path.join(target, "AGENTS.md"), "utf8"),
-    await fs.readFile(path.join(root, "scaffold/AGENTS.md"), "utf8")
-  );
   assert.equal(await fs.stat(path.join(root, "AGENTS.override.md")).catch(() => null), null);
   assert.equal(await fs.stat(path.join(root, "CLAUDE.md")).catch(() => null), null);
 });
@@ -1624,6 +1943,19 @@ test("release planner publishes product changes and skips non-release pushes", a
     "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.2"
   );
   assert.match(releaseAfterBump.summary, /Revise agent onboarding/);
+
+  // A change that needs more than a patch names its minimum version; the floor is used once.
+  git(repo, "add", "package.json", "release.json");
+  git(repo, "commit", "-m", "release: v0.2.2");
+  git(repo, "tag", "v0.2.2");
+  await fs.writeFile(path.join(repo, "release.json"), JSON.stringify({ ...releaseAfterBump, minimumNextVersion: "0.3.0" }));
+  await fs.writeFile(path.join(repo, "Agents/onboarding.md"), "plugin layout\n");
+  git(repo, "add", "release.json", "Agents/onboarding.md");
+  git(repo, "commit", "-m", "Move the harness into .hai");
+  const minorBump = await planRelease({ repoRoot: repo, apply: true });
+  assert.equal(minorBump.version, "0.3.0");
+  assert.equal(minorBump.packageVersion, "0.3.0");
+  assert.equal(JSON.parse(await fs.readFile(path.join(repo, "release.json"), "utf8")).minimumNextVersion, undefined);
 });
 
 test("release planner sees product files in a merge tip when no tag exists", async (t) => {

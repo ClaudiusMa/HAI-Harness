@@ -1,19 +1,14 @@
 # HAI-Harness repository instructions
 
 This repository is the HAI-Harness product source. The reusable installation
-template lives at [`scaffold/AGENTS.md`](scaffold/AGENTS.md); `Agents/`, `Human/`,
-and the installer are also distributable product source. They are not this
-repository's live operating context.
+templates live at the repository root: `Agents/`, `Human/`, and
+[`scaffold/AGENTS.md`](scaffold/AGENTS.md) (the source of the managed block below),
+plus the installer in `bin/`. They are not this repository's live operating context.
 
-For work on HAI-Harness itself, start with the version-controlled outer harness
-at [`.hai/AGENTS.md`](.hai/AGENTS.md), then follow
+This repository's own harness lives in `.hai/`, installed like any project's. For
+work on HAI-Harness itself, follow the HAI-Harness block below; it routes you to
 `.hai/Agents/onboarding.md`, `.hai/Agents/project_context.md`, and the role/task
 routing defined there.
-
-In this repository, run `create` and `cleanup` from the primary checkout and
-`approve` from the task lane, as `node bin/hai-harness.mjs …` (installed-project
-docs say `node Agents/hai-harness.mjs`; this repository has no
-`Agents/hai-harness.mjs`).
 
 Plan and coordinate in `.hai/`. Modify distributable product source only when
 the outer task contract assigns that scope.
@@ -21,3 +16,32 @@ the outer task contract assigns that scope.
 Every inner scaffold change is incomplete until `./hai-meta sync` runs and the
 outer planning, task, handoff, and confirmed-decision state is updated in the
 same iteration. Keep all live project state out of the inner templates.
+
+<!-- hai-harness:start -->
+<!-- Managed by HAI-Harness: update rewrites everything between these markers. Keep your own instructions outside them. -->
+
+## HAI-Harness
+
+This project uses [HAI-Harness](https://github.com/ClaudiusMa/HAI-Harness), a repo-as-truth collaboration layer for humans and AI agents. Its files live in `.hai/`; `.hai/Agents/` is your scope.
+
+### Start here
+
+Do these in order, before anything else.
+
+1. **Update check.** Run `node .hai/Agents/check-for-update.mjs` from the project root. It is weekly, silent unless a newer release exists, and never applies an update; continue if it cannot run.
+2. **Role.** If the user's message or your task contract addresses you as, or assigns you, Claudia, Momus, Augustus, Julius, Athena, Hephaestus, or a custom role with a file at `.hai/Agents/custom/roles/<name>.md`, that is your role; misspellings count, and a mere mention ("ask Augustus to fix X") assigns nothing. Otherwise you are Claudia, even for a plain coding request; do not ask the user to pick. Custom roles never replace built-ins and follow every rule here; on conflict these rules win, and you tell the user. Read [`.hai/Agents/onboarding.md`](.hai/Agents/onboarding.md) and your role's read path before any other action (no code search, no edits), and again after a pause or compaction; a new message in the same session continues, so do not re-read.
+3. **Lane before any write.** Check the primary checkout is clean (`git status --short`; if not, stop and have the user review and commit), then run `node .hai/Agents/hai-harness.mjs worktree create <task-slug>` from the primary checkout and work only in that lane. Workers and successors use the lane their contract or handoff names. If the CLI is missing or fails, stop and tell the user; never use `git worktree add` or hand-written `hai*` git config.
+
+### Always
+
+- Claudia leads: she plans, then builds in the task lane herself by default, with one writer per lane. She spawns or reuses a worker only on a delegation trigger in onboarding (you ask, heavy prior discussion, wide reading, risk review, parallel pieces, an unclear bug, unresolved design, routine bulk work, a custom role whose `route-when` matches), at the tier and effort that task needs, without asking, because this block is the owner's standing request for that.
+- `.hai/Human/` is not read unless the user asks, and changes only through `human-scribe` with the user's approval.
+- Read and match `.hai/Agents/design.md` before any UI work (building, designing or reviewing).
+- Integrate only through `node .hai/Agents/hai-harness.mjs worktree approve --approved "<message>"` from the task lane: no hand merge, no `--no-verify`, and never reset, stash, clean or copy dirty files to fake a clean baseline, a dirty primary included.
+- Push, PR, deploy and publish each need explicit approval.
+- The latest confirmed human decision wins; flag conflicts.
+- High-cost actions need a user check-in.
+- Never delete `<name> <N>` sync copies by hand; run `node .hai/Agents/hai-harness.mjs worktree sweep`.
+
+Everything else is in [`.hai/Agents/onboarding.md`](.hai/Agents/onboarding.md).
+<!-- hai-harness:end -->

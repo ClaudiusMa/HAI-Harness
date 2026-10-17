@@ -3,5 +3,6 @@
   "channel": "stable",
   "version": "0.2.9",
   "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.2.9",
-  "summary": "HAI-Harness 0.2.9: Merge task/field-reliability: Field reliability: in-project CLI, lean AGENTS.md startup gate, conflict-copy sweep; Merge branch 'main' into task/field-reliability; Restore rules lost in the AGENTS.md shortening and close out field reliability; Lean AGENTS.md startup gate and code-quality pass; Merge main into task/field-reliability (+1 more)"
+  "summary": "HAI-Harness 0.2.9: Merge task/field-reliability: Field reliability: in-project CLI, lean AGENTS.md startup gate, conflict-copy sweep; Merge branch 'main' into task/field-reliability; Restore rules lost in the AGENTS.md shortening and close out field reliability; Lean AGENTS.md startup gate and code-quality pass; Merge main into task/field-reliability (+1 more)",
+  "minimumNextVersion": "0.3.0"
 }

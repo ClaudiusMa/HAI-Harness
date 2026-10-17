@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Use the ordinary local-source installer for this repository's .hai instance.
-# Project records and root redirects are maintained in Git, never generated here.
+# Use the ordinary local-source installer for this repository's own install.
+# The harness lives in .hai/ like any project's; the repository note in the root
+# AGENTS.md is maintained in Git, and only the HAI-Harness block there is managed.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -11,11 +12,12 @@ usage() {
 Usage: ./hai-meta <bootstrap|sync|doctor|help>
 
   bootstrap  Install missing generic harness files into .hai/ (ordinary init).
-  sync       Refresh stable scaffold and shipped skills (ordinary update).
+  sync       Refresh core methods, shipped skills and the root AGENTS.md block (ordinary update).
   doctor     Check the .hai/ installation (ordinary doctor).
 
-Uses this checkout's bin/hai-harness.mjs with --target .hai/.
-Project records and root redirects are checked-in source, not generated seeds.
+Uses this checkout's bin/hai-harness.mjs with --target at the repository root,
+so the harness lands in .hai/ exactly as in any other project.
+Project records and the root AGENTS.md note are checked-in source, not generated seeds.
 Bootstrap cannot reconstruct lost project history; recover that from Git.
 No options are accepted, including --force. Use the CLI directly for dry runs.
 USAGE
@@ -35,5 +37,4 @@ esac
 
 [ -f "$CLI" ] || { echo "hai-meta: cannot find installer at $CLI" >&2; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "hai-meta: node is required" >&2; exit 1; }
-[ "$command" != init ] || mkdir -p "$ROOT/.hai"
-exec node "$CLI" "$command" --target "$ROOT/.hai"
+exec node "$CLI" "$command" --target "$ROOT"

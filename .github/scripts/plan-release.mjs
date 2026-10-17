@@ -51,6 +51,21 @@ export function bumpPatch(version) {
 }
 
 /**
+ * @param {string} left
+ * @param {string} right
+ * @returns {number} positive when left is the higher version
+ */
+export function compareVersions(left, right) {
+  const parse = (value) => {
+    const match = String(value).trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+    if (!match) throw new Error(`Invalid semantic version: ${value}`);
+    return match.slice(1).map(Number);
+  };
+  const [a, b] = [parse(left), parse(right)];
+  return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+}
+
+/**
  * @param {string} subject
  * @returns {boolean}
  */
@@ -142,11 +157,15 @@ export async function planRelease(options) {
     };
   }
 
-  const version = lastTag ? bumpPatch(lastTag.version) : FIRST_RELEASE_VERSION;
   const packagePath = path.join(repoRoot, "package.json");
   const releasePath = path.join(repoRoot, "release.json");
   const packageJson = JSON.parse(await readFile(packagePath));
   const releaseJson = JSON.parse(await readFile(releasePath));
+  // A change that needs more than a patch (a layout move, say) names the
+  // version it must ship as in release.json's minimumNextVersion.
+  const patched = lastTag ? bumpPatch(lastTag.version) : FIRST_RELEASE_VERSION;
+  const floor = releaseJson.minimumNextVersion;
+  const version = floor && compareVersions(floor, patched) > 0 ? floor : patched;
   if (packageJson.version === version) {
     return {
       publish: false,
@@ -167,6 +186,7 @@ export async function planRelease(options) {
     releaseNotesUrl,
     summary
   };
+  delete nextRelease.minimumNextVersion;
 
   if (options.apply) {
     await writeFile(packagePath, `${JSON.stringify(nextPackage, null, 2)}\n`);

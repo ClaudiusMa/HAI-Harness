@@ -8,7 +8,7 @@ how decisions led to the current implementation.
 | --- | --- | --- |
 | Current direction and boundaries | [Project context](.hai/Agents/project_context.md) and [product brief](.hai/Human/brief.md) | Project owner; agents maintain shared context within their assignment |
 | Confirmed decisions | [Decision log](.hai/Human/decisions.md) | Drafted by agents through human-scribe; each entry approved by the project owner |
-| Why agent docs changed | Registered task packet (`human-sync status --target .hai`); [method](Agents/skills/human-scribe/SKILL.md) | Claudia, Athena, and Hephaestus append entries outside product files and Agents; drafts await the owner's approval |
+| Why agent docs changed | Registered task packet (`human-sync status --target .`); [method](Agents/skills/human-scribe/SKILL.md) | Claudia, Athena, and Hephaestus append entries outside product files and Agents; drafts await the owner's approval |
 | Active work and next steps | [Planning](.hai/Agents/planning.md) and [worker assignments](.hai/Agents/tasks/) | Claudia |
 | Unresolved product questions | [Current unresolved research/prototype scope](.hai/Agents/project_context.md#current-discovery-direction--2026-09-09), [brief](.hai/Human/brief.md), and [open-questions workspace](.hai/Human/open_questions.md) | Human workspace owners |
 | Completed work and verification | [Handoffs](.hai/Agents/handoffs/) and [archived tasks](.hai/Agents/_archive/tasks/) | Claudia, delegated workers and reviewers |
@@ -61,19 +61,24 @@ follow the current plan and preserve any ongoing lanes.
 
 | Helper | Direct equivalent from the repository root |
 | --- | --- |
-| `./hai-meta bootstrap` | `node bin/hai-harness.mjs init --target .hai` |
-| `./hai-meta sync` | `node bin/hai-harness.mjs update --target .hai` |
-| `./hai-meta doctor` | `node bin/hai-harness.mjs doctor --target .hai` |
+| `./hai-meta bootstrap` | `node bin/hai-harness.mjs init --target .` |
+| `./hai-meta sync` | `node bin/hai-harness.mjs update --target .` |
+| `./hai-meta doctor` | `node bin/hai-harness.mjs doctor --target .` |
 
-Bootstrap first creates `.hai/` if absent; for the direct `init` equivalent, run
-`mkdir -p .hai` first. It installs missing generic files and cannot reconstruct project history.
-Recover missing project records or root redirects from Git. The helper has no
-embedded project seeds, extra skill-copy step, or destructive flags. For a preview,
-use `node bin/hai-harness.mjs update --target .hai --dry-run`.
+The repository root is the target, exactly as in any other project: the harness lives
+in `.hai/`, and the root `AGENTS.md` keeps its repository note while the updater
+manages only the HAI-Harness block at its end. The product's own root `Agents/` is
+source, never mistaken for an old root-layout install. Bootstrap installs missing
+generic files and cannot reconstruct project history; recover missing project records
+or the repository note from Git. The helper has no embedded project seeds, extra
+skill-copy step, or destructive flags. For a preview, use
+`node bin/hai-harness.mjs update --target . --dry-run`.
 
-The ordinary updater installs `scaffold/AGENTS.md` as `.hai/AGENTS.md` and refreshes
-shipped stable methods and skills while preserving
-populated planning, context, design, queues, handoff entries, lesson state, archive
-entries, Human records, and additional local skills. The root `AGENTS.md` redirect and
-`.hai/README.md` are maintained directly in Git. Development context is excluded from the package;
+The ordinary updater refreshes the block and shipped core methods and skills while
+preserving populated planning, context, design, queues, handoff entries, lesson state,
+archive entries, Human records, custom roles and skills, and any core file edited in
+`.hai/` (reported as "Locally modified, kept"). When you change a core file in the product
+source, run `node scripts/shipped-hashes.mjs` before syncing so installs, including this
+one, recognize the new version; the focused tests check this. The repository note in
+`AGENTS.md` and `.hai/README.md` are maintained directly in Git. Development context is excluded from the package;
 keep machine-local settings, caches, and installation receipts ignored.
