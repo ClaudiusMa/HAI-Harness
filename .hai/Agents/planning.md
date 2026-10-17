@@ -15,7 +15,8 @@ Remote acts approved: 2026-10-05 — push `main` so the release workflow opens t
 - User direction (2026-10-17): with no role named, a project with its own workflow (Engram) must not default to Claudia. "ideally project picks, but ... if theres a better way to set this up one time never worry then we use project pick, if not, only mention claudia will route to hai". HAI safety rules apply only while a HAI role is active.
 - Conflict applied: supersedes "an unnamed message is always Claudia" (2026-10-08 direction, 2026-10-17 decision) for projects whose default is not Claudia.
 - Design: the default lives in the block's start marker (`default=claudia|own|<custom role>`), set once, tracked with `AGENTS.md`, no extra reads. First install picks `own` when the project already had `AGENTS.md` text, else `claudia`; an old marker means Claudia. `--default-role` changes it; `doctor` shows it. The `own` block makes the start steps and rules conditional on a named HAI role.
-- Verification: 43/43 focused tests; real v0.2.4 Engram install upgrades to `default=own`; this repository stays `default=claudia`.
+- 2026-10-17 correction (user: "a project with no agents.md should get asked first if they want to default on claudia"): `init` on a project with no `AGENTS.md` asks the person at the terminal; without a terminal it stops, writes nothing, and tells the agent to ask the user and pass `--default-role claudia|own`. Projects with their own `AGENTS.md` still default to `own`.
+- Verification: 44/44 focused tests, including the prompt through a real pseudo-terminal; real v0.2.4 Engram install upgrades to `default=own`; this repository stays `default=claudia`.
 
 ## Current iteration — plugin layout, 2026-10-08 (rebased 2026-10-16)
 

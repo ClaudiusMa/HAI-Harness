@@ -8,6 +8,7 @@ import process from "node:process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import readline from "node:readline/promises";
 
 const runFile = promisify(execFile);
 const scriptPath = fileURLToPath(import.meta.url);
@@ -387,6 +388,7 @@ async function init(options) {
   const layout = await layoutOf(options.target);
   if (layout.kind === "legacy" || layout.kind === "partial") throw new Error(legacyLayoutMessage(options.target, layout.kind));
   const harness = layout.harness;
+  await chooseDefaultRole(options);
   const receipt = await readReceipt(harness);
   const install = { ...options, base: options.target };
   const results = { created: [], overwritten: [], skipped: [] };
@@ -728,6 +730,35 @@ function describeDefault(defaultRole) {
   if (defaultRole === "claudia") return "Claudia";
   if (defaultRole === "own") return "this project's own instructions (HAI applies only when a HAI role is named)";
   return `the custom role ${defaultRole}`;
+}
+
+// A project with no AGENTS.md of its own has no workflow to keep, so the user
+// decides whether Claudia answers unnamed messages. Only a person at a terminal
+// can answer; an agent or script is told to ask the user and pass the choice.
+async function chooseDefaultRole(options) {
+  if (options.defaultRole !== undefined) return;
+  const raw = await readOptional(path.join(options.target, entryFile));
+  const content = raw === null ? "" : raw.toString("utf8");
+  if (findEntryBlock(content).state !== "none" || withoutEntryBlock(content).trim() !== "") return;
+  const question = `This project has no ${entryFile} of its own. Should agents answer any message that names no role as Claudia, HAI-Harness's lead, who plans and builds under its rules (lanes, clean main, approvals)?`;
+  if (options.dryRun) {
+    console.log(`${question}\n(init will ask this; the dry run assumes yes.)\n`);
+    options.defaultRole = "claudia";
+    return;
+  }
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error(`${question}\nAsk the user, then run init again with their answer; nothing was written:\n  ${upstreamCommand} init --default-role claudia   (yes: Claudia answers)\n  ${upstreamCommand} init --default-role own       (no: HAI applies only when a HAI role is named)`);
+  }
+  const prompt = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    for (;;) {
+      const answer = (await prompt.question(`${question} [y/n] `)).trim().toLowerCase();
+      if (["y", "yes"].includes(answer)) { options.defaultRole = "claudia"; break; }
+      if (["n", "no"].includes(answer)) { options.defaultRole = "own"; break; }
+    }
+  } finally {
+    prompt.close();
+  }
 }
 
 // --default-role takes claudia, own, or an existing custom role.

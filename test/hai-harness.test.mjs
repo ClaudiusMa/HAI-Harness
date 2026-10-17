@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { once } from "node:events";
 
@@ -24,8 +24,13 @@ function git(cwd, ...args) {
   return result.stdout.trim();
 }
 
+// init asks a person whether Claudia is the default when a project has no
+// AGENTS.md; fixtures answer yes up front, as the user would.
 function harness(cwd, ...args) {
-  return run(process.execPath, [cli, ...args], cwd);
+  const target = args.includes("--target") ? args[args.indexOf("--target") + 1] : cwd;
+  const ownEntry = existsSync(path.join(target, "AGENTS.md")) && readFileSync(path.join(target, "AGENTS.md"), "utf8").trim() !== "";
+  const answered = args[0] === "init" && !args.includes("--default-role") && !ownEntry ? [...args, "--default-role", "claudia"] : args;
+  return run(process.execPath, [cli, ...answered], cwd);
 }
 
 // A session in an installed project: no `hai-harness` on PATH, no npm, no network.
@@ -800,6 +805,59 @@ test("migrate refuses to expose ignored files and resumes a move that stopped pa
   assert.equal(await fs.readFile(path.join(repo, ".hai/Human/private/notes.md"), "utf8"), "private\n");
   git(repo, "add", "-A");
   assert.doesNotMatch(git(repo, "status", "--porcelain"), /private/);
+});
+
+test("init asks before making Claudia the default for a project with no AGENTS.md", async (t) => {
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-ask-"));
+  t.after(() => fs.rm(project, { recursive: true, force: true }));
+  // An agent or script cannot answer for the user: init stops and says what to ask.
+  const unattended = run(process.execPath, [cli, "init", "--target", project], project);
+  assert.notEqual(unattended.status, 0);
+  assert.match(unattended.stderr, /has no AGENTS\.md of its own[\s\S]*Ask the user[\s\S]*--default-role claudia[\s\S]*--default-role own/);
+  assert.deepEqual(await fs.readdir(project), []);
+  assert.match(run(process.execPath, [cli, "init", "--dry-run", "--target", project], project).stdout, /init will ask this/);
+  assert.deepEqual(await fs.readdir(project), []);
+  // The user's answer, passed on.
+  assert.equal(run(process.execPath, [cli, "init", "--default-role", "own", "--target", project], project).status, 0);
+  assert.match(await fs.readFile(path.join(project, "AGENTS.md"), "utf8"), /^<!-- hai-harness:start default=own -->[\s\S]*this block does not apply/);
+  // A person at a terminal is asked; "no" keeps HAI to named roles, "yes" makes Claudia the default.
+  // A pseudo-terminal stands in for the person; the first answer is not y/n, so it asks again.
+  const tty = `import os, pty, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execv(sys.argv[1], sys.argv[1:-1])
+out = b""
+for answer in (b"maybe\\n", sys.argv[-1].encode() + b"\\n"):
+    while b"[y/n]" not in out[-200:]:
+        out += os.read(fd, 4096)
+    out = out.replace(b"[y/n]", b"[asked]", 1)
+    os.write(fd, answer)
+while True:
+    try:
+        chunk = os.read(fd, 4096)
+    except OSError:
+        break
+    if not chunk:
+        break
+    out += chunk
+sys.stdout.write(out.decode(errors="replace"))
+sys.exit(os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]))`;
+  if (run("python3", ["-c", "import pty"], project).status === 0) {
+    for (const [answer, role] of [["n", "own"], ["y", "claudia"]]) {
+      const fresh = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-tty-"));
+      t.after(() => fs.rm(fresh, { recursive: true, force: true }));
+      const asked = spawnSync("python3", ["-c", tty, process.execPath, cli, "init", "--target", fresh, answer], { encoding: "utf8", timeout: 60_000 });
+      assert.equal(asked.status, 0, asked.stdout + asked.stderr);
+      assert.match(asked.stdout, /Should agents answer any message that names no role as Claudia/);
+      assert.match(await fs.readFile(path.join(fresh, "AGENTS.md"), "utf8"), new RegExp(`^<!-- hai-harness:start default=${role} -->`));
+    }
+  }
+  // A project with its own AGENTS.md is not asked: its workflow stays in charge.
+  const existing = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-own-"));
+  t.after(() => fs.rm(existing, { recursive: true, force: true }));
+  await fs.writeFile(path.join(existing, "AGENTS.md"), "# Our rules\n");
+  assert.equal(run(process.execPath, [cli, "init", "--target", existing], existing).status, 0);
+  assert.match(await fs.readFile(path.join(existing, "AGENTS.md"), "utf8"), /<!-- hai-harness:start default=own -->/);
 });
 
 test("the project sets who answers an unnamed message once, in the block marker", async (t) => {

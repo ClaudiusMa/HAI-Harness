@@ -28,7 +28,7 @@ The foundational architecture for durable memory, context control, planning, and
 
 - `.hai/Human/`: The durable human memory. It holds context across different work sessions and synchronizes multiple human collaborators. Agents keep it current for you and change it only with your approval; they don't read it unless explicitly instructed.
 - `.hai/Agents/`: The operating layer for current product truth, planning, task contracts, design contracts, handoffs, lessons, and archived history.
-- When the user names no role, the session takes the project's default, set once in the `AGENTS.md` block: Claudia (the default for a project with no `AGENTS.md` of its own), the project's own instructions (the default when it already had one, so its workflow keeps running and HAI applies only when a HAI role is named), or a custom role.
+- When the user names no role, the session takes the project's default, set once in the `AGENTS.md` block: Claudia (`init` asks you, for a project with no `AGENTS.md` of its own), the project's own instructions (the default when it already had one, so its workflow keeps running and HAI applies only when a HAI role is named), or a custom role.
 - Claudia leads: she plans and, by default, builds in the task lane herself, so decisions, code and verification share one context. She delegates to Augustus or Julius only on a trigger: you ask, heavy prior discussion, wide reading, risk review, independent parallel pieces, or routine bulk work that can run on a lighter tier. For unclear bug causes, failed repairs without an established cause, or investigations needing runtime/intermittent/cross-component evidence, Claudia selectively routes to [Momus](Agents/momus.md). Known, reproduced, bounded fixes stay with the lane's current writer using [debugging](Agents/skills/debugging/SKILL.md); an ordinary bug does not add another agent or report cycle.
 - Hephaestus owns non-code human-interface design and design review. Athena independently reviews enterprise product design. Both work against `Agents/design.md`.
 - Active task authority lives in `Agents/planning.md` and `Agents/tasks/`; handoffs carry the contract across role boundaries, not chat memory.
@@ -104,7 +104,7 @@ npx github:ClaudiusMa/HAI-Harness init
 
 After install you'll have:
 
-- `AGENTS.md` at the project root — yours. `init` creates it if you have none; otherwise it appends the HAI-Harness block between `<!-- hai-harness:start -->` and `<!-- hai-harness:end -->` and leaves everything else as you wrote it. The block points agents at `.hai/Agents/onboarding.md` and tells them not to read `.hai/Human/`.
+- `AGENTS.md` at the project root — yours. `init` creates it if you have none, after asking whether Claudia should answer messages that name no role; otherwise it appends the HAI-Harness block between `<!-- hai-harness:start -->` and `<!-- hai-harness:end -->` and leaves everything else as you wrote it. The block points agents at `.hai/Agents/onboarding.md` and tells them not to read `.hai/Human/`.
 - `.hai/Agents/` — the agent operating layer, including `.hai/Agents/hai-harness.mjs`, the project's own dependency-free copy of the CLI. Agents run lanes with `node .hai/Agents/hai-harness.mjs …`, which needs no PATH entry, npm, or network.
 - `.hai/Agents/custom/roles/` and `.hai/Agents/custom/skills/` — your own agents and skills (see below).
 - `.hai/Human/` — your human-owned workspace for product thinking. Visibility follows your project's sharing and version-control policy; agents do not read it by default.
@@ -156,7 +156,7 @@ Project-wide routing notes belong in `.hai/Agents/project_context.md`, never in 
 
 A message that names no HAI role goes to the project's default, stored once in the block's start marker (`<!-- hai-harness:start default=own -->`) so it travels with `AGENTS.md` and costs agents nothing extra:
 
-- `claudia`: Claudia handles every unnamed request. This is the default when the project had no `AGENTS.md` of its own.
+- `claudia`: Claudia handles every unnamed request. For a project with no `AGENTS.md` of its own, `init` asks you whether you want this; an agent or script running `init` is stopped and told to ask you, then pass `--default-role claudia` or `--default-role own`.
 - `own`: the project's own instructions in `AGENTS.md` govern; HAI's rules, lanes and approvals apply only when someone names a HAI role ("Claudia, …", "Apollo, …"). This is the default when the project already had an `AGENTS.md`, so an existing workflow keeps running.
 - a custom role name, such as `apollo`.
 
