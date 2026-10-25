@@ -11,7 +11,7 @@ Remote acts approved: 2026-10-05 — push `main` so the release workflow opens t
 
 ## Current iteration — shared worktrees root, 2026-10-21
 
-- Status: built and verified in lane `task/shared-worktrees-root` (base `49098ba`, published v0.3.0 release merged in); 45/45; independently reviewed, findings fixed. Awaiting user approval to integrate. Evidence: [handoff](handoffs/shared-worktrees-root.md).
+- Status: built and verified in lane `task/shared-worktrees-root` (base `49098ba`, published v0.3.0 release merged in); 45/45; independently reviewed, findings fixed. Integrated to local `main` 2026-10-25 (merge `fe9e6d4`); decision record approved by the user and logged. Push not approved. Evidence: [handoff](handoffs/shared-worktrees-root.md).
 - Why: the user's ProductLab folder rule (its `AGENTS.md`) puts every worktree in `<parent>/_worktrees/<Project>/<task-slug>` and forbids top-level `<Project>-worktrees` folders. `worktree create` and `cleanup` build `<repo>-worktrees/<slug>`, so every install creates one of those folders.
 - Requirements: one path helper used by `create` and `cleanup`; new lanes go to `<dirname(primary)>/_worktrees/<basename(primary)>/<slug>`; `cleanup` still accepts a lane registered at the legacy `<repo>-worktrees/<slug>` path; tests, README "Native task worktrees", onboarding and project-context lane wording updated.
 - Rejected options: a configurable lane root (no second user asked for it; one fixed convention keeps agents from guessing); moving existing lanes in the CLI (other agents are using some lanes now; the user moves them with `git worktree move` after `update`).
