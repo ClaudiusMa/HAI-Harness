@@ -2,12 +2,20 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-17 — plugin layout approved (update performs the move; 0.3.0); integrating and pushing
+Last updated: 2026-10-21 — shared `_worktrees/` lane root; built in lane, awaiting integration approval
 Last updated by: Claudia
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
+
+## Current iteration — shared worktrees root, 2026-10-21
+
+- Status: built and verified in lane `task/shared-worktrees-root` (base `49098ba`, published v0.3.0 release merged in); 45/45; independently reviewed, findings fixed. Awaiting user approval to integrate. Evidence: [handoff](handoffs/shared-worktrees-root.md).
+- Why: the user's ProductLab folder rule (its `AGENTS.md`) puts every worktree in `<parent>/_worktrees/<Project>/<task-slug>` and forbids top-level `<Project>-worktrees` folders. `worktree create` and `cleanup` build `<repo>-worktrees/<slug>`, so every install creates one of those folders.
+- Requirements: one path helper used by `create` and `cleanup`; new lanes go to `<dirname(primary)>/_worktrees/<basename(primary)>/<slug>`; `cleanup` still accepts a lane registered at the legacy `<repo>-worktrees/<slug>` path; tests, README "Native task worktrees", onboarding and project-context lane wording updated.
+- Rejected options: a configurable lane root (no second user asked for it; one fixed convention keeps agents from guessing); moving existing lanes in the CLI (other agents are using some lanes now; the user moves them with `git worktree move` after `update`).
+- Acceptance: focused suite passes with lanes at the new path plus a legacy-path cleanup test; `./hai-meta sync` and `scripts/shipped-hashes.mjs` run; independent read-only review (worktree commands are a risk area); integration only with user approval. No push or publish without approval; the release workflow bumps the patch version on push (0.3.0 → 0.3.1).
 
 ## Current iteration — project default role, 2026-10-17
 

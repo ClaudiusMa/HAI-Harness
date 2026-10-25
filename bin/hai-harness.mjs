@@ -1481,7 +1481,7 @@ async function createWorktree(options, slug) {
 
   const taskBranch = `${taskBranchPrefix}${slug}`;
   if (await localBranchExists(controlRoot, taskBranch)) throw new Error(`Task branch already exists: ${taskBranch}`);
-  const taskRoot = path.join(`${controlRoot}-worktrees`, slug);
+  const taskRoot = taskLaneRoot(controlRoot, slug);
   if (await exists(taskRoot)) throw new Error(`Task worktree path already exists: ${taskRoot}`);
   const baseCommit = await git(integrationRoot, ["rev-parse", "HEAD"]);
 
@@ -1690,7 +1690,10 @@ async function cleanupWorktree(target, branch) {
   const controlRoot = await fs.realpath(worktrees[0].root);
   const slug = branch.slice(branch.indexOf("/") + 1);
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) throw new Error("Cleanup cannot establish the canonical task lane path; preserve and inspect it manually.");
-  const laneRoot = path.join(`${controlRoot}-worktrees`, slug);
+  // Accept the lane at the current path or, for lanes made before it, the legacy one.
+  const candidates = [taskLaneRoot(controlRoot, slug), legacyTaskLaneRoot(controlRoot, slug)];
+  const registered = worktrees.find((item) => item.branch === branch && candidates.some((candidate) => samePath(item.root, candidate)));
+  let laneRoot = registered ? candidates.find((candidate) => samePath(registered.root, candidate)) : candidates[0];
   const retained = (reason) => {
     console.log(`Cleanup retained ${branch}: ${reason}`);
     console.log(`  task path: ${laneRoot}`);
@@ -1698,15 +1701,24 @@ async function cleanupWorktree(target, branch) {
     return false;
   };
   if (!(await localBranchExists(root, branch))) {
-    if (await exists(laneRoot)) return retained("Task branch is absent but a folder remains; ownership cannot be verified. No files were removed.");
-    if (worktrees.some((item) => samePath(item.root, laneRoot))) return retained("Task branch is absent but a worktree registration remains.");
+    for (const candidate of candidates) {
+      if (await exists(candidate)) {
+        laneRoot = candidate;
+        return retained("Task branch is absent but a folder remains; ownership cannot be verified. No files were removed.");
+      }
+      if (worktrees.some((item) => samePath(item.root, candidate))) {
+        laneRoot = candidate;
+        return retained("Task branch is absent but a worktree registration remains.");
+      }
+    }
     console.log(`Cleanup already complete: ${branch}; task branch and folder are absent.`);
     return true;
   }
   const integration = await gitOptional(root, ["config", "--get", `branch.${branch}.${keys.integration}`]);
   const base = await gitOptional(root, ["config", "--get", `branch.${branch}.${keys.base}`]);
   if (!integration || !base) {
-    console.log(`Cleanup retained ${branch}: ${handMadeLaneMessage(branch, laneRoot)}`);
+    const holder = worktrees.find((item) => item.branch === branch);
+    console.log(`Cleanup retained ${branch}: ${handMadeLaneMessage(branch, holder?.root ?? laneRoot)}`);
     console.log(`  task path: ${laneRoot}`);
     return false;
   }
@@ -1719,7 +1731,7 @@ async function cleanupWorktree(target, branch) {
     const integrationWorktrees = worktrees.filter((item) => item.branch === integration);
     if (integrationWorktrees.length !== 1) throw new Error(`Integration branch ${integration} must have exactly one checked-out worktree for safe branch deletion.`);
     const integrationRoot = integrationWorktrees[0].root;
-    const matches = worktrees.filter((item) => item.branch === branch || samePath(item.root, laneRoot));
+    const matches = worktrees.filter((item) => item.branch === branch || candidates.some((candidate) => samePath(item.root, candidate)));
     if (matches.length > 1 || (matches[0] && (matches[0].branch !== branch || !samePath(matches[0].root, laneRoot)))) throw new Error("Task path or branch is owned by another worktree; preserve it.");
     if (matches[0]?.locked) throw new Error(`Worktree is locked: ${matches[0].locked}`);
     const common = await fs.realpath(await git(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
@@ -1756,7 +1768,7 @@ async function cleanupWorktree(target, branch) {
       const uncaptured = entriesAfterCursor(parseTrailEntries(trail), cursor).filter((entry) => captureKind(entry));
       if (uncaptured.length) throw new Error(`Task packet has uncaptured review items: ${directory}`);
     }
-    if (!matches.length && await exists(laneRoot)) throw new Error("Git has unregistered the task folder. Preserve remaining contents for inspection; no arbitrary folder deletion is performed.");
+    if (!matches.length && (await Promise.all(candidates.map(exists))).some(Boolean)) throw new Error("Git has unregistered the task folder. Preserve remaining contents for inspection; no arbitrary folder deletion is performed.");
     if (matches.length) {
       if (await fs.realpath(laneRoot) !== laneRoot || (await fs.lstat(laneRoot)).isSymbolicLink()) throw new Error("Task lane resolves through a symlink redirect.");
       await assertClean(laneRoot, "Task lane has staged, tracked, or untracked work.");
@@ -1875,6 +1887,17 @@ async function gitExitZero(root, args) {
   } catch {
     return false;
   }
+}
+
+// Task lanes share one folder beside the primary checkout, as
+// <parent>/_worktrees/<repo>/<slug>, so a folder of projects keeps one place for lanes.
+function taskLaneRoot(controlRoot, slug) {
+  return path.join(path.dirname(controlRoot), "_worktrees", path.basename(controlRoot), slug);
+}
+
+// Lanes created before the shared folder sit beside the primary as <repo>-worktrees/<slug>.
+function legacyTaskLaneRoot(controlRoot, slug) {
+  return path.join(`${controlRoot}-worktrees`, slug);
 }
 
 function samePath(left, right) {
