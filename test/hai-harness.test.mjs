@@ -57,6 +57,15 @@ function beaconWithLocalCache(cwd, ...args) {
   return run(process.execPath, [checker, "--target", receiptRoot(cwd), ...args], cwd);
 }
 
+// Lanes live in the shared folder beside the primary checkout.
+function lanesOf(repo) {
+  return path.join(path.dirname(repo), "_worktrees", path.basename(repo));
+}
+
+function laneOf(repo, slug) {
+  return path.join(lanesOf(repo), slug);
+}
+
 async function makeGitFixture(t) {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-test-"));
   t.after(() => fs.rm(tempRoot, { recursive: true, force: true }));
@@ -78,7 +87,7 @@ test("worktree lifecycle succeeds and unsafe requests are rejected", async (t) =
   const created = harness(repo, "worktree", "create", "happy-path", "--target", repo);
   assert.equal(created.status, 0, created.stderr);
   assert.match(created.stdout, /branch:\s+task\/happy-path/);
-  const taskRoot = `${repo}-worktrees/happy-path`;
+  const taskRoot = laneOf(repo, "happy-path");
   assert.equal(git(repo, "config", "--get", "branch.task/happy-path.haiIntegrationBranch"), "develop");
   assert.equal(git(repo, "config", "--get", "branch.task/happy-path.haiBaseCommit"), git(repo, "rev-parse", "HEAD"));
   assert.notEqual(run("git", ["config", "--get", "branch.task/happy-path.codexIntegrationBranch"], repo).status, 0);
@@ -103,7 +112,7 @@ test("worktree lifecycle succeeds and unsafe requests are rejected", async (t) =
 
   const pending = harness(repo, "worktree", "create", "approval-required", "--target", repo);
   assert.equal(pending.status, 0, pending.stderr);
-  const pendingRoot = `${repo}-worktrees/approval-required`;
+  const pendingRoot = laneOf(repo, "approval-required");
   const missingApproval = harness(pendingRoot, "worktree", "approve", "--target", pendingRoot);
   assert.notEqual(missingApproval.status, 0);
   assert.match(missingApproval.stderr, /requires --approved/);
@@ -116,7 +125,7 @@ test("worktree lifecycle succeeds and unsafe requests are rejected", async (t) =
 
   // A lane created before neutral naming must remain approvable while it is in flight.
   const legacyBranch = "codex/legacy-compatible";
-  const legacyRoot = `${repo}-worktrees/legacy-compatible`;
+  const legacyRoot = laneOf(repo, "legacy-compatible");
   const legacyBase = git(repo, "rev-parse", "HEAD");
   git(repo, "worktree", "add", "-b", legacyBranch, legacyRoot, legacyBase);
   git(repo, "config", "--local", `branch.${legacyBranch}.codexIntegrationBranch`, "develop");
@@ -127,6 +136,29 @@ test("worktree lifecycle succeeds and unsafe requests are rejected", async (t) =
   assert.equal((await fs.stat(legacyRoot).catch(() => null)), null);
   assert.equal(git(repo, "log", "-1", "--format=%B", "HEAD^2"), "Complete legacy fixture");
   assert.doesNotMatch(git(repo, "log", "-2", "--format=%B"), /co-authored-by|openai/i);
+});
+
+test("lanes go in the shared _worktrees folder and lanes at the old sibling path still clean up", async (t) => {
+  const { repo } = await makeGitFixture(t);
+  const created = harness(repo, "worktree", "create", "shared-root", "--target", repo);
+  assert.equal(created.status, 0, created.stderr);
+  assert.match(created.stdout, new RegExp(`path:\\s+${laneOf(repo, "shared-root").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\n`));
+  assert.ok(existsSync(path.join(laneOf(repo, "shared-root"), "README.md")));
+  assert.equal(existsSync(`${repo}-worktrees`), false);
+
+  // A lane made by an earlier release sits at <repo>-worktrees/<slug>.
+  const legacyRoot = path.join(`${repo}-worktrees`, "shared-root");
+  await fs.mkdir(path.dirname(legacyRoot));
+  git(repo, "worktree", "move", laneOf(repo, "shared-root"), legacyRoot);
+  await fs.writeFile(path.join(legacyRoot, "result.txt"), "approved\n");
+  const kept = harness(legacyRoot, "worktree", "approve", "--keep-worktree", "--approved", "Complete legacy lane", "--target", legacyRoot);
+  assert.equal(kept.status, 0, kept.stderr);
+  assert.ok(existsSync(legacyRoot));
+  const cleaned = harness(repo, "worktree", "cleanup", "task/shared-root", "--target", repo);
+  assert.equal(cleaned.status, 0, cleaned.stdout + cleaned.stderr);
+  assert.equal(existsSync(legacyRoot), false);
+  assert.equal(run("git", ["rev-parse", "--verify", "refs/heads/task/shared-root"], repo).status === 0, false);
+  assert.equal(git(repo, "log", "-1", "--format=%B", "HEAD^2"), "Complete legacy lane");
 });
 
 test("main lanes refresh in the lane, stop for re-test, hand conflicts back, and keep main clean", async (t) => {
@@ -155,7 +187,7 @@ test("main lanes refresh in the lane, stop for re-test, hand conflicts back, and
     assert.equal(created.status, 0, created.stderr);
     assert.equal(git(repo, "config", "--get", `branch.task/${slug}.haiIntegrationBranch`), "main");
   }
-  const lane = (slug) => `${repo}-worktrees/${slug}`;
+  const lane = (slug) => laneOf(repo, slug);
   await fs.writeFile(path.join(lane("grid"), "shared.txt"), "ONE\ntwo\nthree\n");
   await fs.writeFile(path.join(lane("hover"), "shared.txt"), "one\ntwo\nTHREE\n");
   await fs.writeFile(path.join(lane("theme"), "shared.txt"), "uno\ntwo\nthree\n");
@@ -216,7 +248,7 @@ test("approve survives a failing checkout hook and cleans up a lane on a seconda
   const created = harness(repo, "worktree", "create", "secondary", "--integration", "develop", "--target", repo);
   assert.equal(created.status, 0, created.stderr);
   git(repo, "config", "core.hooksPath", hooks);
-  const laneRoot = `${repo}-worktrees/secondary`;
+  const laneRoot = laneOf(repo, "secondary");
   await fs.writeFile(path.join(laneRoot, "result.txt"), "approved\n");
   const approved = harness(laneRoot, "worktree", "approve", "--approved", "Secondary fixture", "--target", laneRoot);
   assert.equal(approved.status, 0, approved.stderr);
@@ -230,7 +262,7 @@ async function makeHeldLane(t, slug = "retained") {
   const fixture = await makeGitFixture(t);
   const { repo } = fixture;
   assert.equal(harness(repo, "worktree", "create", slug, "--target", repo).status, 0);
-  const lane = `${repo}-worktrees/${slug}`;
+  const lane = laneOf(repo, slug);
   await fs.writeFile(path.join(lane, "result.txt"), "approved\n");
   const approved = harness(lane, "worktree", "approve", "--keep-worktree", "--approved", "Hold for outward work", "--target", lane);
   assert.equal(approved.status, 0, approved.stderr);
@@ -319,7 +351,7 @@ test("cleanup preserves lane symlinks, nested repositories and valuable ignored 
   assert.ok(await fs.stat(path.join(lane, "nested/.git")));
   // A separate new lane exercises automatic approve cleanup without committing the nested repo.
   assert.equal(harness(repo, "worktree", "create", "ignored", "--target", repo).status, 0);
-  const ignoredLane = `${repo}-worktrees/ignored`;
+  const ignoredLane = laneOf(repo, "ignored");
   await fs.writeFile(path.join(ignoredLane, ".gitignore"), "valuable.bin\n");
   await fs.writeFile(path.join(ignoredLane, "valuable.bin"), "unpublished\n");
   const approved = harness(ignoredLane, "worktree", "approve", "--approved", "Ignored preservation", "--target", ignoredLane);
@@ -641,7 +673,7 @@ test("update moves a root-layout install into .hai and reports what it cannot cl
   git(repo, "add", "-A");
   git(repo, "commit", "-m", "Root-layout install");
   assert.equal(harness(repo, "worktree", "create", "peer", "--target", repo).status, 0);
-  t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
+  t.after(() => fs.rm(lanesOf(repo), { recursive: true, force: true }));
 
   assert.match(harness(repo, "doctor", "--target", repo).stdout, /old root layout[\s\S]*update --dry-run/);
   assert.match(harness(repo, "init", "--target", repo).stderr, /old root layout/);
@@ -915,8 +947,8 @@ async function makePacketFixture(t) {
   git(repo, "add", "-A");
   git(repo, "commit", "-m", "Install harness");
   assert.equal(harness(repo, "worktree", "create", "capture", "--target", repo).status, 0);
-  const lane = `${repo}-worktrees/capture`;
-  t.after(() => fs.rm(`${repo}-worktrees`, { recursive: true, force: true }));
+  const lane = laneOf(repo, "capture");
+  t.after(() => fs.rm(lanesOf(repo), { recursive: true, force: true }));
   const root = path.join(lane, ".hai");
   assert.equal(harness(root, "human-sync", "init", "--target", root).status, 0);
   const status = harness(root, "human-sync", "status", "--target", root);
@@ -976,7 +1008,7 @@ test("human-sync refuses shared, detached, missing and invalid packets and isola
   assert.notEqual(harness(repo, "human-sync", "--target", repo).status, 0);
   await appendTrail(packet, [trailEntry(1, "user", "product", "only task one")]);
   assert.equal(harness(repo, "worktree", "create", "other", "--target", repo).status, 0);
-  const other = `${repo}-worktrees/other`;
+  const other = laneOf(repo, "other");
   assert.match(harness(other, "human-sync", "--target", other).stderr, /Missing task packet/);
   assert.equal(harness(other, "human-sync", "init", "--target", other).status, 0);
   assert.doesNotMatch(harness(other, "human-sync", "--target", other).stdout, /only task one/);
@@ -1173,7 +1205,7 @@ test("cleanup retains current-task pending and uncaptured packets but leaves pee
   assert.match(uncaptured.stdout, /uncaptured review items/);
   await setCaptureCursor(packet, "T1");
   assert.equal(harness(repo, "worktree", "create", "packet-peer", "--target", repo).status, 0);
-  const peerLane = `${repo}-worktrees/packet-peer`;
+  const peerLane = laneOf(repo, "packet-peer");
   assert.equal(harness(peerLane, "human-sync", "init", "--target", peerLane).status, 0);
   const peerPacket = JSON.parse(harness(peerLane, "human-sync", "status", "--target", peerLane).stdout).packet;
   await fs.appendFile(path.join(peerPacket, "human-inbox.md"), "\n### peer\n- Status: pending\n");
@@ -1289,7 +1321,7 @@ test("the project copy of the CLI runs lanes and human-sync with no PATH entry a
 
   const created = projectCli(repo, repo, "worktree", "create", "field");
   assert.equal(created.status, 0, created.stderr);
-  const lane = `${repo}-worktrees/field`;
+  const lane = laneOf(repo, "field");
   // The lane carries its own tracked copy, so the same command works from inside it.
   assert.equal(await fs.readFile(path.join(lane, ".hai/Agents/hai-harness.mjs"), "utf8"), source);
   const status = projectCli(lane, lane, "worktree", "status");
@@ -1323,7 +1355,7 @@ test("the project copy of the CLI runs lanes and human-sync with no PATH entry a
 
   // Keep a lane, then clean it up from the primary's copy with the printed command form.
   assert.equal(projectCli(repo, repo, "worktree", "create", "second").status, 0);
-  const second = `${repo}-worktrees/second`;
+  const second = laneOf(repo, "second");
   await fs.writeFile(path.join(second, "second.txt"), "approved\n");
   const kept = projectCli(second, second, "worktree", "approve", "--keep-worktree", "--approved", "Second fixture");
   assert.equal(kept.status, 0, kept.stderr);
@@ -1335,7 +1367,7 @@ test("the project copy of the CLI runs lanes and human-sync with no PATH entry a
 
 test("a lane made by hand is refused with the supported recovery and never gains forged metadata", async (t) => {
   const { repo } = await makeInstalledProject(t);
-  const lane = `${repo}-worktrees/by-hand`;
+  const lane = laneOf(repo, "by-hand");
   git(repo, "worktree", "add", "-b", "task/by-hand", lane);
   await fs.writeFile(path.join(lane, "hand.txt"), "by hand\n");
   git(lane, "add", "hand.txt");
@@ -1358,7 +1390,7 @@ test("a lane made by hand is refused with the supported recovery and never gains
 
   // The recovery it names works: a real lane merges the hand-made branch and integrates it.
   assert.equal(projectCli(repo, repo, "worktree", "create", "recovered").status, 0);
-  const recovered = `${repo}-worktrees/recovered`;
+  const recovered = laneOf(repo, "recovered");
   git(recovered, "merge", "task/by-hand");
   const approved = projectCli(recovered, recovered, "worktree", "approve", "--approved", "Recovered hand-made work");
   assert.equal(approved.status, 0, approved.stderr);
@@ -1451,7 +1483,7 @@ test("conflict-copy sweep quarantines only provably redundant duplicates and rep
   assert.match(blocked.stderr, /develop 3\n\s+original: .*refs\/heads\/develop\n\s+why:\s+Its commit [0-9a-f]+ is not part of refs\/heads\/develop[\s\S]*git log -3/);
   assert.match(blocked.stderr, /develop 4[\s\S]*does not exist in this repository/);
   assert.match(blocked.stderr, /HEAD 2[\s\S]*content differs/);
-  assert.equal(await fs.stat(`${repo}-worktrees/blocked`).catch(() => null), null);
+  assert.equal(await fs.stat(laneOf(repo, "blocked")).catch(() => null), null);
   assert.equal(await fs.readFile(path.join(common, "refs/heads/develop 3"), "utf8"), `${sideCommit}\n`);
   // Once the user has settled them, the remaining non-blocking copies never stop a lane.
   for (const rel of ["refs/heads/develop 3", "refs/heads/develop 4", "HEAD 2"]) await fs.unlink(path.join(common, ...rel.split("/")));
@@ -1471,7 +1503,7 @@ test("create, approve and cleanup sweep identical duplicates so they cannot bloc
   const created = harness(repo, "worktree", "create", "swept", "--target", repo);
   assert.equal(created.status, 0, created.stderr);
   assert.match(created.stdout, /moved 1 redundant cloud-sync duplicate to a reversible quarantine/);
-  const lane = `${repo}-worktrees/swept`;
+  const lane = laneOf(repo, "swept");
   const common = path.join(repo, ".git");
   const stored = async () => (await fs.readdir(path.join(common, "hai-harness/quarantine"))).sort();
   assert.equal((await stored()).length, 1);
@@ -1508,7 +1540,7 @@ test("approve refuses to commit a conflict copy (file or directory), and --quara
   git(repo, "add", "-A");
   git(repo, "commit", "-m", "Base files, one a tracked duplicate");
   assert.equal(harness(repo, "worktree", "create", "guard", "--target", repo).status, 0);
-  const lane = `${repo}-worktrees/guard`;
+  const lane = laneOf(repo, "guard");
   await fs.writeFile(path.join(lane, "result.txt"), "result\n");
   await fs.writeFile(path.join(lane, ".env"), "SECRET=1\n"); // ignored original
   await fs.writeFile(path.join(lane, ".env 2"), "SECRET=2\n");
@@ -1579,7 +1611,7 @@ test("kept worktree admin and task-packet directory copies stop lane commands wi
   const { repo } = await makeInstalledProject(t);
   const common = path.join(repo, ".git");
   assert.equal(projectCli(repo, repo, "worktree", "create", "alpha").status, 0);
-  const lane = `${repo}-worktrees/alpha`;
+  const lane = laneOf(repo, "alpha");
   assert.equal(projectCli(lane, lane, "human-sync", "init").status, 0);
   const packet = JSON.parse(projectCli(lane, lane, "human-sync", "status").stdout).packet;
   const admin = path.join(common, "worktrees/alpha");
@@ -1612,7 +1644,7 @@ test("kept worktree admin and task-packet directory copies stop lane commands wi
   assert.ok(adminBlocked.stderr.includes(`${admin} 2`));
   assert.match(adminBlocked.stderr, /Git lists a copy of a worktree admin directory as an extra worktree/);
   assert.match(adminBlocked.stderr, /node \.hai\/Agents\/hai-harness\.mjs worktree sweep --quarantine <path>/);
-  assert.equal(await fs.stat(`${repo}-worktrees/beta`).catch(() => null), null);
+  assert.equal(await fs.stat(laneOf(repo, "beta")).catch(() => null), null);
   assert.equal(projectCli(repo, repo, "worktree", "sweep", "--quarantine", `${admin} 2`).status, 0);
   assert.equal(await fs.stat(`${admin} 2`).catch(() => null), null);
   assert.ok(await fs.stat(path.join(admin, "HEAD")), "the real admin directory is untouched");
@@ -1757,14 +1789,14 @@ test("update beacon is weekly, private, resilient, and notifies once per release
   const malformedManifest = path.join(fixtureDir, "malformed.json");
   const oversizedManifest = path.join(fixtureDir, "oversized.json");
   await fs.writeFile(availableManifest, JSON.stringify({
-    tag_name: "v0.3.0",
-    html_url: "https://example.invalid/v0.3.0",
+    tag_name: "v90.0.0",
+    html_url: "https://example.invalid/v90.0.0",
     draft: false,
     prerelease: false
   }));
   await fs.writeFile(newerManifest, JSON.stringify({
-    tag_name: "v0.4.0",
-    html_url: "https://example.invalid/v0.4.0",
+    tag_name: "v91.0.0",
+    html_url: "https://example.invalid/v91.0.0",
     draft: false,
     prerelease: false
   }));
@@ -1805,11 +1837,11 @@ test("update beacon is weekly, private, resilient, and notifies once per release
 
   const due = beacon(target, "--now", "2026-08-18T00:00:00.000Z", "--manifest", availableManifest);
   assert.equal(due.status, 0, due.stderr);
-  assert.ok(due.stdout.includes(`HAI-Harness 0.3.0 is available (installed: ${installedVersion})`));
+  assert.ok(due.stdout.includes(`HAI-Harness 90.0.0 is available (installed: ${installedVersion})`));
   assert.match(due.stdout, /update --dry-run/);
-  assert.match(due.stdout, /https:\/\/example\.invalid\/v0\.3\.0/);
+  assert.match(due.stdout, /https:\/\/example\.invalid\/v90\.0\.0/);
   const notifiedState = JSON.parse(await fs.readFile(cachePath, "utf8"));
-  assert.equal(notifiedState.lastNotifiedVersion, "0.3.0");
+  assert.equal(notifiedState.lastNotifiedVersion, "90.0.0");
   assert.equal(notifiedState.lastCheckStatus, "available");
 
   const repeated = beacon(target, "--now", "2026-08-19T00:00:00.000Z", "--manifest", availableManifest);
@@ -1818,14 +1850,14 @@ test("update beacon is weekly, private, resilient, and notifies once per release
 
   const nextRelease = beacon(target, "--force", "--now", "2026-08-19T00:00:00.000Z", "--manifest", newerManifest);
   assert.equal(nextRelease.status, 0, nextRelease.stderr);
-  assert.match(nextRelease.stdout, /HAI-Harness 0\.4\.0 is available/);
+  assert.match(nextRelease.stdout, /HAI-Harness 91\.0\.0 is available/);
 
   const updatedReceipt = JSON.parse(await fs.readFile(path.join(target, ".hai/.hai-harness.json"), "utf8"));
-  updatedReceipt.installedVersion = "0.4.0";
+  updatedReceipt.installedVersion = "91.0.0";
   await fs.writeFile(path.join(target, ".hai/.hai-harness.json"), `${JSON.stringify(updatedReceipt, null, 2)}\n`);
   const updatedStatus = beacon(target, "--status", "--now", "2026-08-20T00:00:00.000Z", "--manifest", malformedManifest);
   assert.equal(updatedStatus.status, 0, updatedStatus.stderr);
-  assert.match(updatedStatus.stdout, /Update status: current \(0\.4\.0\)/);
+  assert.match(updatedStatus.stdout, /Update status: current \(91\.0\.0\)/);
 
   assert.equal(beacon(target, "--disable").status, 0);
   // Toggling checks rewrites the receipt but keeps its core-file hashes.
@@ -1862,8 +1894,8 @@ test("routine update checks keep an installed Git worktree clean", async (t) => 
 
   const manifestPath = path.join(tempRoot, "release.json");
   await fs.writeFile(manifestPath, JSON.stringify({
-    tag_name: "v0.3.0",
-    html_url: "https://example.invalid/v0.3.0",
+    tag_name: "v90.0.0",
+    html_url: "https://example.invalid/v90.0.0",
     draft: false,
     prerelease: false
   }));
@@ -1879,7 +1911,7 @@ test("routine update checks keep an installed Git worktree clean", async (t) => 
 
   const checked = beaconWithLocalCache(repo, "--now", "2026-08-14T00:00:00.000Z", "--manifest", manifestPath);
   assert.equal(checked.status, 0, checked.stderr);
-  assert.match(checked.stdout, /HAI-Harness 0\.3\.0 is available/);
+  assert.match(checked.stdout, /HAI-Harness 90\.0\.0 is available/);
   assert.equal(git(repo, "status", "--porcelain", "--untracked-files=all"), "");
 });
 
