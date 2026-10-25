@@ -35,3 +35,4 @@ Not checked: Windows paths and case-insensitive path comparison. The latter was 
 
 - Integration needs the user's approval through `worktree approve`. Push needs separate approval, and the release workflow then bumps 0.3.0 → 0.3.1.
 - Existing lanes are moved by the user after `update`. This lane itself sits at the legacy path, because it was created by the old CLI.
+- Closeout 2026-10-25: user approved integration ("approve") and the decision draft from T1 ("Approve the decision draft: write it to Human/decisions.md, then clean up the lane."); written to `.hai/Human/decisions.md`.

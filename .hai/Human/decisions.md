@@ -255,3 +255,9 @@ Archive or reset this file before changing the version header convention.
 - Why: Projects like Engram have their own rules and workflow, so defaulting to Claudia "doesn make sense". The user wanted a setting made once that costs nothing per session, and said "a project with no agents.md should get asked first if they want to default on claudia".
 - Tradeoffs: Under the `own` default, HAI's safeguards apply only when a HAI role is named.
 - Follow-up: Ship in 0.3.0.
+
+- Date: 2026-10-21
+- Decision: Task lanes live in one shared folder beside the project, `<parent>/_worktrees/<project>/<task-slug>`, instead of a sibling `<project>-worktrees` folder, matching the ProductLab rule that every worktree sits in `ProductLab/_worktrees/`. Lanes at the old path still approve and clean up; existing lanes are moved by hand with `git worktree move` after `update`.
+- Why: The user's ProductLab folder rule puts every worktree in `ProductLab/_worktrees/<Project>/<task-slug>` and forbids `<Project>-worktrees` folders.
+- Tradeoffs: Not stated.
+- Follow-up: Not stated.
