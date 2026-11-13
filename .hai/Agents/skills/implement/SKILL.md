@@ -11,6 +11,8 @@ Use this method for every build, by Claudia in her task lane or by an assigned w
 
 Read the current request entry or task contract, its acceptance criteria, and each requirement, design, or verification reference it names. Trace the affected flow from its entry point through relevant callers, interfaces, data, and failure paths. Identify the behavior the user needs and the root cause of the gap or defect before editing. Keep investigation within the assigned scope unless evidence shows the contract cannot be met without an explicit scope update.
 
+Before writing code, read the user's request text, which the entry or contract quotes verbatim, against the spec table. For anything the user will look at, or a request that names two or more items, do not start until the entry records the table and every `Assumed` line as confirmed by the user. If a row does not follow from the user's words, or the words allow a reading the table does not cover, stop and report the mismatch, quoting both; do not pick a reading. When the entry lists rejected attempts, build none of them again.
+
 ## Choose a fitting approach
 
 Inspect the actual project implementation and reuse its established code and patterns when they fit the stated behavior and design. Prefer a standard-library, native-platform, or already-installed capability only when it meets the explicit requirements and constraints; availability alone is not a reason to use it.
@@ -23,7 +25,7 @@ Keep changes within the assigned files and behavior. Preserve explicit requireme
 
 ## Verify and report
 
-Run checks suited to the changed behavior and the task's verification contract. Add or update meaningful tests when they verify requested behavior or an important failure or regression case; avoid tests that only match wording or mirror implementation details. Follow project instructions for focused checks and approval before high-cost runs. In one final report, give the actual commands and results, relevant coverage gaps, and any behavior you could not verify. A delegated worker's controller relies on this evidence instead of re-running its checks; Claudia's own report goes to the user.
+Run checks suited to the changed behavior and the task's verification contract. Add or update meaningful tests when they verify requested behavior or an important failure or regression case; avoid tests that only match wording or mirror implementation details. Follow project instructions for focused checks and approval before high-cost runs. Passing checks show the result works, not that it is what was asked. When the entry has a spec table, verify each row and report one line per row with what you observed and its evidence; for anything visual, that evidence is a screenshot of the item, not a statement that the page renders. In one final report, give the per-row results, the actual commands and results, relevant coverage gaps, and any behavior you could not verify. A delegated worker's controller relies on this evidence instead of re-running its checks; Claudia's own report goes to the user.
 
 When a task routes a lesson or Standing Gate, inspect it before implementation and make its rule part of the approach and acceptance criteria. Report observable evidence for the required replay or check, link any durable artifacts, and state whether the rule was behaviorally exercised or only inspected. A successful replay verifies only the tested case.
 

@@ -15,7 +15,6 @@ Planner-owned single source of truth for the current iteration.
 
 Last updated: YYYY-MM-DD HH:MM TZ
 Last updated by: Claudia
-User check-in after material clarification: not required
 High-cost execution approved: no
 Outward acts approved: none
 
@@ -78,6 +77,16 @@ Completion evidence:
 
 - Goal:
 - Why now:
+- User's words (verbatim request text, not the discussion):
+- Spec table (required for anything the user will look at, or a request naming two or more items; one row per item):
+
+  | Item | What the user sees | What changes | Between | Held fixed |
+  | --- | --- | --- | --- | --- |
+  |  |  |  |  |  |
+
+- Assumed (each decision the user's words do not state, and what Claudia would choose; `none` if nothing):
+- Spec confirmed by user: no (date and the user's words; covers the table and every Assumed line)
+- Rejected attempts (built X; user meant Y):
 - Context gathered:
   - Fact:
   - Fact:

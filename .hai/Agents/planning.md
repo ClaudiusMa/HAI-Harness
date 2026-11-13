@@ -2,12 +2,39 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-10-21 — shared `_worktrees/` lane root; built in lane, awaiting integration approval
+Last updated: 2026-11-11 — spec gate, second pass (assumed list); building in lane `task/spec-gate`
 Last updated by: Claudia
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
+
+## Current iteration — spec gate, 2026-11-04
+
+- Status: building in lane `task/spec-gate` (base `9e00134`). No push or publish approved.
+- Why: a field transcript (a design page in another project) showed Claudia building twice from her own reading of a short, multi-item visual request. The user rejected both builds ("i mean each square show the info im talking about … this is too dumb"). Delegation triggers 2 (heavy discussion) and 7 (unresolved visual intent) applied, but Claudia judges them herself and skipped both. Causes in the harness:
+  - every gate checks process (lane, approval, trail, lessons); none checks that the request was understood, and the ambiguity rule fires only when the agent feels unsure;
+  - a contract carries only Claudia's reading ("Never forward the conversation"), so no builder can catch a misreading;
+  - verification checks that the result works, not that it is what was asked;
+  - a rejection changes nothing: the next attempt is another guess.
+- User direction (2026-11-04): "i think this is a harness problem than a ocatioanl agent problem"; approved all seven fixes ("Yes, implement all"). For fix 5 the user chose event-based triggers over an edit-blocking hook, which keeps the 2026-10-14 lead-builds decision.
+- Requirements:
+  1. **Spec gate.** For a UI change, or a request that names two or more items, Claudia replies with a spec table (one row per item: what changes, between which values, what stays fixed) plus any open question, and builds or delegates only after the user confirms. The trigger is the kind of request, not her own sense of doubt.
+  2. **User's words travel.** The planning entry and any worker contract carry the request text verbatim beside the confirmed spec. The builder compares the two before coding and raises a mismatch. Forward the request text, never the discussion.
+  3. **Check against the spec.** The builder reports one line per spec row with observed evidence (a screenshot for UI). For UI work, a fast-tier read-only checker that sees only the user's words and the screenshots says whether each item matches.
+  4. **A rejection resets to the spec.** When the user rejects a built result, Claudia names what she misread, sends a corrected table and records the attempt before rebuilding. After a second rejection she stops guessing and asks for a sketch or reference, or routes to Hephaestus. `lesson-logger` runs on every rejection.
+  5. **Event triggers.** A rejection, or a second correction to the same request, counts as trigger 2: the rebuild goes to a fresh worker from the confirmed spec, or to Hephaestus first when visual intent is in question.
+  6. **Cheap delegated follow-ups.** A follow-up on an open delegated lane is sent as the changed spec rows, with no planning or trail edit per tweak.
+  7. **AGENTS.md.** The spec gate is the first rule under Always, within the 450-word and eight-invariant budget.
+- Second pass (2026-11-11). Why: a second field transcript (Dish-Graph, 2026-11-11). The user asked "have an agent turn the case i selected and word i selected into the demo, let me see how things were evovled in this secific case first". Claudia created a lane, wrote a contract and started a worker in 2 minutes 22 seconds with no question. She organized the demo around the concept word, which the user never said, and the user rejected it ("why the fuck it started with the word?"). Across 33 saved sessions she asked before acting once. The first pass would have fired on this request but leaves five gaps. User direction (2026-11-11): "claudia alwasy asusume something and just go do it … if its vague she should ask back"; approved the five additions ("Yes, draft it") and this lane for them ("Into spec-gate lane").
+  8. **Assumed list.** Under the spec table Claudia lists every decision the user's words do not state (what the result is organized around, what is in or out, the order, where it lives). A line about what the user will see or how it is organized is a question; nobody builds until it is answered. Work the user said comes later is not decided by building it.
+  9. **Wider trigger.** The gate covers anything the user will look at (a UI, a demo, a document, a deck), not only a UI change.
+  10. **No self-judged exit.** The "already explicit and clear" sentence in onboarding and the `User check-in after material clarification: not required` planning field are removed; the gate decides, not Claudia's reading.
+  11. **Standing request is about who builds.** "Without asking" covers delegation, never what is built.
+  12. **Honest origin.** A trail entry is Origin `user` only when every decision in it is in the user's words or confirmed; a plan with an unconfirmed `Assumed` line is Origin `agent`.
+- Rejected options: an edit-blocking hook plus an approve-time write record (would undo lead-builds; user chose event triggers); a check-in on every request (the gate covers things the user will look at and multi-item requests only; widened from UI-only on 2026-11-11).
+- Acceptance: focused suite passes, including the AGENTS.md budget and shipped hashes; `scripts/shipped-hashes.mjs` and `./hai-meta sync` run; agent replay on a fresh install of the CapWords fixture, by fresh agents: a multi-item visual request gets a spec table and no product edit before confirmation; a rejection gets a corrected table and the rebuild routed by the trigger; the Dish-Graph request above gets a spec table with an `Assumed` list, and no lane write, contract or worker before the user answers. Replays are judged on process and behavior (did the agent ask, list what it assumed, and wait), not on what it proposed or built (user, 2026-11-13). No CLI change, so no risk-area review. Integration only with user approval.
+- Builder: Claudia in the lane. Trigger check: the one rejected option was settled by a single question and the decided spec is fully written above, so there is no product discussion to isolate. Replays run in fresh subagents.
 
 ## Current iteration — shared worktrees root, 2026-10-21
 

@@ -33,6 +33,10 @@ To: {next worker, or "next assigned worker"}
 - Evidence links:
 - Status: pending | verified for the tested case | limited inspection only
 
+## Rejected attempts (when applicable)
+
+- Built / user meant, with the user's words:
+
 ## Failure reflection (when applicable)
 
 - Expected / observed:
