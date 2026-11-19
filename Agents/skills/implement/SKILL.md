@@ -11,7 +11,7 @@ Use this method for every build, by Claudia in her task lane or by an assigned w
 
 Read the current request entry or task contract, its acceptance criteria, and each requirement, design, or verification reference it names. Trace the affected flow from its entry point through relevant callers, interfaces, data, and failure paths. Identify the behavior the user needs and the root cause of the gap or defect before editing. Keep investigation within the assigned scope unless evidence shows the contract cannot be met without an explicit scope update.
 
-Before writing code, read the user's request text, which the entry or contract quotes verbatim, against the spec table. For anything the user will look at, or a request that names two or more items, do not start until the entry records the table and every `Assumed` line as confirmed by the user. If a row does not follow from the user's words, or the words allow a reading the table does not cover, stop and report the mismatch, quoting both; do not pick a reading. When the entry lists rejected attempts, build none of them again.
+Do not start any build until the entry or contract records the user's go-ahead in their own words. Before writing code, read the user's request text, which the entry or contract quotes verbatim, against the spec table. For anything the user will look at, or a request that names two or more items, do not start until the entry records the table and every `Assumed` line as confirmed by the user. If a row does not follow from the user's words, or the words allow a reading the table does not cover, stop and report the mismatch, quoting both; do not pick a reading. When the entry lists rejected attempts, build none of them again.
 
 ## Choose a fitting approach
 

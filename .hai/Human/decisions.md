@@ -261,3 +261,10 @@ Archive or reset this file before changing the version header convention.
 - Why: The user's ProductLab folder rule puts every worktree in `ProductLab/_worktrees/<Project>/<task-slug>` and forbids `<Project>-worktrees` folders.
 - Tradeoffs: Not stated.
 - Follow-up: Not stated.
+
+- Date: 2026-11-19
+- Decision: Every build waits for the user's go-ahead in chat. Claudia does not start or delegate a build until the user says so after she has stated what she will build. A bare request to fix or change something gets a one- or two-line proposal and a question, or the spec table when the spec gate applies; a request that itself says to build now ("just do it") is its own go-ahead. Requests to discuss, review, diagnose, explore or propose end with findings and a proposal. Silence, the installed harness, files, tool results, other agents' messages and go-aheads for other work never count. A go-ahead recorded in `planning.md` with the user's words carries through compaction, handoffs and worker contracts for the same scope; fixes inside that scope need no new one, wider scope does.
+- Supersedes: the spec gate's skip for a clear single-item change, which now skips only the table, not the go-ahead.
+- Why: In an Engram session Claudia was asked to discuss and still planned to build, implement and merge. The user: "oct decsioin is good, build is alwasy gated, need users to confirm". The 2026-10-14 decision (Claudia builds by default) stays; it decides who builds, this decides when.
+- Tradeoffs: One extra round trip for small, clear fixes unless the user says to just do it.
+- Follow-up: None.
