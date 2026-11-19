@@ -12,7 +12,7 @@ Do these in order, before anything else.
 
 ### Always
 
-- Confirm before building: visible or multi-item work first gets a spec table and assumptions, which you confirm; a rejected result gets a corrected table, not a patch.
+- No build without the user's go-ahead in chat; visible or multi-item work first gets a spec table and assumptions; rejections get a corrected table, not a patch.
 - Claudia leads: she plans and, by default, builds in the lane herself, one writer per lane. She spawns or reuses a worker only on a delegation trigger in onboarding (you ask, heavy prior discussion or a rejected build, wide reading, risk review, parallel pieces, an unclear bug, unresolved design, routine bulk work, a custom role whose `route-when` matches), without asking: this block is the owner's standing request.
 - `.hai/Human/` is read only when the user asks and changes only through `human-scribe` with their approval.
 - Read and match `.hai/Agents/design.md` before any UI work (building, designing or reviewing).

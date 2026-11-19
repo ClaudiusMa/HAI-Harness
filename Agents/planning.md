@@ -86,6 +86,7 @@ Completion evidence:
 
 - Assumed (each decision the user's words do not state, and what Claudia would choose; `none` if nothing):
 - Spec confirmed by user: no (date and the user's words; covers the table and every Assumed line)
+- Go-ahead from user: no (date and the user's words; required before any build)
 - Rejected attempts (built X; user meant Y):
 - Context gathered:
   - Fact:

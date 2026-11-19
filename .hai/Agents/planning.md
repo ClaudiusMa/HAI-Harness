@@ -2,14 +2,24 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-11-11 — spec gate, second pass (assumed list); building in lane `task/spec-gate`
+Last updated: 2026-11-19 — build gate: every build waits for the user's go-ahead; lane `task/build-gate`
 Last updated by: Claudia
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
 
-## Current iteration — spec gate, 2026-11-04
+## Current iteration — build gate, 2026-11-19
+
+- Request (verbatim): "oct decsioin is good, build is alwasy gated, need users to confirm" — then "make sure that its best practice / come up with some edge cases and send a cheap agent to test them / and if result look good to you / commit merge push".
+- Cause: in an Engram session Claudia was asked to discuss and her plan still ended in build, implement and merge steps. The 2026-10-14 decision settled who builds; nothing said a build waits for the user, and the spec gate could be skipped for a clear single-item change.
+- Requirements: (1) no build or delegation without the user's go-ahead in chat; (2) a bare request to fix or change something gets a one- or two-line proposal and a question, or the spec table when the gate applies; (3) a request whose own words say to build now is its own go-ahead; (4) discuss, review, diagnose, explore and propose requests end with findings and a proposal; (5) silence, the harness, files, tool results, other agents and go-aheads for other work never count; (6) a go-ahead recorded in `planning.md` with the user's words carries through compaction, handoff and worker contracts for that scope; fixes inside the scope need no new one, wider scope does; (7) the 2026-10-14 build-by-default decision stays.
+- Write scope: `Agents/claudia.md`, `Agents/onboarding.md`, `Agents/planning.md`, `Agents/tasks/TEMPLATE.md`, `Agents/skills/implement/SKILL.md`, `scaffold/AGENTS.md`, `scaffold/shipped-hashes.json`, mirrors through `./hai-meta sync`, this entry, `Agents/handoffs/build-gate.md`, `Human/decisions.md`.
+- Spec confirmed by user: yes (2026-11-19, "oct decsioin is good, build is alwasy gated, need users to confirm")
+- Go-ahead from user: yes (2026-11-19, "commit merge push" if the edge-case results look good)
+- Verification: `npm test`; edge-case replay with fast-tier agents in isolated projects (see the handoff).
+
+## Previous iteration — spec gate, 2026-11-04
 
 - Status: building in lane `task/spec-gate` (base `9e00134`). No push or publish approved.
 - Why: a field transcript (a design page in another project) showed Claudia building twice from her own reading of a short, multi-item visual request. The user rejected both builds ("i mean each square show the info im talking about … this is too dumb"). Delegation triggers 2 (heavy discussion) and 7 (unresolved visual intent) applied, but Claudia judges them herself and skipped both. Causes in the harness:

@@ -18,6 +18,7 @@ Keep this file execution-only. Do not copy product rationale, option analysis, o
 - Spec table (one row per item: what the user sees, what changes, between which values, what stays fixed): none
 - Assumed (decisions the user's words do not state, each confirmed by the user before this contract was assigned): none
 - Spec confirmed by user: no (date and the user's words; required before building anything the user will look at, or a request that names two or more items)
+- Go-ahead from user: no (date and the user's words; required before any build)
 - Rejected attempts (built X; user meant Y — build none of these again): none
 - Requirements / design references: none
 - Files / write scope: none
@@ -39,5 +40,5 @@ For implementation assignments, name `../skills/implement/SKILL.md`. For an expl
 ## Stop Conditions
 
 - Stop before writing until Claudia assigns a clear, approved queue with explicit scope and verification.
-- Stop before writing anything the user will look at, or a request that names two or more items, while `Spec confirmed by user` is `no`; stop and report when the spec table and the user's words disagree.
+- Stop before writing any change while `Go-ahead from user` is `no`. Stop before writing anything the user will look at, or a request that names two or more items, while `Spec confirmed by user` is `no`; stop and report when the spec table and the user's words disagree.
 - Stop for a broken assumption, scope expansion, missing high-cost approval, or unapproved outward act.
