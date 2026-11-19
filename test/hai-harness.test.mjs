@@ -578,11 +578,11 @@ test("the AGENTS.md block is the only part of the project's file HAI-Harness wri
   assert.equal(harness(project, "init", "--target", project).status, 0);
   assert.match(await fs.readFile(entry, "utf8"), /^# Engram\n\nNo harness here\.\n\n<!-- hai-harness:start default=own -->/);
 
-  // Duplicate or unbalanced markers: the file is left untouched.
+  // Duplicate or unbalanced markers: the file is left untouched and update fails, so scripts notice.
   for (const broken of [`${block}${block}`, "x\n<!-- hai-harness:start -->\ny\n", "<!-- hai-harness:end -->\nx\n<!-- hai-harness:start -->\n"]) {
     await fs.writeFile(entry, broken);
     const result = harness(project, "update", "--target", project);
-    assert.equal(result.status, 0, result.stderr);
+    assert.notEqual(result.status, 0, result.stdout);
     assert.match(result.stdout, /duplicate or unbalanced HAI-Harness markers/);
     assert.equal(await fs.readFile(entry, "utf8"), broken);
   }
@@ -849,7 +849,7 @@ test("init never makes Claudia the default; she answers only when named or opted
   assert.match(content, /^<!-- hai-harness:start default=own -->[\s\S]*this block does not apply/);
   assert.match(content, /Otherwise no HAI role applies/);
   assert.doesNotMatch(content, /Otherwise you are Claudia/);
-  assert.match(run(process.execPath, [cli, "init", "--dry-run", "--target", await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-dry-"))], project).stdout, /name no role go to this project's own instructions/);
+  assert.match(run(process.execPath, [cli, "init", "--dry-run", "--target", await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-dry-"))], project).stdout, /name no role go to no HAI role: this project's own instructions govern/);
   // A project with its own AGENTS.md gets the same default.
   const existing = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-own-"));
   t.after(() => fs.rm(existing, { recursive: true, force: true }));
@@ -872,13 +872,13 @@ test("the project sets who answers an unnamed message once, in the block marker"
   await fs.writeFile(entry, own);
   // A project with its own AGENTS.md keeps its workflow: HAI applies only when a HAI role is named.
   const installed = harness(project, "init", "--target", project);
-  assert.match(installed.stdout, /name no role go to this project's own instructions/);
+  assert.match(installed.stdout, /name no role go to no HAI role: this project's own instructions govern/);
   let content = await fs.readFile(entry, "utf8");
   assert.ok(content.startsWith(`${own}\n<!-- hai-harness:start default=own -->\n`));
   assert.match(content, /When it names none, this block does not apply: follow this project's own instructions outside it\./);
   assert.match(content, /Otherwise no HAI role applies; do not take one or ask the user to pick\./);
   assert.doesNotMatch(content, /Otherwise you are Claudia/);
-  assert.match(harness(project, "doctor", "--target", project).stdout, /name no role go to this project's own instructions/);
+  assert.match(harness(project, "doctor", "--target", project).stdout, /name no role go to no HAI role: this project's own instructions govern/);
 
   // Changing it once rewrites only the block; later updates keep the choice.
   assert.equal(harness(project, "update", "--target", project, "--default-role", "claudia").status, 0);
@@ -904,6 +904,29 @@ test("the project sets who answers an unnamed message once, in the block marker"
   await fs.writeFile(entry, `${own}\n<!-- hai-harness:start -->\nold\n<!-- hai-harness:end -->\n`);
   assert.equal(harness(project, "update", "--target", project).status, 0);
   assert.match(await fs.readFile(entry, "utf8"), /<!-- hai-harness:start default=claudia -->[\s\S]*Otherwise you are Claudia/);
+
+  // "none" is input only: it stores own, which every released CLI reads. A hand-written none marker reads as own too.
+  assert.equal(harness(project, "update", "--target", project, "--default-role", "none").status, 0);
+  const ownFile = await fs.readFile(entry, "utf8");
+  assert.match(ownFile, /<!-- hai-harness:start default=own -->[\s\S]*Otherwise no HAI role applies/);
+  await fs.writeFile(entry, ownFile.replace("default=own", "default=none"));
+  assert.equal(harness(project, "update", "--target", project).status, 0);
+  assert.equal(await fs.readFile(entry, "utf8"), ownFile);
+
+  // own and none are reserved: role files with those names never become roles or the default.
+  for (const name of ["own", "none"]) {
+    await fs.writeFile(path.join(project, `.hai/Agents/custom/roles/${name}.md`), `---\nname: ${name}\ndescription: x\nroute-when: x\nwrites: code\n---\n`);
+    assert.equal(harness(project, "update", "--target", project, "--default-role", name).status, 0);
+    assert.doesNotMatch(await fs.readFile(entry, "utf8"), /Otherwise you are (Own|None)/);
+  }
+  const doctorOut = harness(project, "doctor", "--target", project).stdout;
+  assert.match(doctorOut, /roles\/own\.md uses a reserved name/);
+  assert.match(doctorOut, /roles\/none\.md uses a reserved name/);
+
+  // An unknown value says what the choices are.
+  const unknown = harness(project, "update", "--target", project, "--default-role", "nobody");
+  assert.notEqual(unknown.status, 0);
+  assert.match(unknown.stderr, /no custom role named nobody[\s\S]*own \(no default role[\s\S]*claudia/);
 });
 
 function trailEntry(id, origin, area, change = `change ${id}`) {

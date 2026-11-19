@@ -156,11 +156,11 @@ Project-wide routing notes belong in `.hai/Agents/project_context.md`, never in 
 
 A message that names no HAI role goes to the project's default, stored once in the block's start marker (`<!-- hai-harness:start default=own -->`) so it travels with `AGENTS.md` and costs agents nothing extra:
 
-- `own` (the install default): the project's own instructions in `AGENTS.md` govern; HAI's rules, lanes and approvals apply only when someone names a HAI role ("Claudia, …", "Apollo, …"). A project with no `AGENTS.md` of its own gets the same default: Claudia answers only when named.
+- `own` (the install default; `none` is accepted as the same thing): no default role. The project's own instructions in `AGENTS.md` govern; HAI's rules, lanes and approvals apply only when someone names a HAI role ("Claudia, …", "Apollo, …"). A project with no `AGENTS.md` of its own gets the same default: Claudia answers only when named.
 - `claudia`: Claudia handles every unnamed request. Opt in with `--default-role claudia` on `init` or `update`.
-- a custom role name, such as `apollo`.
+- a custom role name, such as `apollo`. `own` and `none` are reserved and cannot be custom role names.
 
-Change it once with `npx github:ClaudiusMa/HAI-Harness update --default-role claudia|own|<custom role>`; later updates keep it, and `doctor` shows it.
+Change it once with `npx github:ClaudiusMa/HAI-Harness update --default-role own|claudia|<custom role>`; later updates keep it, and `doctor` shows it.
 
 ### Upgrading from the root layout (0.2.x)
 

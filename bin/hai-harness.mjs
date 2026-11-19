@@ -119,6 +119,9 @@ const projectStateDocs = new Set(["planning.md", "project_context.md", "design.m
 const customRolesPath = "Agents/custom/roles";
 const customSkillsPath = "Agents/custom/skills";
 const builtInRoles = ["claudia", "momus", "augustus", "julius", "athena", "hephaestus"];
+// Default-role values that mean "no default role"; never custom role names.
+// `own` is the stored value (every released CLI reads it); `none` is accepted as input.
+const noDefaultRoles = ["own", "none"];
 const shippedSkillNames = new Set(scaffoldPaths.map((item) => item.target.match(/^Agents\/skills\/([^/]+)\/SKILL\.md$/)?.[1]).filter(Boolean));
 const roleWriteLevels = ["code", "docs", "none"];
 
@@ -247,10 +250,10 @@ Options:
                        the current directory. human-sync resolves a project root to its ${harnessDirectory}/ folder.
   --force              (init only) Overwrite existing harness files.
   --dry-run            (init/update/migrate only) Show what would change without writing files.
-  --default-role <role> (init/update/migrate) Who answers a message that names no HAI role: claudia,
-                       own (the project's own AGENTS.md instructions; HAI applies only when a HAI
-                       role is named), or a custom role. Stored once in the AGENTS.md block marker.
-                       First install: own. Pass claudia to have Claudia answer unnamed messages.
+  --default-role <role> (init/update/migrate) Who answers a message that names no HAI role:
+                       own (no default role; "none" also works: HAI applies only when a HAI role
+                       is named), claudia, or a custom role. Stored once in the AGENTS.md block
+                       marker. First install: own. Pass claudia to have Claudia answer unnamed messages.
   --accept-upstream <path>
                        (update only, repeatable) Replace this one edited core file, such as
                        Agents/onboarding.md, with the shipped version.
@@ -721,26 +724,32 @@ function findEntryBlock(content) {
   if (content[end] === "\n") end += 1;
   // A byte-order mark before the first marker stays in place. A marker
   // written before defaults existed means Claudia.
-  return { state: "one", start: starts[0].index + (starts[0][0].startsWith("\uFEFF") ? 1 : 0), end, defaultRole: starts[0][1] ?? "claudia" };
+  return { state: "one", start: starts[0].index + (starts[0][0].startsWith("\uFEFF") ? 1 : 0), end, defaultRole: noDefaultRoles.includes(starts[0][1]) ? "own" : starts[0][1] ?? "claudia" };
 }
 
 function describeDefault(defaultRole) {
   if (defaultRole === "claudia") return "Claudia";
-  if (defaultRole === "own") return "this project's own instructions (HAI applies only when a HAI role is named)";
+  if (defaultRole === "own") return "no HAI role: this project's own instructions govern, and HAI applies only when a HAI role is named";
   return `the custom role ${defaultRole}`;
 }
 
-// --default-role takes claudia, own, or an existing custom role.
+// --default-role takes own (no default role; `none` is the same), claudia, or
+// an existing custom role.
 async function assertDefaultRole(projectRoot, options) {
+  const defaultRoleChoices = `own (no default role; "none" also works), claudia, or the lowercase name of a custom role in ${harnessDirectory}/${customRolesPath}/`;
   const value = options.defaultRole;
   if (value === undefined || value === "claudia" || value === "own") return;
+  if (value === "none") {
+    options.defaultRole = "own";
+    return;
+  }
   if (!/^[a-z][a-z0-9-]*$/.test(value) || builtInRoles.includes(value)) {
-    throw new Error(`--default-role takes claudia, own, or the lowercase name of a custom role; "${value}" is not one.`);
+    throw new Error(`--default-role takes ${defaultRoleChoices}; "${value}" is not one.`);
   }
   for (const base of [path.join(projectRoot, harnessDirectory), projectRoot]) {
     if (await exists(path.join(base, customRolesPath, `${value}.md`))) return;
   }
-  throw new Error(`--default-role ${value}: add ${harnessDirectory}/${customRolesPath}/${value}.md first.`);
+  throw new Error(`--default-role ${value}: there is no custom role named ${value}. It takes ${defaultRoleChoices}. To make ${value} the default, add ${harnessDirectory}/${customRolesPath}/${value}.md first.`);
 }
 
 function withoutEntryBlock(content) {
@@ -760,7 +769,10 @@ async function refreshEntryBlock(projectRoot, options, { adopt, replaceWhole = f
   const raw = await readOptional(file);
   const current = raw === null ? null : raw.toString("utf8");
   const found = current === null || replaceWhole ? { state: "none" } : findEntryBlock(current);
-  if (found.state === "malformed") return { status: "malformed", installed: false };
+  if (found.state === "malformed") {
+    process.exitCode = 1;
+    return { status: "malformed", installed: false };
+  }
   // A first install never makes Claudia the default: HAI applies only when a
   // HAI role is named, unless the user passes --default-role. Later the marker decides.
   const defaultRole = options.defaultRole ?? found.defaultRole ?? "own";
@@ -932,6 +944,10 @@ async function customWarnings(projectRoot, harness) {
     const fields = frontmatter(await fs.readFile(path.join(rolesDirectory, entry.name), "utf8")) ?? {};
     if (builtInRoles.includes(slug.toLowerCase()) || builtInRoles.includes((fields.name ?? "").toLowerCase())) {
       warnings.push(`Custom role ${shown} uses a built-in role name; agents ignore it. Rename it.`);
+      continue;
+    }
+    if (noDefaultRoles.includes(slug.toLowerCase()) || noDefaultRoles.includes((fields.name ?? "").toLowerCase())) {
+      warnings.push(`Custom role ${shown} uses a reserved name (${noDefaultRoles.join(", ")} mean "no default role"); agents ignore it. Rename it.`);
       continue;
     }
     const problems = ["name", "description", "route-when", "writes"].filter((field) => !fields[field]).map((field) => `missing ${field}`);
@@ -2289,7 +2305,7 @@ function entrySummary(entry) {
     malformed: `${entryFile} has duplicate or unbalanced HAI-Harness markers and was left unchanged. Keep exactly one ${blockStart} … ${blockEnd} pair, then run update.`,
     noSource: `${entryFile} was left unchanged: this package has no ${entryBlockSource}.`
   }[entry?.status] ?? "";
-  return entry?.defaultRole ? `${text}\nMessages that name no role go to ${describeDefault(entry.defaultRole)}. To change this once: ${upstreamCommand} update --default-role claudia|own|<custom role>` : text;
+  return entry?.defaultRole ? `${text}\nMessages that name no role go to ${describeDefault(entry.defaultRole)}. To change this once: ${upstreamCommand} update --default-role own|claudia|<custom role>` : text;
 }
 
 function printMigrateSummary(root, options, moves, results, report) {
