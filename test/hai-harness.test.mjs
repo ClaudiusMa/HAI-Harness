@@ -1931,7 +1931,7 @@ test("self-hosting wrapper uses ordinary updates and preserves populated project
   assert.ok(await fs.stat(path.join(target, "Agents/onboarding.md")));
   const entry = await fs.readFile(path.join(root, "AGENTS.md"), "utf8");
   assert.ok(entry.startsWith(repositoryNote), "the repository note stays as written");
-  assert.match(entry, /<!-- hai-harness:start default=claudia -->[\s\S]*node \.hai\/Agents\/hai-harness\.mjs[\s\S]*<!-- hai-harness:end -->\n$/);
+  assert.match(entry, /<!-- hai-harness:start default=own -->[\s\S]*node \.hai\/Agents\/hai-harness\.mjs[\s\S]*<!-- hai-harness:end -->\n$/);
   assert.equal(await fs.stat(path.join(target, "AGENTS.md")).catch(() => null), null);
   const records = [
     ".hai/Agents/planning.md", ".hai/Agents/project_context.md", ".hai/Agents/design.md",
