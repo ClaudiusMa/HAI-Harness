@@ -51,9 +51,18 @@ jobs:
           git checkout -b "$branch"
           git add package.json release.json
           git commit -m "$message"
-          git push origin "HEAD:$branch"
+          # The release branch is rebuilt from main on every run, so an open
+          # release PR for the same version gets the latest main instead of
+          # failing on a non-fast-forward push.
+          git push --force origin "HEAD:$branch"
 
-          gh pr create --base main --head "$branch" --title "$message" --body-file release-notes.txt
+          open_pr="$(gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$open_pr" ]; then
+            gh pr edit "$open_pr" --title "$message" --body-file release-notes.txt
+            echo "Updated release pull request #$open_pr"
+          else
+            gh pr create --base main --head "$branch" --title "$message" --body-file release-notes.txt
+          fi
 
       - name: Publish merged release
         if: steps.plan.outputs.publish == 'true' && steps.plan.outputs.action == 'tag'
