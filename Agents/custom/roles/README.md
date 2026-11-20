@@ -19,7 +19,7 @@ Read path: ../../project_context.md, then this file, then the task contract.
 Rules for this role go here.
 ```
 
-- `name`: the name users address. It must not be a built-in role (Claudia, Momus, Augustus, Julius, Athena, Hephaestus).
+- `name`: the name users address. It must not be a built-in role (Claudia, Momus, Augustus, Julius, Athena, Hephaestus) or a reserved name (Own, None).
 - `description`: one line on what the role does.
 - `route-when`: one line naming the requests Claudia sends to this role.
 - `writes`: `code` (may change product code inside its contract), `docs` (documents and design artifacts only), or `none` (read-only).
@@ -30,6 +30,6 @@ How agents use custom roles:
 - Claudia reads only this frontmatter at intake. She sends work to the role when its `route-when` clearly matches, names the role and its `writes` level in the contract, never gives code changes to a `docs` or `none` role, and asks you when a built-in and a custom role, or two custom roles, both fit.
 - Every harness rule still applies: lanes, a clean primary, approvals, the Human boundary. A role file may add or narrow rules, never loosen them; on conflict agents follow the harness rule and tell you.
 - The `writes` level binds the role however it is assigned, including when you address it directly: a `docs` or `none` role never changes code.
-- A file with incomplete frontmatter, or a built-in name, is ignored for routing; `doctor` reports it.
+- A file with incomplete frontmatter, or a built-in or reserved name, is ignored for routing; `doctor` reports it.
 
 Project-wide routing notes ("send schema changes to Apollo first") belong in `../../project_context.md`, not in the core role files, which `update` keeps current.
