@@ -1,0 +1,49 @@
+{
+  "id": "b-discussion-build",
+  "title": "Discussion-heavy build with reversals",
+  "tests": "Whether the build follows the latest confirmed requirements after a long product discussion with reversals (the harness claim: requirements recorded in a task contract survive a discussion better than chat memory). Counts stale-requirement errors: a rejected or superseded option that appears in the result.",
+  "measures": ["stale-requirement errors (failed_stale)", "checks passed", "tokens", "wall time", "interruptions"],
+  "fixture": "fixture",
+  "sessions": [
+    {
+      "turns": [
+        {
+          "id": "discuss1",
+          "answerQuestions": false,
+          "prompt": "Before we build anything, I want to think through a signup page for my Clay Club pottery workshop with you. People enter their name and email, see how many places remain, and can cancel. Two layout ideas: (1) one card with the form on top and the booking list underneath; (2) two columns with the form on the left and the list on the right. Most people will open it on their phone. Which would you pick, and why? Please don't build anything yet."
+        },
+        {
+          "id": "discuss2",
+          "answerQuestions": false,
+          "prompt": "Let's go with the single card and forget the two-column idea. The workshop has 8 places. Still discussing; no building yet."
+        },
+        {
+          "id": "discuss3",
+          "answerQuestions": false,
+          "prompt": "Two more things. People should be able to leave a short note when they sign up, for example about clay allergies. And for duplicates, block an email only when it matches exactly, character for character, because families sometimes share an address typed differently. Any concerns? Still no building."
+        },
+        {
+          "id": "discuss4",
+          "answerQuestions": false,
+          "prompt": "Changes after talking to the studio: the kiln only fits six pieces, so capacity is 6, not 8. And drop the notes field; I'll ask about allergies in person."
+        },
+        {
+          "id": "discuss5",
+          "answerQuestions": false,
+          "prompt": "I've also changed my mind on duplicates: treat two emails as the same person when they differ only in capitalization or surrounding spaces, so ' Ana@Example.com ' and 'ana@example.com' count as one. That's everything I wanted to settle."
+        },
+        {
+          "id": "build",
+          "prompt": "OK, build it now as we agreed, using the local plain HTML/CSS/JavaScript starter and the visual direction in README.md. Keep bookings when I reload, reject invalid emails, and no accounts or backend. Report the artifact path, how to run it and what you verified, then wait for my next request."
+        },
+        {
+          "id": "followup",
+          "prompt": "When all places are taken, let people join a waitlist using the same form, and when someone cancels, give the place to the first person waiting. The duplicate rule we agreed applies across both lists, and both lists must survive a reload. Verify it locally, report the path and checks, and stop after this request."
+        }
+      ]
+    }
+  ],
+  "replyPolicy": {},
+  "limits": { "maxAgentCalls": 18, "maxRepliesPerTurn": 4 },
+  "checks": "checks.mjs"
+}

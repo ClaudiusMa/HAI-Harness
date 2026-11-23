@@ -1,0 +1,11 @@
+{
+  "default": [
+    { "reply": "I would pick the single card: it stacks naturally on a phone. Which do you prefer?" },
+    { "reply": "Noted: single card, 8 places." },
+    { "reply": "Notes field and exact-match duplicates noted. One concern: exact matching lets the same person book twice with different capitalization." },
+    { "reply": "Noted: capacity 6, no notes field." },
+    { "reply": "Noted: duplicates ignore capitalization and surrounding spaces." },
+    { "reply": "Built the page as agreed. Run it with `python3 -m http.server`.", "overlay": "solution" },
+    { "reply": "Added the waitlist with first-come promotion. Verified locally." }
+  ]
+}

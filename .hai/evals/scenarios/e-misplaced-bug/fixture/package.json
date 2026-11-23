@@ -1,0 +1,9 @@
+{
+  "name": "kiln-invoices",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "batch": "node bin/print-batch.js"
+  }
+}

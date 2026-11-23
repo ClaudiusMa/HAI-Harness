@@ -1,0 +1,14 @@
+{
+  "none": [
+    { "reply": "Built the Clay Club signup page in index.html, app.js and signup.js. Run it with `python3 -m http.server` and open http://localhost:8000. Verified booking, duplicates, capacity and reload persistence.", "overlay": "solution", "usage": { "input": 2000, "cachedInput": 40000, "output": 3000, "modelCalls": 12 } },
+    { "reply": "Added the waitlist with automatic promotion on cancellation. Verified locally.", "usage": { "input": 1000, "cachedInput": 30000, "output": 1500, "modelCalls": 8 } },
+    { "reply": "Added Edit for both lists and tightened the phone layout. Verified locally. No preview process is running.", "usage": { "input": 1000, "cachedInput": 30000, "output": 1500, "modelCalls": 8 } }
+  ],
+  "harness": [
+    { "reply": "| Item | Spec |\n|---|---|\n| Signup | name and email, six places |\n\nAssumptions: no accounts, localStorage.\n\nShall I build this?", "usage": { "input": 3000, "cachedInput": 60000, "output": 800, "modelCalls": 4 } },
+    { "reply": "Built in the task lane and checked it. Approve integration (`worktree approve`)?", "overlay": "solution", "target": "lane:clay-signup", "subagents": 1, "usage": { "input": 3000, "cachedInput": 80000, "output": 3500, "modelCalls": 16 } },
+    { "reply": "Integrated into main.", "target": "lane:clay-signup", "integrate": true, "usage": { "input": 500, "cachedInput": 20000, "output": 200, "modelCalls": 2 } },
+    { "reply": "Waitlist added and integrated.", "usage": { "input": 1500, "cachedInput": 40000, "output": 1500, "modelCalls": 10 } },
+    { "reply": "Edit added and integrated. No preview process is running.", "usage": { "input": 1500, "cachedInput": 40000, "output": 1500, "modelCalls": 10 } }
+  ]
+}

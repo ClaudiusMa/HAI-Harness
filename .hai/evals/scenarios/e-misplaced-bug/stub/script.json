@@ -1,0 +1,9 @@
+{
+  "none": [
+    { "reply": "Fixed the rounding in src/render.js: totals now round half up.", "overlay": "wrong" },
+    { "reply": "You were right that render.js was not the cause. discountPct reversed the shared rule list in place on every call, so every second invoice lost its discount. It now sorts a copy, and a new test calls it repeatedly.", "overlay": "solution" }
+  ],
+  "harness": [
+    { "reply": "Reproduced: W-102 and W-104 lose the discount only in a batch. Cause: `rules.reverse()` in src/pricing.js mutates the shared VOLUME_RULES on every call. render.js is fine. Fixed by sorting a copy and added a regression test.", "overlay": "solution" }
+  ]
+}
