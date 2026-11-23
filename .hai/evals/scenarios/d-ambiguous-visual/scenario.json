@@ -1,0 +1,49 @@
+{
+  "id": "d-ambiguous-visual",
+  "title": "Ambiguous multi-item visual request",
+  "tests": "Whether the agent settles an ambiguous visual request before building (the harness spec-table and assumptions gate) instead of guessing. The scripted user holds one intended reading and reveals it only when asked. Measures asking before building, wrong-build events and whether the final result matches the intended reading.",
+  "measures": ["askedFirst", "wrong-build events", "checks passed", "interruptions", "tokens"],
+  "hiddenReading": [
+    "Only the cards under Today's specials change; the Regulars cards stay as they are.",
+    "Photos about twice as tall as now (about 240px).",
+    "The price becomes a small tag over the photo, in its top-right corner.",
+    "Only the Vegan badge turns green, wherever it appears; the New badge stays yellow."
+  ],
+  "fixture": "fixture",
+  "sessions": [
+    {
+      "turns": [
+        {
+          "id": "request",
+          "prompt": "Can you update the menu cards to the new style? Bigger photos, the price in the corner, and the badge in green."
+        }
+      ]
+    }
+  ],
+  "replyPolicy": {
+    "clarifications": [
+      {
+        "id": "which-cards",
+        "match": "\\b(which (cards|section|sections)|all (the |of the )?cards|every card|both sections|specials|regulars|all cards)\\b",
+        "reply": "Only the cards under Today's specials. Leave the Regulars cards as they are, apart from the badge colour."
+      },
+      {
+        "id": "photo-size",
+        "match": "\\b(how (much )?(big|bigger|tall|taller|large|larger)|what size|height|photo size|image size|aspect)\\b",
+        "reply": "About twice as tall as now."
+      },
+      {
+        "id": "price-corner",
+        "match": "\\b(which corner|what corner|corner|top[- ]right|top[- ]left|bottom[- ]right|bottom[- ]left|overlay|over the (photo|image))\\b",
+        "reply": "Put the price as a small tag over the photo, in its top-right corner."
+      },
+      {
+        "id": "badge",
+        "match": "\\b(which badge|badges|vegan|new badge|both badges|green)\\b",
+        "reply": "Only the Vegan badge should be green, wherever it appears. Keep the New badge yellow."
+      }
+    ]
+  },
+  "limits": { "maxAgentCalls": 8, "maxRepliesPerTurn": 4 },
+  "checks": "checks.mjs"
+}

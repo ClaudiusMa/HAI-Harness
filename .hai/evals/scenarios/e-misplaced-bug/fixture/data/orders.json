@@ -1,0 +1,7 @@
+[
+  { "id": "W-101", "customer": "Ana Ruiz", "items": [{ "item": "speckled mug", "qty": 12, "unitPrice": 18.5 }] },
+  { "id": "W-102", "customer": "Bea Okafor", "items": [{ "item": "speckled mug", "qty": 30, "unitPrice": 18.5 }] },
+  { "id": "W-103", "customer": "Cal Moreno", "items": [{ "item": "speckled mug", "qty": 2, "unitPrice": 18.5 }, { "item": "ramen bowl", "qty": 2, "unitPrice": 24 }] },
+  { "id": "W-104", "customer": "Dan Lee", "items": [{ "item": "ramen bowl", "qty": 26, "unitPrice": 24 }] },
+  { "id": "W-105", "customer": "Eve Novak", "items": [{ "item": "speckled mug", "qty": 10, "unitPrice": 18.5 }, { "item": "ramen bowl", "qty": 5, "unitPrice": 24 }] }
+]

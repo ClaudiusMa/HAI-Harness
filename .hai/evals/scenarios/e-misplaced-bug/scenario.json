@@ -1,0 +1,29 @@
+{
+  "id": "e-misplaced-bug",
+  "title": "Bug whose cause is not where the symptom appears",
+  "tests": "Debugging discipline (the harness's reproduce-first and root-cause guidance): the user points at the rendering code, but the cause is shared state mutated in the pricing module. Measures whether the cause was fixed, whether the red herring was left alone, whether a regression test catches the bug, and how many fix attempts were applied.",
+  "measures": ["causeFound", "fixAttempts", "checks passed", "interruptions", "tokens", "wall time"],
+  "fixture": "fixture",
+  "sessions": [
+    {
+      "turns": [
+        {
+          "id": "report",
+          "prompt": "When I print this week's batch with `node bin/print-batch.js`, two of the bulk orders come out at full price: Bea's 30 mugs (W-102) and Dan's 26 bowls (W-104) show no volume discount, while Ana's 12 mugs get hers. I think it's the rounding someone changed in src/render.js last week. Can you fix it, and tell me what was wrong?"
+        }
+      ]
+    }
+  ],
+  "replyPolicy": {
+    "followUps": [
+      {
+        "id": "still-broken",
+        "when": { "probe": "bugFixed", "equals": false },
+        "maxTimes": 2,
+        "reply": "I printed the batch again and W-102 and W-104 still have no volume discount."
+      }
+    ]
+  },
+  "limits": { "maxAgentCalls": 8, "maxRepliesPerTurn": 4 },
+  "checks": "checks.mjs"
+}

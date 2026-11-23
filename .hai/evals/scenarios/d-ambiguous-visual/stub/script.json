@@ -1,0 +1,9 @@
+{
+  "none": [
+    { "reply": "Updated all menu cards: photos are taller, the price sits in the corner and the badges are green. Open index.html to see it.", "overlay": "wrong" }
+  ],
+  "harness": [
+    { "reply": "| Item | Reading |\n|---|---|\n| Cards | ? |\n| Price corner | ? |\n| Badge | ? |\n\nBefore I build: which cards should change, the specials or all of them? Which corner for the price, and which badge should be green?" },
+    { "reply": "Updated the Today's specials cards: 240px photos, price tag over the photo's top-right corner, Vegan badge green everywhere.", "overlay": "solution" }
+  ]
+}
