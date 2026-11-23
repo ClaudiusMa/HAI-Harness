@@ -515,6 +515,7 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   for (const skill of shippedSkills) await fs.unlink(path.join(target, `Agents/skills/${skill}/SKILL.md`));
   await fs.unlink(path.join(target, "Agents/hai-harness.mjs"));
   await fs.unlink(path.join(target, "Agents/momus.md"));
+  await fs.unlink(path.join(target, "Agents/lanes.md"));
   const missingReviewSkill = harness(project, "doctor", "--target", project);
   assert.notEqual(missingReviewSkill.status, 0);
   assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/hai-harness\.mjs/);
@@ -522,6 +523,7 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/skills\/implement\/SKILL\.md/);
   assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/skills\/debugging\/SKILL\.md/);
   assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/momus\.md/);
+  assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/lanes\.md/);
   const restoredReviewSkill = harness(project, "update", "--target", project);
   assert.equal(restoredReviewSkill.status, 0, restoredReviewSkill.stderr);
   assert.equal(await fs.readFile(path.join(target, "Agents/hai-harness.mjs"), "utf8"), await fs.readFile(cli, "utf8"));
@@ -544,6 +546,27 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(polluted.stdout, /\.hai\/Agents\/planning\.md: 2633 lines \(limit 1200\)/);
   assert.match(polluted.stdout, /\.hai\/Agents\/tasks\/julius\.md: 842 lines \(limit 400\)/);
   assert.match(polluted.stdout, /handoffs\/ or Agents\/_archive\//);
+});
+
+// Startup reading is paid on every session. The worker count is the shipped files a worker is told
+// to read (the shared core, its role doc and the implement method); the lead count is the AGENTS.md
+// block, the core, lanes.md, claudia.md and implement. The block is also capped on its own (450
+// words) in the install test. Detail belongs in the file of the role or skill that uses it.
+test("startup reading paths stay within their word budgets", async () => {
+  const words = async (relative) => (await fs.readFile(path.join(projectRoot, relative), "utf8")).split(/\s+/).filter(Boolean).length;
+  const total = async (files) => (await Promise.all(files.map(words))).reduce((sum, count) => sum + count, 0);
+  for (const role of ["augustus", "julius"]) {
+    const worker = await total(["Agents/onboarding.md", `Agents/${role}.md`, "Agents/skills/implement/SKILL.md"]);
+    assert.ok(worker <= 2200, `${role} startup path is ${worker} words; the budget is 2,200`);
+  }
+  const lead = await total(["scaffold/AGENTS.md", "Agents/onboarding.md", "Agents/lanes.md", "Agents/claudia.md", "Agents/skills/implement/SKILL.md"]);
+  assert.ok(lead <= 5800, `Claudia's startup path is ${lead} words; the budget is 5,800`);
+  // Each role's read path is stated once, in the core; role docs link to it instead of restating it.
+  const onboarding = await fs.readFile(path.join(projectRoot, "Agents/onboarding.md"), "utf8");
+  for (const role of ["Claudia", "Augustus, Julius", "Momus", "Athena", "Hephaestus", "Custom role"]) assert.match(onboarding, new RegExp(`^- \\*\\*${role}\\*\\*`, "m"), role);
+  for (const doc of ["claudia", "augustus", "julius", "momus", "athena", "hephaestus"]) {
+    assert.doesNotMatch(await fs.readFile(path.join(projectRoot, `Agents/${doc}.md`), "utf8"), /^## (Required )?Read (Order|path)/im, `${doc}.md restates its read path`);
+  }
 });
 
 test("the AGENTS.md block is the only part of the project's file HAI-Harness writes", async (t) => {

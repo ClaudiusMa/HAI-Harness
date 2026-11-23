@@ -15,7 +15,7 @@ Planner-owned single source of truth for the current iteration.
 
 Last updated: YYYY-MM-DD HH:MM TZ
 Last updated by: Claudia
-High-cost execution approved: no
+Check-in runs approved (paid, external, shared-data or irreversible; local runs need none): none
 Outward acts approved: none
 
 Status options: `inbox`, `ready`, `next`, `in progress`, `blocked`, `done`, `dropped`.
@@ -57,7 +57,7 @@ Priority options: `P0` (must now), `P1` (soon), `P2` (nice), `P3` (maybe).
 - **Design contract:** `designs/<artifact>/design.md`, or none
 - **Dependencies:** exact artifact, ordering, external state, or independent
 - **User-approved execution:** no
-- **High-cost approval:** not required / pending / approved
+- **Check-in run approval:** not required / pending / approved
 - **Outward-act approval:** none; each push, PR, deploy, message, or other external act must be named explicitly
 
 Required outcome:
@@ -69,8 +69,8 @@ Required outcome:
 Completion evidence:
 
 - Files or surfaces changed:
-- Low-cost verification passed:
-- High-cost verification run or intentionally not run:
+- Verification run (commands and results):
+- Check-in verification run or intentionally not run:
 - Remaining user-owned verification:
 
 ### 3a. Current Iteration Strategy
@@ -115,12 +115,12 @@ Assigned queue for Julius (only when delegated):
 Advancement rule:
 
 - Continue directly to the next approved queued task after the current one is complete.
-- Pause for a blocking user decision, broken assumption, write-scope collision, missing high-cost approval, or unapproved outward act.
+- Pause for a blocking user decision, broken assumption, write-scope collision, a run that needs a check-in and has none, or an unapproved outward act.
 
 Verification rule:
 
-- Use low-cost verification by default.
-- Record high-cost verification explicitly before assigning or running it.
+- Run the checks that establish the result; local builds and tests need no check-in.
+- Record any verification that needs a check-in before assigning or running it.
 - Never claim rendered, integration, or networked acceptance when it was not performed.
 
 ### 3c. Decision Needed From User

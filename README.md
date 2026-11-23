@@ -32,7 +32,7 @@ The foundational architecture for durable memory, context control, planning, and
 - Claudia leads: she plans and, by default, builds in the task lane herself, so decisions, code and verification share one context. She delegates to Augustus or Julius only on a trigger: you ask, heavy prior discussion, wide reading, risk review, independent parallel pieces, or routine bulk work that can run on a lighter tier. For unclear bug causes, failed repairs without an established cause, or investigations needing runtime/intermittent/cross-component evidence, Claudia selectively routes to [Momus](Agents/momus.md). Known, reproduced, bounded fixes stay with the lane's current writer using [debugging](Agents/skills/debugging/SKILL.md); an ordinary bug does not add another agent or report cycle.
 - Hephaestus owns non-code human-interface design and design review. Athena independently reviews enterprise product design. Both work against `Agents/design.md`.
 - Active task authority lives in `Agents/planning.md` and `Agents/tasks/`; handoffs carry the contract across role boundaries, not chat memory.
-- Confirmed decisions, broken assumptions, high-cost behavior, and outward acts have explicit gates.
+- Builds, confirmed decisions, broken assumptions, and outward acts have explicit gates. Local builds and test runs need no check-in; paid, external, shared-data or irreversible runs do.
 
 ### ✅ Layer 2: Coordinated Team Mode — Operational
 
@@ -62,7 +62,7 @@ What exists now:
 - Athena performs read-only enterprise product-design review and assigns concrete fixes to whoever produced the artifact: Claudia or the worker.
 - Hephaestus creates durable, build-ready interface contracts and can review the resulting implementation without modifying product code.
 - Review findings and implementation corrections move through explicit design artifacts and handoffs.
-- Momus owns bounded diagnosis, worker probes/fixes and independent verification of the original symptom on the final candidate. You can also name Momus directly. Existing repair authority carries through; diagnosis-only stays read-only. He reuses an authorized same-task worker and handoff, stops after three unsuccessful applied fixes by default, and can satisfy an assigned independent source review when he did not implement the change.
+- Momus owns bounded diagnosis, probes and fixes, and verification of the original symptom on the final candidate. You can also name Momus directly. While he holds the incident lane's writer slot he may write probes and the fix himself, or hand a sizeable fix to a worker. Existing repair authority carries through; diagnosis-only stays read-only. He stops after three unsuccessful applied fixes by default. A fix he wrote in a risk area gets a fresh reviewer who did not write it; he can satisfy an assigned independent source review only for a change he did not write.
 
 What is not built yet:
 

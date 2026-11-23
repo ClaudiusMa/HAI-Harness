@@ -49,17 +49,17 @@ All substantive `.hai/` project context is version-controlled for transparency; 
 
 - For work on this HAI-Harness repository, always run a quick, meaningful test of the changed scope before claiming completion, committing, or publishing; do not wait for the user to request testing again.
 - For agent instruction or workflow changes, execute a short agent behavior replay with observable artifacts. For code or CLI changes, run the relevant focused behavior tests. For ordinary document edits, check the affected structure, links, and preservation requirements.
-- Record the tested scope, result, and limits in the task handoff. Interrupted or unrun checks remain pending. Broaden testing only when a failure, further change, or unresolved concern warrants it; full suites, builds, and other high-cost checks keep their separate approval gates.
+- Record the tested scope, result, and limits in the task handoff. Interrupted or unrun checks remain pending. Run the checks that establish the result; the full `npm test` suite and other local builds and tests need no check-in (onboarding, Lanes, runs and outward acts).
 - This is a project-local development rule. Keep it in the outer `.hai/` context; do not copy it into the distributable `Agents/`, `Human/`, or `scaffold/` templates.
 
 ## Required inner-to-outer closeout
 
 An inner product change is incomplete until the same iteration performs all of the following:
 
-1. Verify the inner product change with task-appropriate low-cost checks.
+1. Verify the inner product change with the checks that establish the result (local runs need no check-in).
 2. Run `./hai-meta sync` from the parent repository so the outer harness adopts stable scaffold and skill improvements.
 3. Update outer `planning.md` and relevant outer task/handoff evidence.
-4. Log confirmed durable decisions in outer `Human/decisions.md` through `decision-logger`.
+4. Log confirmed durable decisions in outer `Human/decisions.md` through `human-scribe`, with the user's approval.
 5. Confirm inner templates contain no real HAI-Harness development state.
 
 `hai-meta` is a thin wrapper around the ordinary local-source CLI with the repository root as its target (the harness lands in `.hai/`): bootstrap delegates to `init`, sync to `update`, and doctor to `doctor`. It contains no project-state seeds, redirect generation, or extra skill-copy step. Checked-in project records and root redirects are canonical; bootstrap fills missing generic files and cannot reconstruct lost project history.
@@ -81,7 +81,7 @@ An inner product change is incomplete until the same iteration performs all of t
 - Track `.hai/` project context, root `AGENTS.md`, and `hai-meta` under the 2026-09-09 transparency decision. Keep machine-local settings, caches, and receipts ignored; do not place private external project material in public context.
 - Never merge or push to `main` without explicit user authorization.
 - Never reset, stash, clean, or copy dirty work to manufacture a task baseline.
-- Builds, dependency installation, broad test runs, migrations, networked checks, and outward acts retain their normal approval gates.
+- Local builds, test runs and installs of declared dependencies need no check-in. Paid or metered runs, networked checks against live systems, migrations of real data, irreversible acts and outward acts (push, pull request, release, publish) keep their approval gates.
 
 ## Current discovery direction — 2026-09-09
 

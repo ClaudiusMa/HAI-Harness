@@ -5,36 +5,31 @@ description: Diagnose and repair a reported bug using discriminating evidence, o
 
 # Debugging
 
-Use the current task's expected behavior, scope, lane and authority. The lane's writer, Claudia or a worker, can use this method directly for obvious, reproduced, bounded fixes. Claudia routes unclear causes, repairs that failed without an established cause, and investigations needing intermittent/runtime/cross-component evidence to [Momus](../../momus.md). An ordinary bug or test failure does not require a new agent, report or review cycle.
+Work within the task's expected behavior, scope, lane and authority. The lane's writer uses this directly for an obvious, reproduced, bounded fix; Claudia routes unclear causes, failed repairs without an established cause, and intermittent, runtime or cross-component investigations to [Momus](../../momus.md). An ordinary bug or test failure needs no new agent, report or review.
 
 ## Establish the incident
 
-Read the current contract/handoff and latest authoritative requirement. Record expected versus actual behavior, the failing inputs/environment and prior applied fixes. Reuse one task-centric handoff; for a simple case a few evidence lines suffice. Keep parent/controller, lane/candidate, authority, cumulative unsuccessful fixes and current next action there so resumes and worker changes preserve the incident.
+Keep one task-centric handoff with expected versus actual behavior, failing inputs and environment, parent controller, lane and candidate, authority, prior applied fixes and the cumulative count of unsuccessful ones, and the next action, so a resume or a new worker keeps the incident. For a simple case a few lines suffice.
 
-Prefer an existing focused command/test or agent-operated interaction. Otherwise use a tiny fixture, browser/manual steps or captured failure evidence. Record the actual failing observation and exact steps/candidate; do not invent a baseline or revert user/peer work to produce one. Ask only for missing behavior, access or an interaction you cannot perform. Reuse the agreed pathway on later attempts.
+Reproduce with an existing focused command, test or agent-operated interaction, or else a tiny fixture, browser or manual steps, or captured failure evidence, and record the actual observation and steps. Never invent a baseline or revert user or peer work to get one. Ask only for missing behavior, access or an interaction you cannot perform.
 
 ## Diagnose before changing behavior
 
-Trace the relevant path and compare a working case; reduce inputs while keeping the symptom. Distinguish observations from hypotheses. Choose a plausible, falsifiable hypothesis and the cheapest check that separates it from alternatives. State its prediction and record the outcome as supported, rejected or inconclusive. Do not require a fixed hypothesis count or perfect reproducibility.
+Separate observations from hypotheses. Test a falsifiable hypothesis with the cheapest check that tells it apart from the alternatives, and record the result as supported, rejected or inconclusive. Prefer an existing debugger, REPL, test, trace or profiler to new instrumentation. Source, test or config probes belong to whoever holds the lane's writer slot (Momus himself, or the worker he handed the fix to), who also removes them. Keep logs small, task-marked and redacted.
 
-Use an existing debugger, REPL, focused test, trace or profiler before adding instrumentation. If source/test/config probes are needed, the authorized worker owns them and their cleanup; Momus never writes them. Keep logs small, task-marked and redacted. A logging service or NDJSON is optional, never required.
-
-For intermittent failures, use a bounded observation plan with counts, conditions and seeds/time where useful. A captured real failure can justify a discriminating probe; a clean run proves only its tested conditions. If evidence cannot support a cause, report not reproduced or diagnosis inconclusive and the exact missing evidence. Avoid speculative repairs presented as proven causes.
+For an intermittent failure, use a bounded observation plan; a clean run proves only its tested conditions. When evidence cannot support a cause, report not reproduced or inconclusive and name the missing evidence. Never present a speculative repair as a proven cause.
 
 ## Apply one correction and recheck
 
-Explain the supported cause, gaps, one proposed causal correction and the symptom check. Existing local repair authority carries through the loop; diagnosis-only remains read-only. Material expected-behavior decisions, wider scope, high-cost checks and production/outward actions retain their existing gates.
-
-The worker applies one coherent correction, adds regression coverage when it catches the real failure pattern at a useful seam, runs focused checks and returns the actual candidate/diff. Do not add tests that merely restate wording or mirror implementation. Reject or undo a failed probe/fix only through its owner's attributable edits after inspecting the current diff; preserve baseline, user and peer work. Never stack speculative corrections or reset/stash/clean a lane.
-
-Re-run the original symptom and relevant neighboring behavior against the final candidate after temporary probe cleanup. For UI bugs inspect the rendered interaction at the relevant viewport/theme; typecheck is insufficient. For harness bugs compare the latest instruction to the actual role, task and lane. Momus, when routed, independently performs this symptom verification. Existing risk-based review obligations may be satisfied by assigned Momus review when he did not implement the change; no duplicate review is required solely because debugging occurred.
-
-Label a verified correction, mitigation or unverified result accurately. A mitigation has its own checked scope and limits. Retained instrumentation needs a concrete reason, owner and revisit condition.
+- Explain the supported cause, gaps, one causal correction and the symptom check. Existing repair authority carries through the loop; diagnosis-only stays read-only. Material behavior decisions, wider scope, runs that need a check-in ([onboarding](../../onboarding.md)) and outward acts keep their gates.
+- The writer applies one coherent correction, adds regression coverage where it catches the real failure, runs the checks that establish the fix, and returns the actual diff. Undo a failed probe or fix only through its owner's attributable edits after inspecting the diff, preserving baseline, user and peer work. Never stack speculative corrections, or reset, stash or clean a lane.
+- Re-run the original symptom and neighboring behavior on the final candidate after probes are removed. For UI bugs inspect the rendered interaction at the relevant viewport and theme; a typecheck is not enough. For harness bugs compare the latest instruction with the actual role, task and lane. When routed, Momus does this check himself, whoever wrote the fix. Debugging alone triggers no extra review; a fix in a risk area, or one the user asks to have checked, gets a fresh reader who did not write it.
+- Label the result a verified correction, a mitigation (with its checked scope and limits) or unverified. Retained instrumentation needs a reason, owner and revisit condition.
 
 ## Bound the loop
 
-After each unsuccessful applied fix, keep its worker/candidate, prediction, attributable changes, observed result and the evidence informing the next attempt in the same handoff. A failing baseline, diagnostic probe or unavailable environment is not itself an applied fix. Continue only when useful new evidence supports the next correction.
+Record each unsuccessful applied fix (writer, candidate, prediction, changes, result, evidence for the next attempt) in the handoff. A failing baseline, a diagnostic probe or an unavailable environment is not an applied fix. Continue only when new evidence supports the next correction.
 
-Default: stop before a fourth unsuccessful applied fix for the same incident. Stop sooner for no useful new evidence, missing access, unclear authority, scope/resource collisions or a serious new regression. A new session, worker, slug or resume never resets the count. Report attempted explanations, unresolved evidence and the access/product/architecture decision needed; do not infer an architecture defect merely from three failures. Additional attempts or wider scope need a revised authorized approach recorded with the existing history.
+Stop before a fourth unsuccessful applied fix for the same incident, and sooner for no useful new evidence, missing access, unclear authority, a scope or resource collision, or a serious new regression. A new session, worker, slug or resume never resets the count. Then report the explanations tried, the unresolved evidence and the access, product or architecture decision needed; three failures alone do not prove an architecture defect. More attempts or wider scope need a revised, authorized approach recorded with the history.
 
-Close with the supported cause, correction, fresh symptom evidence, limits and next owner/action. Keep integration, publication and cleanup status separate from the verified behavior; follow the native lane lifecycle and preserve unfinished work/resources.
+Close with the supported cause, correction, fresh symptom evidence, limits and next owner. Keep integration, publication and cleanup status separate from verified behavior.

@@ -66,28 +66,15 @@ Shared high-level context for all agents. This file is intentionally architectur
 
 ## 7. Collaboration Map
 
-- [onboarding.md](onboarding.md) is the mandatory first read for every agent.
-- `project_context.md` is shared, high-level context only.
-- Role docs (`claudia.md`, `augustus.md`, `julius.md`) define stable collaboration rules. Worker scope is planner-assigned unless your project intentionally adds durable role biases.
-- Each agent session has at most one active role and does not switch roles. A parent task may contain a Claudia session plus separate role-isolated worker sessions that Claudia delegates to.
-- [planning.md](planning.md) is Claudia-owned and is the single iteration source of truth for task allocation, implementation strategy, and worker execution planning.
-- Claudia leads: she plans and, by default, builds in the task lane herself. Augustus and Julius own a write scope only when Claudia delegates it on a trigger. Each lane has one writer at a time.
-- When a request is clear, sufficiently confident, approved, and safely scoped, Claudia builds it directly, or delegates it when a trigger in onboarding applies. She pauses for material ambiguity, scope collisions, missing high-cost approval, or outward-act approval.
-- `tasks/` holds current worker assignments for Augustus and Julius when Claudia delegates.
-- `designs/` holds Hephaestus-owned, non-code design contracts and supporting artifacts.
-- `handoffs/` holds task baton-pass notes for coordinated worker execution and later chats/sessions.
-- `lessons/` holds task/problem-specific learnings worth reusing in later chats.
-- `Human/` is not part of default agent context.
+- Roles, files and shared rules are in [onboarding.md](onboarding.md); do not restate them here.
+- Add only project-specific routing notes (for example, "send schema changes to Apollo first").
 
 ## 8. Non-Negotiable Rules
 
-- Always read a file before editing it, even mid-session.
-- Never merge to `main` unless the user explicitly asks.
-- Never push to `origin/main` unless the user explicitly asks.
 - Preserve explicit source-of-truth boundaries. Do not create competing state without documenting it here.
 - Keep side-effect-free paths side-effect free when the project defines them that way.
 - Risky migrations and backfills need explicit approval before live execution.
-- High-cost validation should stay opt-in.
+- Local builds and tests run without a check-in ([onboarding.md](onboarding.md)). Set tighter or looser limits for this project here.
 - When a rollout changes identity, ownership, permissions, or durable data shape, preserve existing data before polishing workflow details around it.
 - Prefer durable constraints over exhaustive description. If a detail will go stale quickly, it probably does not belong here.
 - Add project-specific rules below:

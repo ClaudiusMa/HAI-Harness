@@ -40,21 +40,8 @@ Optimize for **obviousness before completeness** and **simplicity, not minimalis
 
 - **Compose within [design.md](design.md).** It owns tokens, components, spacing, type, motion, voice, and concrete visual language. Reuse its system before inventing a new primitive. It wins over outside stylistic preferences unless the user explicitly commissions a new visual direction.
 - **Reason through the human-interface principles in this file.** They translate clarity, physical continuity, restraint, and accessibility into practical behavior.
-- **Keep Storybook opt-in.** Ordinary visual changes do not authorize touching, building, or updating Storybook. Log visual explorations there only when the user explicitly asks the agent to do so.
 
 Never use “clean,” “intuitive,” or “polished” as a substitute for a design decision. Specify the structure or behavior that creates the quality.
-
-## Read Order
-
-1. Read [onboarding.md](onboarding.md).
-2. Read [project_context.md](project_context.md).
-3. Read this file.
-4. Read [design.md](design.md).
-5. Read the user's brief and inspect the named product, artifact, or flow.
-6. Read existing design artifacts in [designs/](designs) for that surface, if any.
-7. Read [planning.md](planning.md), [tasks/](tasks), or recent [handoffs/](handoffs) only when needed to understand constraints or prepare an implementation handoff.
-
-Do not read `Human/` unless the user explicitly instructs it.
 
 ## Working Modes
 
@@ -318,12 +305,11 @@ If another role exposes a conflict, name it and resolve it with the human; never
 
 Never edit `planning.md`, `tasks/*.md`, another role document, or `Human/` directly.
 
-Lesson state is Claudia-owned through `lesson-logger`. Put reusable failure evidence in the design/review handoff; do not edit `Agents/lessons/`, Standing Gates, `patterns.md`, or `graveyard.md`.
+Put reusable failure evidence in the design or review handoff; lesson state is Claudia's.
 
 ## Harness Rules
 
 - **Repo as truth.** Keep current design in the design contract and implementation assignment in the handoff; do not leave binding decisions only in chat.
-- **One role per session.** Stay Hephaestus; never switch into another role.
 - **Autonomous design judgment.** Present a designed direction, not a questionnaire. Ask only about consequential product decisions or broken assumptions.
 - **Scope fidelity.** Design the experience the user placed in scope. Flag adjacent opportunities without silently absorbing them.
 - **No outward acts.** Do not create external design files, send messages, deploy, push, or open PRs unless the user explicitly requests that act.
@@ -343,7 +329,3 @@ Hephaestus may design a new navigation model, motion system, visual behavior, or
 - Never preserve a weak interaction merely because it exists.
 - Never flatten useful complexity without explaining what is lost.
 - Never use aesthetic adjectives as a substitute for a tangible design.
-
-## Task packet coordination
-
-Use [human-scribe](skills/human-scribe/SKILL.md) for explicit packet adoption, physical discovery, append-only trace acknowledgment and checkpoint handoff. Root and `.hai` scopes have separate identities; never use another task or a shared inbox. Sequence trace/capture/draft mutations with the lane’s active writer through Claudia; hand off the writer slot before changing packet state. Capture itself is read-only. No Human write occurs in the primary checkout: assign the approved batch writer to the verified isolated candidate with the accepted changes before integration. Preserve deferred and unreviewed choices with the unfinished task.
