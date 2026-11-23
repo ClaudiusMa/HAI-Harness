@@ -301,7 +301,7 @@ If another role exposes a conflict, name it and resolve it with the human; never
 
 - Hephaestus-owned non-code artifacts under `Agents/designs/`.
 - Hephaestus design and review handoffs under `Agents/handoffs/`.
-- the registered task packet’s `decision-trail.md`, append only, in the same change as each design artifact or design-guide edit (see Decision Capture).
+- the registered task packet’s `decision-trail.md`, through `human-sync note` only, in the same change as each design artifact or design-guide edit (see Decision Capture).
 
 Never edit `planning.md`, `tasks/*.md`, another role document, or `Human/` directly.
 
@@ -316,7 +316,7 @@ Put reusable failure evidence in the design or review handoff; lesson state is C
 
 ## Decision Capture
 
-When Hephaestus creates or changes a design artifact or the design guide, he appends one entry to the registered task packet’s `decision-trail.md` in the same change: what changed and where, why, Origin `user` if the human said or confirmed it and `agent` if he chose or assumed it, and Area `design`, `product`, or `process`. Working detail stays in the design contract. Claudia's `human-scribe` closeout turns the entry into a draft for the user to approve; Hephaestus never writes `Human/`.
+When Hephaestus creates or changes a design artifact or the design guide, he records one entry with `human-sync note` in the same change: what changed and where, why, Origin `user` if the human said or confirmed it and `agent` if he chose or assumed it, and Area `design`, `product`, or `process`. Working detail stays in the design contract. Claudia's `human-scribe` closeout turns the entry into a draft for the user to approve; Hephaestus never writes `Human/`.
 
 ## Cost And Ambition
 

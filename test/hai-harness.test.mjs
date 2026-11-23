@@ -1132,7 +1132,9 @@ test("human-sync refuses shared, detached, missing and invalid packets and isola
   await appendTrail(packet, [trailEntry(1, "user", "product", "only task one")]);
   assert.equal(harness(repo, "worktree", "create", "other", "--target", repo).status, 0);
   const other = laneOf(repo, "other");
-  assert.match(harness(other, "human-sync", "--target", other).stderr, /Missing task packet/);
+  // A lane made by an older CLI has no packet: simulate one.
+  await fs.rm(observed(other).packet, { recursive: true });
+  assert.match(harness(other, "human-sync", "--target", other).stderr, /Missing task packet[\s\S]*note also creates it/);
   assert.equal(harness(other, "human-sync", "init", "--target", other).status, 0);
   assert.doesNotMatch(harness(other, "human-sync", "--target", other).stdout, /only task one/);
   assert.match(harness(root, "human-sync", "--target", root).stdout, /only task one/);
@@ -1218,28 +1220,37 @@ test("human-sync migration refuses redirected legacy parents without adopting or
   await fs.rename(saved, agents);
 });
 
-test("human-sync doctor and acknowledgment bind new traces to committed and dirty snapshots", async (t) => {
+test("human-sync doctor and acknowledgment bind new traces to content, not commits", async (t) => {
   const { root, packet } = await makePacketFixture(t);
   const inbox = path.join(packet, "human-inbox.md");
   await fs.appendFile(inbox, "\n### draft\n  - Status: pending note\n### later\n- Status: deferred\n");
   assert.match(harness(root, "doctor", "--target", root).stdout, /1 pending and 1 deferred/);
   assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
-  await fs.appendFile(path.join(root, "Agents/planning.md"), "\nDirection.\n");
+  await fs.appendFile(path.join(root, "Agents/project_context.md"), "\nDirection.\n");
   const stale = observed(root);
-  await appendTrail(packet, [trailEntry(1, "user", "process", "Agents/planning.md direction")]);
-  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/planning\.md/);
-  await fs.appendFile(path.join(root, "Agents/planning.md"), "\nMore direction.\n");
+  await appendTrail(packet, [trailEntry(1, "user", "process", "Agents/project_context.md direction")]);
+  const drift = harness(root, "doctor", "--target", root).stdout;
+  assert.match(drift, /no new entry: Agents\/project_context\.md\. Record why: .*human-sync note --change/);
+  await fs.appendFile(path.join(root, "Agents/project_context.md"), "\nMore direction.\n");
   assert.notEqual(acknowledge(root, "T1", stale).status, 0);
   assert.equal(acknowledge(root, "T1").status, 0);
   assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
-  git(root, "add", "Agents/planning.md");
+  // Staging and committing the acknowledged content is not new drift.
+  git(root, "add", "Agents/project_context.md");
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
   git(root, "commit", "-m", "Commit direction");
-  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/planning\.md/);
-  assert.notEqual(acknowledge(root, "T1").status, 0);
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
   await appendTrail(packet, [trailEntry(2, "user", "process", "unrelated choice")]);
-  assert.match(acknowledge(root, "T2").stderr, /name every changed traced path/);
-  await appendTrail(packet, [trailEntry(3, "user", "process", "Agents/planning.md committed direction")]);
-  assert.equal(acknowledge(root, "T3").status, 0);
+  assert.equal(acknowledge(root, "T2").status, 0);
+  await fs.appendFile(path.join(root, "Agents/project_context.md"), "\nNew direction.\n");
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/project_context\.md/);
+  await appendTrail(packet, [trailEntry(3, "user", "process", "unrelated choice")]);
+  assert.match(acknowledge(root, "T3").stderr, /name every changed traced path/);
+  await appendTrail(packet, [trailEntry(4, "user", "process", "Agents/project_context.md new direction")]);
+  assert.equal(acknowledge(root, "T4").status, 0);
+  // The plan is not traced.
+  await fs.appendFile(path.join(root, "Agents/planning.md"), "\nRecorded request.\n");
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
   await fs.appendFile(path.join(root, "Agents/claudia.md"), "\nRole change.\n");
   git(root, "commit", "-am", "Role change");
   await fs.appendFile(path.join(packet, "decision-trail.md"), "\nUnrelated dirty trail.\n");
@@ -1338,6 +1349,226 @@ test("worker role tracing keeps pre-worker packets readable and reports worker.m
   assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
 });
 
+function note(root, ...args) {
+  return harness(root, "human-sync", "note", "--target", root, ...args);
+}
+
+async function packetBytes(packet) {
+  return Promise.all(["decision-trail.md", "human-inbox.md", "packet.json"].map((name) => fs.readFile(path.join(packet, name), "utf8")));
+}
+
+test("worktree create starts the lane's task packet at the harness scope, and init on it changes nothing", async (t) => {
+  const { repo } = await makeInstalledProject(t);
+  t.after(() => fs.rm(lanesOf(repo), { recursive: true, force: true }));
+  const created = harness(repo, "worktree", "create", "fresh", "--target", repo);
+  assert.equal(created.status, 0, created.stderr);
+  assert.match(created.stdout, /^Task packet initialized: .*hai-harness\/tasks\/[0-9a-f]{64}$/m);
+  const lane = laneOf(repo, "fresh");
+  const state = observed(lane);
+  assert.equal(state.identity.scope, ".hai");
+  assert.doesNotMatch(harness(lane, "doctor", "--target", lane).stdout, /Missing task packet|no new entry/);
+  const before = await packetBytes(state.packet);
+  const again = harness(lane, "human-sync", "init", "--target", lane);
+  assert.equal(again.status, 0, again.stderr);
+  assert.match(again.stdout, /Task packet already exists: .*Nothing changed/);
+  assert.deepEqual(await packetBytes(state.packet), before);
+  assert.match(harness(lane, "human-sync", "init", "--migrate", "--target", lane).stderr, /already exists; preserve it/);
+  // An invalid packet still refuses init.
+  const metadata = path.join(state.packet, "packet.json");
+  await fs.writeFile(metadata, "{}\n");
+  assert.match(harness(lane, "human-sync", "init", "--target", lane).stderr, /already exists; preserve it/);
+  assert.equal(await fs.readFile(metadata, "utf8"), "{}\n");
+
+  // A checkout without a harness gets a lane and one line saying there is no packet.
+  const { repo: plain } = await makeGitFixture(t);
+  t.after(() => fs.rm(lanesOf(plain), { recursive: true, force: true }));
+  const bare = harness(plain, "worktree", "create", "bare", "--target", plain);
+  assert.equal(bare.status, 0, bare.stderr);
+  assert.match(bare.stdout, /^No task packet: .* has no Agents directory\.$/m);
+
+  // A harness nested below the Git root keeps its nested scope in the lane.
+  const nested = path.join(plain, "app");
+  await fs.mkdir(nested);
+  assert.equal(harness(plain, "init", "--target", nested).status, 0);
+  assert.equal(beacon(path.join(nested, ".hai"), "--disable").status, 0);
+  git(plain, "add", "-A");
+  git(plain, "commit", "-m", "Install nested harness");
+  assert.match(harness(plain, "worktree", "create", "nested", "--target", nested).stdout, /^Task packet initialized: /m);
+  const nestedLane = path.join(laneOf(plain, "nested"), "app");
+  assert.equal(observed(nestedLane).identity.scope, path.join("app", ".hai"));
+});
+
+test("worktree create keeps the lane but makes no packet when legacy trail files are present", async (t) => {
+  const { repo } = await makeInstalledProject(t);
+  t.after(() => fs.rm(lanesOf(repo), { recursive: true, force: true }));
+  await fs.writeFile(path.join(repo, ".hai/Agents/decision-trail.md"), `# Trail\n\n## Entries\n${trailEntry(1, "user", "product")}`);
+  await fs.writeFile(path.join(repo, ".hai/Agents/human-inbox.md"), "Captured through: none\n\n## Drafts\n");
+  git(repo, "add", "-A");
+  git(repo, "commit", "-m", "Legacy trail");
+  const created = harness(repo, "worktree", "create", "legacy", "--target", repo);
+  assert.equal(created.status, 0, created.stderr);
+  const lane = laneOf(repo, "legacy");
+  assert.match(created.stdout, /^No task packet: legacy Agents\/decision-trail\.md or Agents\/human-inbox\.md is in the lane\. To adopt it: .*human-sync init --migrate --target .*legacy\/\.hai$/m);
+  assert.match(harness(lane, "human-sync", "status", "--target", lane).stderr, /Missing task packet/);
+  assert.match(note(lane, "--change", "x", "--why", "y", "--origin", "user", "--area", "process").stderr, /Legacy Agents storage exists\. Use ".*human-sync init --migrate/);
+  assert.equal(harness(lane, "human-sync", "init", "--migrate", "--target", lane).status, 0);
+});
+
+test("human-sync note appends a numbered entry and acknowledges the traced state in one step", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  await fs.appendFile(path.join(root, "Agents/design.md"), "\nToken.\n");
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/design\.md/);
+  const recorded = note(root, "--change", " Agents/design.md: accent token ", "--why", "The user picked teal", "--origin", "user", "--area", "design");
+  assert.equal(recorded.status, 0, recorded.stderr);
+  assert.match(recorded.stdout, /^Recorded T1; acknowledged Agents\/design\.md\.\nAt closeout it becomes a decision draft for the user's log\. No Human item was approved\.\n$/);
+  const trail = await fs.readFile(path.join(packet, "decision-trail.md"), "utf8");
+  assert.match(trail, /## Entries\n\n### T1\n- Date: \d{4}-\d{2}-\d{2}\n- Change: Agents\/design\.md: accent token\n- Why: The user picked teal\n- Origin: user\n- Area: design\n$/);
+  const saved = JSON.parse(await fs.readFile(path.join(packet, "packet.json"), "utf8"));
+  assert.equal(saved.acknowledged.through, "T1");
+  assert.equal(saved.acknowledged.basis, "content");
+  assert.equal(saved.trail, trail);
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
+  assert.match(harness(root, "human-sync", "--target", root).stdout, /^T1 · decision · user\/design/m);
+  // A plan edit alone is not drift, and a note with no traced change records a decision.
+  await fs.appendFile(path.join(root, "Agents/planning.md"), "\nRecorded request.\n");
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
+  const assumed = note(root, "--change", "Chose weekly digests", "--why", "Not specified", "--origin", "agent", "--area", "product");
+  assert.equal(assumed.status, 0, assumed.stderr);
+  assert.match(assumed.stdout, /^Recorded T2; no traced file changed\.\nAt closeout it becomes an open question for the user/);
+  const code = note(root, "--change", "Refactored the parser", "--why", "Clarity", "--origin", "agent", "--area", "code");
+  assert.match(code.stdout, /Recorded T3[\s\S]*It stays in the trail only\. No Human item was approved\./);
+  const applied = note(root, "--change", "Reflected the approved brief", "--why", "Closeout", "--origin", "user", "--area", "process", "--applies", "approved brief draft");
+  assert.match(applied.stdout, /Recorded T4[\s\S]*closeout drafts nothing/);
+  assert.match(await fs.readFile(path.join(packet, "decision-trail.md"), "utf8"), /### T4\n[\s\S]*- Area: process\n- Applies: approved brief draft\n$/);
+  const capture = harness(root, "human-sync", "--target", root).stdout;
+  assert.match(capture, /2 of 4 new trail entries/);
+  assert.match(capture, /^T2 · open question/m);
+  assert.doesNotMatch(capture, /^T3 ·|^T4 ·/m);
+  // Content basis: committing a noted edit is not drift; a new edit is.
+  await fs.appendFile(path.join(root, "Agents/project_context.md"), "\nAudience.\n");
+  assert.equal(note(root, "--change", "Agents/project_context.md audience", "--why", "User said so", "--origin", "user", "--area", "product").status, 0);
+  git(root, "add", "-A");
+  git(root, "commit", "-m", "Context");
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
+  assert.equal(note(root, "--change", "Unrelated decision", "--why", "Kept lane", "--origin", "user", "--area", "process").status, 0);
+  await fs.appendFile(path.join(root, "Agents/project_context.md"), "\nMore.\n");
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/project_context\.md/);
+});
+
+test("human-sync note refuses bad input and unnamed changes without writing anything", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  await fs.appendFile(path.join(root, "Agents/claudia.md"), "\nRole change.\n");
+  const before = await packetBytes(packet);
+  const valid = ["--why", "reason", "--origin", "user", "--area", "process"];
+  const unnamed = note(root, "--change", "Something else", ...valid);
+  assert.notEqual(unnamed.status, 0);
+  assert.match(unnamed.stderr, /missing: Agents\/claudia\.md\. Nothing was written\. Name them in --change if this note covers them; if someone else changed them, that writer records their note first\./);
+  for (const [args, pattern] of [
+    [["--change", "Agents/claudia.md", "--why", "r", "--origin", "boss", "--area", "process"], /--origin must be user or agent/],
+    [["--change", "Agents/claudia.md", "--why", "r", "--origin", "user", "--area", "ops"], /--area must be one of product, design, process, code/],
+    [["--change", "Agents/claudia.md", "--why", "   ", "--origin", "user", "--area", "process"], /--why must not be empty/],
+    [["--change", "Agents/claudia.md", "--why", "line one\nline two", "--origin", "user", "--area", "process"], /--why must be a single line/],
+    [["--change", "Agents/claudia.md", "--why", "r", "--origin", "user", "--area", "process", "--applies", "a\r\nb"], /--applies must be a single line/],
+    [["--change", "Agents/claudia.md", "--origin", "user", "--area", "process"], /requires --why/],
+    [["--change", "Agents/claudia.md", ...valid, "--through", "T1"], /require acknowledge/]
+  ]) {
+    const refused = note(root, ...args);
+    assert.notEqual(refused.status, 0, args.join(" "));
+    assert.match(refused.stderr, pattern);
+    assert.deepEqual(await packetBytes(packet), before);
+  }
+  for (const action of ["status", "acknowledge", "init", "capture", "checkpoint"]) {
+    assert.match(harness(root, "human-sync", action, "--target", root, "--change", "x").stderr, /require note/);
+  }
+  // An edited acknowledged prefix refuses too.
+  assert.equal(note(root, "--change", "Agents/claudia.md role", ...valid).status, 0);
+  const trailFile = path.join(packet, "decision-trail.md");
+  await fs.writeFile(trailFile, (await fs.readFile(trailFile, "utf8")).replace("- Why: reason", "- Why: rewritten"));
+  const edited = await packetBytes(packet);
+  assert.match(note(root, "--change", "later", ...valid).stderr, /earlier entries were edited\. Nothing was written/);
+  assert.deepEqual(await packetBytes(packet), edited);
+  assert.match(harness(root, "help").stdout, /human-sync +\[capture\|status\|init\|note\|[\s\S]*note --change <text> --why <text>/);
+});
+
+test("human-sync note numbers after hand-appended entries and gaps, with or without a final newline", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  const valid = ["--why", "reason", "--origin", "agent", "--area", "code"];
+  await appendTrail(packet, [trailEntry(1, "agent", "code"), trailEntry(5, "agent", "code")]);
+  assert.match(note(root, "--change", "next", ...valid).stdout, /^Recorded T6;/);
+  const trailFile = path.join(packet, "decision-trail.md");
+  await fs.writeFile(trailFile, `${(await fs.readFile(trailFile, "utf8"))}\n${trailEntry(9, "agent", "code").trimEnd()}`);
+  assert.match(note(root, "--change", "after a trail with no final newline", ...valid).stdout, /^Recorded T10;/);
+  const trail = await fs.readFile(trailFile, "utf8");
+  assert.match(trail, /- Area: code\n\n### T10\n- Date:/);
+  const capture = harness(root, "human-sync", "--target", root);
+  assert.match(capture.stdout, /5 new trail entries were agent-origin code changes/);
+  assert.match(capture.stdout, /Captured through: T10/);
+});
+
+test("human-sync note creates the packet in a lane made by an older CLI", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  await fs.rm(packet, { recursive: true });
+  const recorded = note(root, "--change", "First decision", "--why", "reason", "--origin", "user", "--area", "product");
+  assert.equal(recorded.status, 0, recorded.stderr);
+  assert.match(recorded.stdout, /^Task packet initialized \(this lane had none\): .*\nRecorded T1; no traced file changed\./);
+  assert.equal(JSON.parse(await fs.readFile(path.join(packet, "packet.json"), "utf8")).acknowledged.through, "T1");
+  // A partial packet still refuses.
+  await fs.rm(path.join(packet, "packet.json"));
+  assert.match(note(root, "--change", "x", "--why", "y", "--origin", "user", "--area", "product").stderr, /Missing task packet/);
+});
+
+// The drift basis before content-only snapshots: last touching commit, index entry and files.
+async function legacyPathHash(lane, scope, name) {
+  const gitPath = `${scope}/${name}`;
+  const commit = run("git", ["log", "-1", "--format=%H", "--", gitPath], lane).stdout.trim();
+  const index = git(lane, "ls-files", "--stage", "--", gitPath);
+  const files = [];
+  const root = path.join(lane, scope);
+  async function visit(relative) {
+    const absolute = path.join(root, relative);
+    const stat = await fs.lstat(absolute).catch(() => null);
+    if (!stat) { files.push([relative, "missing"]); return; }
+    if (stat.isSymbolicLink()) { files.push([relative, "symlink", await fs.readlink(absolute)]); return; }
+    if (stat.isDirectory()) {
+      files.push([relative, "directory"]);
+      for (const child of (await fs.readdir(absolute)).sort()) await visit(`${relative}/${child}`);
+    } else files.push([relative, stat.mode & 0o777, createHash("sha256").update(await fs.readFile(absolute)).digest("hex")]);
+  }
+  await visit(name);
+  return createHash("sha256").update(JSON.stringify({ commit, index, files })).digest("hex");
+}
+
+test("a packet acknowledged under the old basis stays readable and adopts the content basis at its next note", async (t) => {
+  const { lane, root, packet } = await makePacketFixture(t);
+  const file = path.join(packet, "packet.json");
+  const current = JSON.parse(await fs.readFile(file, "utf8"));
+  const names = ["Agents/planning.md", ...Object.keys(current.acknowledged.paths)];
+  const paths = {};
+  for (const name of names) paths[name] = await legacyPathHash(lane, ".hai", name);
+  const { basis, ...rest } = current.acknowledged;
+  assert.equal(basis, "content");
+  const old = { ...current, acknowledged: { ...rest, paths, digest: createHash("sha256").update(JSON.stringify(paths)).digest("hex") } };
+  const oldBytes = `${JSON.stringify(old, null, 2)}\n`;
+  await fs.writeFile(file, oldBytes);
+  assert.equal(harness(root, "human-sync", "status", "--target", root).status, 0);
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry|Invalid task packet/);
+  await fs.appendFile(path.join(root, "Agents/planning.md"), "\nRecorded request.\n");
+  await fs.appendFile(path.join(root, "Agents/athena.md"), "\nRole change.\n");
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/athena\.md\. /);
+  assert.equal(await fs.readFile(file, "utf8"), oldBytes);
+  // An unknown basis is refused.
+  await fs.writeFile(file, JSON.stringify({ ...old, acknowledged: { ...old.acknowledged, basis: "commits" } }));
+  assert.match(harness(root, "human-sync", "status", "--target", root).stderr, /Invalid task packet/);
+  await fs.writeFile(file, oldBytes);
+  assert.equal(note(root, "--change", "Agents/athena.md role", "--why", "reason", "--origin", "user", "--area", "process").status, 0);
+  const adopted = JSON.parse(await fs.readFile(file, "utf8"));
+  assert.equal(adopted.acknowledged.basis, "content");
+  assert.equal(Object.hasOwn(adopted.acknowledged.paths, "Agents/planning.md"), false);
+  git(root, "add", "-A");
+  git(root, "commit", "-m", "Role");
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
+});
+
 test("cleanup retains current-task pending and uncaptured packets but leaves peer packets alone", async (t) => {
   const { repo, lane, root, packet } = await makePacketFixture(t);
   await fs.writeFile(path.join(lane, "result.txt"), "approved\n");
@@ -1345,6 +1576,7 @@ test("cleanup retains current-task pending and uncaptured packets but leaves pee
   const approved = harness(lane, "worktree", "approve", "--approved", "Packet cleanup", "--target", lane);
   assert.equal(approved.status, 0, approved.stderr);
   assert.match(approved.stdout, /1 pending/);
+  assert.match(approved.stdout, /Task packet retained: /);
   assert.ok(await fs.stat(lane));
   await fs.writeFile(path.join(packet, "human-inbox.md"), "Captured through: none\n\n## Drafts\n### unreviewed without status\n");
   const malformed = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
@@ -1373,6 +1605,8 @@ test("cleanup selects current packet incarnation when a completed task slug is r
   await fs.writeFile(path.join(lane, "first.txt"), "first incarnation\n");
   const first = harness(lane, "worktree", "approve", "--approved", "First incarnation", "--target", lane);
   assert.equal(first.status, 0, first.stderr);
+  // Every lane has a packet from creation; an empty one is not announced.
+  assert.doesNotMatch(first.stdout, /Task packet retained/);
   assert.equal(await fs.stat(lane).catch(() => null), null);
   const oldFiles = Object.fromEntries(await Promise.all(["packet.json", "human-inbox.md", "decision-trail.md"].map(async (name) => [name, await fs.readFile(path.join(packet, name), "utf8")])));
   assert.equal(harness(repo, "worktree", "create", "capture", "--target", repo).status, 0);

@@ -33,4 +33,4 @@ Cleanup is part of completion and needs no separate approval. A push alone is no
 3. From a surviving checkout, run `node .hai/Agents/hai-harness.mjs worktree cleanup <task-branch> --target <primary-checkout>`.
 4. If it retains ignored files or orphan folders, remove only exact task-owned generated cache paths whose origin and disposable contents are established, after checking the complete contents for valuable files, symlinks and nested repositories, then retry. No broad recursive deletion and no forced worktree removal.
 5. Preserve unfinished work, pending or deferred decision drafts, active peer resources, and anything whose ownership or content is uncertain; report the precise blocker and path instead of offering generic cleanup.
-6. The final summary lists stopped processes, removed resources, what was kept and why, and the task packet paths.
+6. The final summary lists stopped processes, removed resources, what was kept and why, and the task packet path when it holds entries or drafts.

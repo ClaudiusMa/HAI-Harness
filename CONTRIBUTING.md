@@ -50,7 +50,7 @@ follow the current plan and preserve any ongoing lanes.
    ```
 
 4. Verify preserved project state and update outer planning, task, and handoff evidence.
-   Append task-packet trace entries for agent-doc changes and approve drafted Human updates
+   Record task-packet notes (`human-sync note`) for agent-doc changes and approve drafted Human updates
    through human-scribe at closeout. Write approved Human entries in the verified isolated
    candidate with accepted changes before integration; serialize shared log writes and deduplicate.
    Checkpoint provisional state outside registered worktrees for cross-machine handoff;

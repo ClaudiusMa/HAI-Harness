@@ -7,39 +7,36 @@ description: Capture task-owned why-entries into provisional packet drafts, pres
 
 Agents maintain `Human/` and the public README; the user owns them by approving. Nothing reaches either without approval in the current batch. Claudia coordinates capture and review, and writes approved items herself in her task lane or assigns the worker or Momus holding the lane's writer slot. A direct Momus controller uses this method for its incident-specific choices; a delegated Momus reports them to its parent Claudia, who owns packet mutations. Neither entry authorizes global planning or direct Human writes by Momus. Provisional choices stay outside Agents and product files in the registered task packet.
 
-## Packet adoption and discovery
+## Packet and discovery
 
-Run commands from the root of the retained recognized task lane with `--target .`; in an installed project the CLI resolves `.` and `.hai` to the same packet, so use one consistently:
+Every lane `worktree create` makes starts with its task packet, baselined at the lane's start. Run commands from the lane root with `--target .` (`.` and `.hai` resolve to the same packet). Only a recognized task lane has one; main, detached and hand-made checkouts refuse. Never create a shared fallback or borrow another task's packet.
 
-```sh
-node .hai/Agents/hai-harness.mjs human-sync init --target .
-node .hai/Agents/hai-harness.mjs human-sync status --target .
-```
+`human-sync status` prints the packet path in the Git common directory (`packet.json`, `decision-trail.md`, `human-inbox.md`). Identity binds branch, base, integration and harness scope. Symlink redirects refuse. Keep packet contents out of tracked files.
 
-Initialization explicitly adopts the current traced state as baseline; it does not reconstruct earlier history. The current worktree workflow still requires a recognized task branch with canonical base/integration metadata, created from the clean primary checkout (normally on `main`). Missing, invalid, detached and non-task state refuses; never create a shared/global fallback or borrow another task's packet. Restore the recorded integration target for integration; packet reads can resume while that target is unavailable. When `worktree approve` merges the latest `main` into the lane, doctor may report traced paths that changed on `main`; append one entry naming them as merged from `main`, then acknowledge.
+A lane from an older CLI has none; `note` or `human-sync init` creates it (`init` changes nothing on an existing packet). With legacy `Agents/decision-trail.md` and `Agents/human-inbox.md`, run `human-sync init --migrate --target .`; it verifies exact copies and keeps a receipt before retiring them. Partial packets refuse; never delete populated legacy state.
 
-`status` returns `{packet, identity, head, snapshot}`. `packet` is the physical Git common directory's `hai-harness/tasks/<identity-hash>` path, containing `packet.json`, `decision-trail.md` and `human-inbox.md`. Identity binds branch, base, integration and physically resolved harness scope relative to the checkout; root and `.hai` have separate packets. Follow the returned directory, not an assumed `.git` directory in a worktree. Namespace and file symlink redirects refuse. Keep packet metadata private; do not put it in tracked code, Agents or Human.
+## When to record, and how
 
-If legacy `Agents/decision-trail.md` and `Agents/human-inbox.md` both exist, use `node .hai/Agents/hai-harness.mjs human-sync init --migrate --target .` instead. Migration requires regular files and a valid cursor, verifies exact copies and persists a content/hash supersession receipt before retiring either source. Existing or partial packets refuse for explicit reconciliation; never blindly delete populated legacy state. Init/update neither install these legacy files nor silently retire installed content.
+Record a why-entry in the same change when:
 
-## Sources and trace duty
+- `project_context.md`, `design.md`, `designs/` or a role doc (built-in or custom) changes; or
+- a decision is made that the user should see again: a product, design or process choice the user made or confirmed (Origin `user`), or one an agent assumed without asking (Origin `agent`).
 
-- Packet `decision-trail.md`: append-only numbered `### T{n}` entries. Claudia, Athena, Hephaestus and direct Momus controllers trace changes to planning, project context, design guide, `designs/`, or role docs. Workers provide code-level evidence through handoffs, not trail entries. Trail/inbox, task contracts and handoffs need no entry.
-- Entry fields: `Date`, `Change` (what changed and every affected traced path, relative to this harness target), `Why`, `Origin: user | agent`, `Area: product | design | process | code`. Origin `user` requires the user's actual statement or confirmation of every decision in the entry; never upgrade an assumption. Quoting the request in `Why` does not make a plan the user's, and a plan with an unconfirmed `Assumed` line is Origin `agent`. Correct earlier entries by appending a numbered correction, not editing old text.
-- Packet `human-inbox.md`: pending/deferred drafts and the `Captured through: none` or `Captured through: T{n}` cursor.
-- Open `Decision needed from user` items in `Agents/planning.md`.
-
-Capture reads the agent layer only, never chat transcripts. Do not read Human except the target file an assigned writer needs for a currently approved item. Preserve quoted user words in trace evidence for reflections.
-
-Coordinate one writer slot for packet and lane mutations. Pause or hand off the active lane writer before changing trace, drafts or cursor; do not launch a hidden second writer. Read-only capture may inspect a stable agreed snapshot, but its resulting draft/cursor changes must be serialized. Record the packet identity/path and provisional state in the task handoff.
-
-After the traced change and its new entry, run `human-sync status` again and acknowledge the exact observed state:
+Recording an ordinary request in `planning.md` needs no entry; the plan entry carries the user's words and go-ahead. Claudia, Athena, Hephaestus and direct Momus controllers record; workers write none and give evidence in handoffs.
 
 ```sh
-node .hai/Agents/hai-harness.mjs human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
+node .hai/Agents/hai-harness.mjs human-sync note --target . --change "Agents/design.md: accent is teal" --why "The user picked it over blue" --origin user --area design
 ```
 
-Use the actual new trace ID and exact status values. Acknowledgment requires an unchanged prior trail prefix, a valid newly appended entry and a Change field naming every changed traced path; stale observations refuse. `doctor` compares touched commits, staged entries and physical contents/mode with the baseline and warns on pending/deferred drafts and untraced dirty or committed changes. Committing an acknowledged dirty change needs a fresh entry and acknowledgment of the committed state. A packet created before Momus remains readable with only that new role hash absent; doctor reports `Agents/momus.md` as unacknowledged drift until a normal new trace and acknowledgment adopt it. Never reinitialize the packet to clear this warning. Editing an unrelated trail/inbox item cannot clear drift. Initialization and acknowledgment never approve a Human draft.
+`note` appends the next numbered entry, dated today, and acknowledges the traced state in one step. `--change` must name every traced path changed since the last acknowledgment, or nothing is written; if another writer changed one, they note first. Values are single lines. `--applies "approved {draft}"` marks a reflection of an approved item. Traced files merged in from `main` are named in one note ("merged from main").
+
+Origin `user` requires the user's actual statement or confirmation of every decision in the entry; never upgrade an assumption. Quoting the request does not make a plan the user's, and a plan with an unconfirmed `Assumed` line is Origin `agent`. The trail is append-only: correct with a new note.
+
+Drift compares file content: `doctor` warns when a traced file differs from the last acknowledgment, and on pending/deferred drafts. Committing noted content is not drift; a traced file changed, committed and returned to the acknowledged content needs no entry. A traced path an older packet lacks reads as drift until the next note. Never reinitialize the packet or edit unrelated trail items to clear drift. Manual form: append an entry by hand, run `human-sync status`, then `human-sync acknowledge --through T<n> --head <HEAD> --snapshot <digest>`. Neither form approves a Human draft.
+
+One writer slot: pause or hand off the lane writer before changing trail, drafts or cursor; no hidden second writer. Read-only capture may inspect a stable snapshot; its draft and cursor changes are serialized. Record the packet path in the task handoff.
+
+Capture reads the packet trail, packet `human-inbox.md` (drafts and the `Captured through: none` or `T{n}` cursor) and open `Decision needed from user` items in `Agents/planning.md`: the agent layer only, never chat transcripts. Do not read Human except the target file an assigned writer needs for a currently approved item. Preserve quoted user words for reflections.
 
 ## 1. Capture (fast tier, low effort)
 
@@ -57,10 +54,10 @@ Draft only what the source states. Do not add reasons or guess the user's view.
 
 ## 2. Closeout batch
 
-- Before closeout, including blocked handoff, Claudia shows all pending/deferred drafts in one numbered batch. The user approves, edits, drops or defers each item; "approve all" applies to that batch only. No first backfill or unrelated Human change is implied.
+- A lane with no entries and no drafts needs no capture at closeout. Otherwise, before closeout, including blocked handoff, Claudia shows all pending/deferred drafts in one numbered batch. The user approves, edits, drops or defers each item; "approve all" applies to that batch only. No first backfill or unrelated Human change is implied.
 - Approved/edited items go to the assigned writer; the user's edit replaces the draft. Keep source IDs and approved text in the handoff until verified integration.
 - Dropped drafts leave the inbox but their trace remains. Deferred items retain `Status: deferred`; unaddressed items stay pending. Raise both at the next intake.
-- Execution changes are reflected in Agents by their owning role. Its trace adds `- Applies: approved {draft}` to avoid capture again.
+- Execution changes are reflected in Agents by their owning role. Its note adds `--applies "approved {draft}"` to avoid capture again.
 
 ## 3. Writer (fast tier, medium effort)
 

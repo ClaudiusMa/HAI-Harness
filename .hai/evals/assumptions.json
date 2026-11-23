@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "written": "2026-11-23",
-  "lane": "task/role-fixes",
-  "base": "16b5c41",
+  "lane": "task/decision-notes",
+  "base": "1889954",
   "kinds": {
     "policy": "owner's decision about control or workflow",
     "safety": "protects Git state, data or approvals mechanically",
@@ -16,11 +16,11 @@
     "new": "added in a later change to close a gap or record a new owner decision (see note)"
   },
   "counts": {
-    "merged": 75,
+    "merged": 71,
     "kept": 32,
-    "changed": 12,
+    "changed": 16,
     "removed": 6,
-    "new": 6
+    "new": 9
   },
   "rules": [
     {
@@ -820,7 +820,7 @@
     {
       "id": "R050",
       "kind": "policy",
-      "rule": "Decision trail: Claudia, Athena, Hephaestus and direct Momus append a why-entry in the same change to planning, project context, design guide, designs/ or role docs; trail, inbox, contracts and handoffs need none; workers write none.",
+      "rule": "Decision trail: Claudia, Athena, Hephaestus and direct Momus record a why-entry with human-sync note in the same change when project context, design guide, designs/ or a role doc changes, or for a decision the user should see again (Origin user if made or confirmed by the user, agent if assumed); a request recorded in planning.md needs none; trail, inbox, contracts and handoffs need none; workers write none.",
       "source": [
         "Agents/onboarding.md Core Rules",
         "Agents/claudia.md Decision Capture",
@@ -828,14 +828,16 @@
         "Agents/hephaestus.md",
         "Agents/skills/human-scribe/SKILL.md"
       ],
-      "decision": "2026-09-30",
-      "status": "merged",
+      "decision": "2026-11-23",
+      "status": "changed",
       "location": [
+        "Agents/skills/human-scribe/SKILL.md When to record, and how",
         "Agents/onboarding.md Records",
-        "Agents/skills/human-scribe/SKILL.md",
         "Agents/athena.md Decision Capture",
         "Agents/hephaestus.md Decision Capture"
-      ]
+      ],
+      "origin": "owner, 2026-11-23 (\"1 and 2 together\", on the master session's bookkeeping options)",
+      "note": "decision-notes: narrows the 2026-09-30 decision. planning.md is no longer a traced path (bin/hai-harness.mjs tracedPaths); the plan entry still carries the user's words and go-ahead. Gives up: doctor no longer flags a plan edit with no entry, and a decision written only in the plan reaches the user's log only if an agent notes it."
     },
     {
       "id": "R051",
@@ -848,53 +850,58 @@
       "decision": "2026-09-30",
       "status": "merged",
       "location": [
-        "Agents/skills/human-scribe/SKILL.md Sources and trace duty"
+        "Agents/skills/human-scribe/SKILL.md When to record, and how"
       ]
     },
     {
       "id": "R052",
       "kind": "policy",
-      "rule": "One bookkeeping pass per request: one planning record, one trail entry, status folded into the next change or closeout.",
+      "rule": "One bookkeeping pass per request: one planning record with no trail entry; a human-sync note only for a real decision; status folded into the next change or closeout.",
       "source": [
         "Agents/claudia.md Decision Capture"
       ],
-      "decision": "2026-10-13",
-      "status": "merged",
+      "decision": "2026-11-23",
+      "status": "changed",
       "location": [
         "Agents/claudia.md Understanding the request (Record)"
-      ]
+      ],
+      "origin": "owner, 2026-11-23 (\"1 and 2 together\", on the master session's bookkeeping options)",
+      "note": "decision-notes: the plan record no longer needs a trail entry because planning.md is not traced (R050)."
     },
     {
       "id": "R053",
       "kind": "policy",
-      "rule": "Closeout batch: run human-scribe capture and present every pending and deferred draft in one batch, a blocked handoff included; only approved items reach Human/, written in the verified lane before integration; README via the lane.",
+      "rule": "Closeout batch: run human-scribe capture and present every pending and deferred draft in one batch, a blocked handoff included; a lane with no entries and no drafts needs no capture; only approved items reach Human/, written in the verified lane before integration; README via the lane.",
       "source": [
         "Agents/onboarding.md Core Rules",
         "Agents/claudia.md Decision Capture",
         "Agents/skills/human-scribe/SKILL.md"
       ],
-      "decision": "2026-09-30",
-      "status": "merged",
+      "decision": "2026-11-23",
+      "status": "changed",
       "location": [
         "Agents/claudia.md Lessons and closeout",
-        "Agents/skills/human-scribe/SKILL.md"
-      ]
+        "Agents/skills/human-scribe/SKILL.md Closeout batch"
+      ],
+      "origin": "owner, 2026-11-23 (\"1 and 2 together\", on the master session's bookkeeping options)",
+      "note": "decision-notes: every lane now has a packet from creation, so an empty one asks for nothing; cleanup and the lanes.md final summary name the packet only when it holds entries or drafts."
     },
     {
       "id": "R054",
       "kind": "policy",
-      "rule": "Task packet coordination: adoption, discovery, separate root/.hai identities, one writer for packet mutations, read-only capture, no Human write in the primary, deferred choices kept with the task.",
+      "rule": "Task packet coordination: the packet exists from lane creation (note or init creates it in an older lane), discovery, separate root/.hai identities, one writer for packet mutations, read-only capture, no Human write in the primary, deferred choices kept with the task.",
       "source": [
         "Agents/onboarding.md Task packet coordination",
         "Agents/athena.md Task packet coordination",
         "Agents/hephaestus.md Task packet coordination"
       ],
-      "decision": "2026-10-05",
-      "status": "merged",
+      "decision": "2026-11-23",
+      "status": "changed",
       "location": [
         "Agents/skills/human-scribe/SKILL.md (already stated there)"
       ],
-      "note": "Three identical paragraphs removed; every sentence is already in human-scribe."
+      "note": "Three identical paragraphs removed; every sentence is already in human-scribe. decision-notes: explicit adoption with init is replaced by creation at worktree create; init succeeds quietly on an existing valid packet.",
+      "origin": "owner, 2026-11-23 (\"1 and 2 together\", on the master session's bookkeeping options)"
     },
     {
       "id": "R055",
@@ -2020,7 +2027,7 @@
       "decision": null,
       "status": "new",
       "location": [
-        "Agents/skills/human-scribe/SKILL.md Packet adoption"
+        "Agents/skills/human-scribe/SKILL.md Packet and discovery"
       ],
       "note": "Follow-up 1 item 15."
     },
@@ -2064,6 +2071,55 @@
         "bin/hai-harness.mjs customWarnings"
       ],
       "note": "Two copies of one file drift and hide that there is one role. Existing installs need no migration: update replaces an unedited old name file and adds worker.md; an edited one is kept and reported; pre-change packets read worker.md as unacknowledged drift until a trace adopts it. role-fixes Follow-up 1: doctor's warning for a custom role named worker says the name now belongs to the shared worker role and, when it is the block's default, how to move the default; a custom role picks up the worker path from tasks/<you>.md on; traffic-control names the two slots of one worker role."
+    },
+    {
+      "id": "R132",
+      "kind": "policy",
+      "rule": "human-sync note appends the next numbered trail entry (one more than the highest in the trail, today's local date) and acknowledges the lane's traced state in one step. Every value is a single non-empty line, Origin user|agent, Area product|design|process|code; it refuses and writes nothing unless --change names every traced path changed since the last acknowledgment, and when the acknowledged trail prefix was edited. Hand-appended entries with status and acknowledge stay valid.",
+      "source": [
+        "decision-notes contract (2026-11-23)"
+      ],
+      "decision": "2026-11-23",
+      "status": "new",
+      "origin": "owner, 2026-11-23 (\"1 and 2 together\", on the master session's bookkeeping options)",
+      "location": [
+        "bin/hai-harness.mjs humanSyncCommand, noteFields, noteCommand",
+        "Agents/skills/human-scribe/SKILL.md When to record, and how",
+        "README.md Keeping Human/ current"
+      ],
+      "note": "Replaces the hand edit inside Git metadata plus the status/acknowledge hash handshake. Gives up: copying the hashes back. The naming rule, append-only trail and Human approval are unchanged."
+    },
+    {
+      "id": "R133",
+      "kind": "policy",
+      "rule": "worktree create initializes the lane's task packet at the harness root the command ran against, mapped into the lane, when that root has an Agents directory; a packet failure never undoes the lane, legacy trail files make it print the init --migrate command instead, and cleanup announces a retained packet only when it holds entries, drafts or a cursor.",
+      "source": [
+        "decision-notes contract (2026-11-23)"
+      ],
+      "decision": "2026-11-23",
+      "status": "new",
+      "origin": "owner, 2026-11-23 (\"1 and 2 together\", on the master session's bookkeeping options)",
+      "location": [
+        "bin/hai-harness.mjs createLanePacket, initPacket, cleanupWorktree, packetIsEmpty",
+        "Agents/skills/human-scribe/SKILL.md Packet and discovery"
+      ],
+      "note": "Packets are still never deleted."
+    },
+    {
+      "id": "R134",
+      "kind": "safety",
+      "rule": "Traced drift compares physical content only (path, kind, mode, content digest, symlink target); a packet records acknowledged.basis \"content\", and a packet with no basis is compared under the old commit/index/content basis until its next note or acknowledgment records the new one.",
+      "source": [
+        "decision-notes contract (2026-11-23)"
+      ],
+      "decision": "2026-11-23",
+      "status": "new",
+      "origin": "master session (not named by the owner)",
+      "location": [
+        "bin/hai-harness.mjs tracedSnapshot, driftedPaths",
+        "Agents/skills/human-scribe/SKILL.md When to record, and how"
+      ],
+      "note": "Staging or committing noted content no longer reads as drift. Gives up: a traced file changed, committed and then returned to the acknowledged content needs no entry. Files merged in from main still read as drift."
     }
   ]
 }
