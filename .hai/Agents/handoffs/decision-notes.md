@@ -171,3 +171,72 @@ At closeout it becomes a decision draft for the user's log. No Human item was ap
 
 - Crash windows: between saving the `resolved` record and rewriting the inbox, a crash leaves a record with the draft still present. A retry then appends a second record.
 - Atomic writes are reasoned about, not crash-tested.
+
+## Follow-up 3 (2026-11-23, second review and replay findings)
+
+### Changes by file
+
+- `bin/hai-harness.mjs`
+  - Item 1:
+    - New shared check `orderProblem`: every `###` under `## Entries` must be `### T<n>`, with ids strictly increasing in file order.
+    - New `trailOrderAdvice` says whether the first problem lies after the acknowledged prefix (fixable by hand, numbered as the next free number) or inside it (capture by hand).
+    - `draft` refuses on any problem in the whole trail.
+    - `capturedThrough` no longer depends on file order: it stays below the smallest undrafted kept id after the cursor, and does not move while an unnumbered heading is after the cursor.
+    - Cleanup refuses "Task packet trail entries are out of order or duplicated; needs review: <dir>".
+    - Capture prints one `Warning:` line for such a trail and stays read-only. Its Next line either says to number the heading as the warning says, or, for a problem inside the acknowledged trail, says to capture the lane by hand.
+  - Item 2:
+    - `singleLine` refuses `-->` as well as `<!--`.
+    - `note` refuses when the trail holds an unclosed `<!--`; `draft` refuses when the trail or the inbox does.
+    - Cleanup refuses "Task packet <file> has an unclosed "<!--"; needs review".
+  - Item 3: `note` refuses, writing nothing, while the part after the acknowledged prefix has an unnumbered heading or a non-increasing id ("It is not acknowledged yet: number it by hand as T<k>, then run note again."). Problems inside the prefix do not stop `note`.
+  - Item 4: the cursor regex matches only spaces and tabs around the value, so the following blank line (and a CRLF `\r`) survive.
+  - Item 5: `draft --from T<n>` refuses when `packet.resolved` holds the same source and kind as approved or dropped ("If something changed, record a new note and draft that."). This does not apply to planning sources.
+  - Item 6:
+    - `--from planning#<n>` (n from 1) works in `draft` and `resolve`, written as `from planning.md#<n>`.
+    - Plain `planning` still works and matches a hand-written `from planning.md`.
+    - The usage text shows `planning[#<n>]`.
+  - Item 7: approved now prints "Recorded as approved. This command wrote nothing to Human/; the entry belongs in <target> in this lane before the merge."
+- `Agents/lanes.md` step 3: "Only when `approve` kept the lane: ...".
+- `Agents/skills/human-scribe/SKILL.md`:
+  - Capture step 2: what to do with an unnumbered or out-of-order heading.
+  - Step 3: resolved sources refuse too.
+  - Step 4: `planning#<n>`.
+  - The closeout bullet shows `T<n>|planning#<n>`.
+  - Two trims to stay under the limit (step 3 wording; the cursor detail in the capture-sources sentence).
+- `test/hai-harness.test.mjs`:
+  - New: both review cases (out of file order, duplicate): `draft` refuses from every source with bytes unchanged, capture warns and writes nothing, and with the cursor set by hand cleanup refuses.
+  - New: comment markers. `-->` and `<!--` are refused in values; with an opener in place `note` and `draft` refuse; cleanup refuses for both the trail and the inbox. The atomic-write and leftover-temp checks are kept. This replaces the weak `-->` test.
+  - New: `note` with an unacknowledged unnumbered heading refuses, then works after numbering it. With an acknowledged unnumbered heading, `note` works, while `draft` and capture point to the manual form.
+  - New: the inbox differs only in the cursor line and the appended block; a resolved source refuses; `planning#1` and `planning#2` are both drafted and resolved; plain planning sources can be drafted again.
+  - Updated: the malformed-heading capture guidance, the old unnumbered-heading draft message, the approved message.
+- `.hai/evals/assumptions.json`: R132, R135 and R136 rules rewritten; notes added to R053 and R072. Counts unchanged (136 rules).
+- Generated: `scaffold/shipped-hashes.json` (40 paths, 269 hashes) and 3 `.hai/` mirror files.
+
+### Choices this section did not fix
+
+- **The "next number"** in the advice is the highest `### T<n>` in the whole trail plus one.
+- **Which heading is named:** the first offender after the acknowledged prefix if there is one, otherwise the first in the whole trail.
+- **If the trail no longer starts with `packet.trail`,** the advice is treated as "inside the acknowledged trail" (capture by hand). That is the conservative reading.
+- **`draft` checks the inbox for an unclosed comment too,** not only the trail. A hidden draft or cursor line there would also break the property.
+- **Cleanup's order check ignores unnumbered headings.** Those are already "review" items for capture, and the spec names only numbered ids.
+
+### Gap I could not close without stranding lanes
+
+- **Hidden unnumbered heading at cleanup.** An unnumbered heading placed before the cursor's entry in file order is hidden from the uncaptured check (pre-existing behaviour of `entriesAfterCursor`). Cleanup can then pass with a hand-set cursor.
+- **Why not refuse:** refusing every unnumbered heading at cleanup would block lanes that took the documented manual-capture route for an acknowledged unnumbered heading.
+- **What the commands do:** `draft` refuses such a trail, so the commands themselves never move the cursor past it. A hand-moved cursor can still pass it.
+- **Needs a decision:** whether cleanup should refuse this case too.
+
+### Verification
+
+- `npm test`: `ℹ tests 67`, `ℹ pass 67`, `ℹ fail 0`.
+- `node --test .hai/evals/test/calibrate.test.mjs`: `ℹ tests 16`, `ℹ pass 16`, `ℹ fail 0`.
+- `git diff --check` clean.
+- `./hai-meta doctor`: no warnings. The sync-created receipt was removed.
+- Word counts: worker path 2,198 / 2,200; lead path 5,679 to 5,685 / 5,800; human-scribe 1,815 (at or below 1,822).
+- This lane's own packet and `Human/` were not touched.
+
+### Unverified
+
+- CRLF inboxes are covered by the regex change only, not by a test.
+- The crash-window and atomic-write notes from Follow-up 2 still apply.

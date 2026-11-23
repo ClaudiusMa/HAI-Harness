@@ -1118,7 +1118,8 @@ test("human-sync task packet filters, cursor, malformed review and approved supp
   assert.match(kept.stdout, /^T4 · open question/m);
   assert.match(kept.stdout, /^T7 · review/m);
   assert.match(kept.stdout, /^malformed heading · review/m);
-  assert.match(kept.stdout, /^Next: number the malformed trail heading by hand first, then record a draft for each entry, in order: .*human-sync draft --from T<n> --kind "<decision\|open-question\|brief\|reflection\|readme>" --text "<draft>"\. The cursor moves as drafts are recorded\.$/m);
+  assert.match(kept.stdout, /^Warning: The trail heading "### malformed heading" has no number\. It is not acknowledged yet: number it by hand as T9, then run draft again\.$/m);
+  assert.match(kept.stdout, /^Next: number the heading as the warning says, then record a draft for each entry, in order: .*human-sync draft --from T<n> --kind "<decision\|open-question\|brief\|reflection\|readme>" --text "<draft>"\. The cursor moves as drafts are recorded\.$/m);
   assert.doesNotMatch(kept.stdout, /^T6 ·|^T8 ·/m);
   assert.deepEqual(await Promise.all(files.map((name) => fs.readFile(path.join(packet, name), "utf8"))), before);
   await setCaptureCursor(packet, "`none`");
@@ -1507,19 +1508,111 @@ test("human-sync note numbers after hand-appended entries and gaps, with or with
   assert.match(capture.stdout, /^Next: nothing needs doing\.$/m);
 });
 
-test("a note containing --> leaves later entries visible, and the trail is replaced atomically", async (t) => {
-  const { root, packet } = await makePacketFixture(t);
+test("comment markers cannot hide entries, and the trail is replaced atomically", async (t) => {
+  const { repo, root, packet } = await makePacketFixture(t);
   const trailFile = path.join(packet, "decision-trail.md");
+  const inboxFile = path.join(packet, "human-inbox.md");
   // A leftover temporary file from a crashed note is ignored.
   await fs.writeFile(`${trailFile}.99999.1.tmp`, "partial");
   const mode = (await fs.stat(trailFile)).mode & 0o777;
-  assert.equal(note(root, "--change", "Arrow --> in prose", "--why", "a -> b --> c", "--origin", "user", "--area", "product").status, 0);
-  assert.equal(note(root, "--change", "Second decision", "--why", "reason", "--origin", "user", "--area", "process").stdout.split("\n")[0], "Recorded T2; no traced file changed.");
+  const valid = ["--why", "reason", "--origin", "user", "--area", "product"];
+  assert.equal(note(root, "--change", "First decision", ...valid).status, 0);
   assert.equal((await fs.stat(trailFile)).mode & 0o777, mode);
-  const capture = harness(root, "human-sync", "--target", root).stdout;
-  assert.match(capture, /2 of 2 new trail entries/);
-  assert.match(capture, /^T1 · decision[\s\S]*^T2 · decision/m);
   assert.deepEqual((await fs.readdir(packet)).filter((name) => name.endsWith(".tmp")), ["decision-trail.md.99999.1.tmp"]);
+  for (const value of ["Arrow --> in prose", "a <!-- b"]) {
+    const marker = value.includes("-->") ? "-->" : "<!--";
+    assert.match(note(root, "--change", value, ...valid).stderr, new RegExp(`--change must not contain "${marker}"; write it in words`));
+    assert.match(draft(root, "--from", "T1", "--kind", "decision", "--text", value).stderr, new RegExp(`--text must not contain "${marker}"`));
+  }
+  // An opener left by hand: note and draft refuse to append after it, and cleanup refuses.
+  await fs.appendFile(trailFile, "\n<!-- unfinished aside\n");
+  const opened = await packetBytes(packet);
+  assert.match(note(root, "--change", "Second decision", ...valid).stderr, /decision-trail\.md has an unclosed "<!--"\. Nothing was written/);
+  assert.match(draft(root, "--from", "T1", "--kind", "decision", "--text", "x").stderr, /decision-trail\.md has an unclosed "<!--"/);
+  assert.deepEqual(await packetBytes(packet), opened);
+  await setCaptureCursor(packet, "T1");
+  const trailRefused = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+  assert.notEqual(trailRefused.status, 0);
+  assert.match(trailRefused.stdout, /Task packet decision-trail\.md has an unclosed "<!--"; needs review/);
+  await fs.writeFile(trailFile, opened[0].replace("\n<!-- unfinished aside\n", ""));
+  await fs.appendFile(inboxFile, "\n<!-- unfinished inbox aside\n");
+  assert.match(draft(root, "--from", "T1", "--kind", "brief", "--text", "x").stderr, /human-inbox\.md has an unclosed "<!--"/);
+  const inboxRefused = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+  assert.notEqual(inboxRefused.status, 0);
+  assert.match(inboxRefused.stdout, /Task packet human-inbox\.md has an unclosed "<!--"; needs review/);
+});
+
+test("a trail numbered out of file order or with a duplicate never lets the cursor or cleanup pass an undrafted entry", async (t) => {
+  const { repo, root, packet } = await makePacketFixture(t);
+  const trailFile = path.join(packet, "decision-trail.md");
+  const template = await fs.readFile(trailFile, "utf8");
+  for (const [entries, offender, cursor, next] of [
+    [[trailEntry(1, "user", "product"), trailEntry(3, "user", "product"), trailEntry(2, "user", "product")], "### T2", "T3", "T4"],
+    [[trailEntry(1, "user", "product"), trailEntry(2, "user", "product"), trailEntry(2, "user", "process")], "### T2", "T2", "T3"]
+  ]) {
+    await fs.writeFile(trailFile, `${template}\n${entries.join("\n")}`);
+    await setCaptureCursor(packet, "none");
+    const before = await packetBytes(packet);
+    for (const from of ["T1", "T3", "T2"]) {
+      const refused = draft(root, "--from", from, "--kind", "decision", "--text", "x");
+      assert.notEqual(refused.status, 0);
+      assert.match(refused.stderr, new RegExp(`The trail heading "${offender}" is out of order or duplicated\\. It is not acknowledged yet: number it by hand as ${next}, then run draft again\\. Nothing was written\\.`));
+      assert.deepEqual(await packetBytes(packet), before);
+    }
+    assert.match(harness(root, "human-sync", "--target", root).stdout, /^Warning: The trail heading "### T2" is out of order or duplicated\./m);
+    assert.deepEqual(await packetBytes(packet), before);
+    // The same state with the cursor set by hand: cleanup refuses instead of passing T2.
+    await setCaptureCursor(packet, cursor);
+    const cleanup = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+    assert.notEqual(cleanup.status, 0, cleanup.stdout);
+    assert.match(cleanup.stdout, /Task packet trail entries are out of order or duplicated; needs review/);
+  }
+});
+
+test("note refuses an unnumbered heading that is not yet acknowledged; one inside the acknowledged trail sends capture to the manual form", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  const trailFile = path.join(packet, "decision-trail.md");
+  const valid = ["--why", "reason", "--origin", "user", "--area", "product"];
+  assert.equal(note(root, "--change", "First", ...valid).status, 0);
+  await fs.appendFile(trailFile, "\n### a decision written by hand\n- Origin: user\n");
+  const before = await packetBytes(packet);
+  assert.match(note(root, "--change", "Second", ...valid).stderr, /The trail heading "### a decision written by hand" has no number\. It is not acknowledged yet: number it by hand as T2, then run note again\. Nothing was written\./);
+  assert.deepEqual(await packetBytes(packet), before);
+  await fs.writeFile(trailFile, before[0].replace("### a decision written by hand", "### T2"));
+  assert.match(note(root, "--change", "Second", ...valid).stdout, /^Recorded T3;/);
+  // An older lane whose acknowledged trail already holds an unnumbered heading: note still works.
+  const file = path.join(packet, "packet.json");
+  const saved = JSON.parse(await fs.readFile(file, "utf8"));
+  const legacyTrail = `${await fs.readFile(trailFile, "utf8")}\n### unnumbered older entry\n- Origin: user\n`;
+  await fs.writeFile(trailFile, legacyTrail);
+  await fs.writeFile(file, `${JSON.stringify({ ...saved, trail: legacyTrail }, null, 2)}\n`);
+  assert.match(note(root, "--change", "Third", ...valid).stdout, /^Recorded T4;/);
+  const refused = draft(root, "--from", "T1", "--kind", "decision", "--text", "x");
+  assert.match(refused.stderr, /The trail heading "### unnumbered older entry" has no number, inside the acknowledged trail\. The commands only work on a trail numbered in order, so capture for this lane is done by hand \(the manual form\)\. Nothing was written\./);
+  assert.match(harness(root, "human-sync", "--target", root).stdout, /^Next: capture this lane by hand \(the manual form\)/m);
+});
+
+test("draft changes only the cursor line, refuses a resolved source, and gives each planning item its own draft", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  await appendTrail(packet, [trailEntry(1, "user", "product")]);
+  const before = await readInbox(packet);
+  assert.match(before, /^Captured through: none\n\n/m);
+  assert.equal(draft(root, "--from", "T1", "--kind", "decision", "--text", "one").status, 0);
+  const after = await readInbox(packet);
+  assert.ok(after.startsWith(before.replace("Captured through: none\n", "Captured through: T1\n")), after);
+  assert.equal(resolve(root, "--from", "T1", "--kind", "decision", "--as", "approved").status, 0);
+  assert.match(draft(root, "--from", "T1", "--kind", "decision", "--text", "again").stderr, /The decision draft from T1 was already resolved as approved\. Nothing was written\. If something changed, record a new note and draft that\./);
+  assert.equal(draft(root, "--from", "T1", "--kind", "brief", "--text", "story").status, 0);
+  for (const n of [1, 2]) assert.equal(draft(root, "--from", `planning#${n}`, "--kind", "open-question", "--text", `item ${n}`).status, 0);
+  assert.match(await readInbox(packet), /### open question · from planning\.md#1\n[\s\S]*### open question · from planning\.md#2\n/);
+  assert.match(draft(root, "--from", "planning#2", "--kind", "open-question", "--text", "dup").stderr, /already in the inbox/);
+  assert.match(draft(root, "--from", "planning#0", "--kind", "open-question", "--text", "x").stderr, /--from must be T<n>, planning or planning#<n>/);
+  assert.equal(resolve(root, "--from", "planning#2", "--kind", "open-question", "--as", "dropped").status, 0);
+  assert.doesNotMatch(await readInbox(packet), /planning\.md#2/);
+  // Planning sources may be drafted again after they are resolved.
+  assert.equal(draft(root, "--from", "planning#2", "--kind", "open-question", "--text", "item 2 again").status, 0);
+  assert.equal(resolve(root, "--from", "planning#1", "--kind", "open-question", "--as", "deferred").status, 0);
+  assert.match(await readInbox(packet), /### open question · from planning\.md#1\n- Status: deferred\n/);
 });
 
 test("human-sync note creates the packet in a lane made by an older CLI", async (t) => {
@@ -1637,7 +1730,7 @@ test("human-sync draft refuses out-of-order, duplicate and invalid drafts withou
     [["--from", "T2", "--kind", "open-question", "--text", "x"], /T1 comes before T2 and has no draft yet; draft T1 first\. Nothing was written\./],
     [["--from", "T9", "--kind", "decision", "--text", "x"], /T9 is not a numbered entry in the trail/],
     [["--from", "T1", "--kind", "verdict", "--text", "x"], /--kind must be one of decision, open-question, brief, reflection, readme/],
-    [["--from", "1", "--kind", "decision", "--text", "x"], /--from must be T<n> or planning/],
+    [["--from", "1", "--kind", "decision", "--text", "x"], /--from must be T<n>, planning or planning#<n>/],
     [["--from", "T1", "--kind", "decision", "--text", "a\nb"], /--text must be a single line/],
     [["--from", "T1", "--kind", "decision", "--text", "a <!-- b"], /--text must not contain "<!--"; write it in words/],
     [["--from", "T1", "--kind", "decision"], /requires --text/],
@@ -1659,7 +1752,7 @@ test("human-sync draft refuses out-of-order, duplicate and invalid drafts withou
   assert.equal(draft(root, "--from", "T2", "--kind", "open-question", "--text", "x").status, 0);
   await appendTrail(packet, ["### unnumbered\n- Origin: user\n", trailEntry(3, "user", "process")]);
   const blocked = await packetBytes(packet);
-  assert.match(draft(root, "--from", "T3", "--kind", "decision", "--text", "x").stderr, /The trail heading "### unnumbered" comes before T3 and has no number\. Nothing was written\. Number it by hand first \(the manual form\), then draft it\./);
+  assert.match(draft(root, "--from", "T3", "--kind", "decision", "--text", "x").stderr, /The trail heading "### unnumbered" has no number\. It is not acknowledged yet: number it by hand as T4, then run draft again\. Nothing was written\./);
   assert.deepEqual(await packetBytes(packet), blocked);
 });
 
@@ -1684,7 +1777,7 @@ test("human-sync resolve records the user's answer for one draft and never write
   }
   const approved = resolve(root, "--from", "T2", "--kind", "decision", "--as", "approved", "--text", "two, as the user edited it");
   assert.equal(approved.status, 0, approved.stderr);
-  assert.match(approved.stdout, /Approved: Human\/decisions\.md must carry it in the lane; if the writer has not written it yet, they still have to\. Nothing was written to Human\//);
+  assert.match(approved.stdout, /^Resolved the decision draft from T2\. Recorded as approved\. This command wrote nothing to Human\/; the entry belongs in Human\/decisions\.md in this lane before the merge\.$/m);
   let inbox = await readInbox(packet);
   assert.doesNotMatch(inbox, /from T2/);
   assert.match(inbox, /### decision · from T1\n- Status: pending\n- Target: Human\/decisions\.md\n- Draft: one\n\n### open question · from T3\n/);

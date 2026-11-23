@@ -235,8 +235,8 @@ Usage:
   ${cliCommand} human-sync        [capture|status|init|note|draft|resolve|acknowledge|checkpoint] [--target <dir>]
     init [--migrate]
     note --change <text> --why <text> --origin user|agent --area product|design|process|code [--applies <text>]
-    draft --from T<n>|planning --kind decision|open-question|brief|reflection|readme --text <text>
-    resolve --from T<n>|planning --kind <kind> --as approved|dropped|deferred [--text <text>]
+    draft --from T<n>|planning[#<n>] --kind decision|open-question|brief|reflection|readme --text <text>
+    resolve --from T<n>|planning[#<n>] --kind <kind> --as approved|dropped|deferred [--text <text>]
     acknowledge --through T<n> --head <HEAD> --snapshot <digest>
     checkpoint --output <file>
   ${cliCommand} worktree create   <task-slug> [--integration <branch>] [--target <dir>]
@@ -1247,7 +1247,7 @@ async function humanSyncCommand(args) {
   if (action === "draft") return draftCommand(lane, options);
   if (action === "resolve") return resolveCommand(lane, options);
   const packet = await readPacket(lane);
-  if (action === "capture") return humanSync({ ...options, target: lane.directory });
+  if (action === "capture") return humanSync({ ...options, target: lane.directory, acknowledgedTrail: packet.trail });
   const snapshot = await tracedSnapshot(lane.root);
   if (action === "status") {
     console.log(JSON.stringify({ packet: lane.directory, identity: lane.identity, head: snapshot.head, snapshot: snapshot.digest }, null, 2));
@@ -1305,8 +1305,41 @@ function singleLine(flag, raw) {
   const value = raw.trim();
   if (!value) throw new Error(`--${flag} must not be empty.`);
   if (/[\r\n]/.test(value)) throw new Error(`--${flag} must be a single line; write it as one line.`);
-  if (value.includes("<!--")) throw new Error(`--${flag} must not contain "<!--"; write it in words.`);
+  for (const marker of ["<!--", "-->"]) if (value.includes(marker)) throw new Error(`--${flag} must not contain "${marker}"; write it in words.`);
   return value;
+}
+
+// An opener left after comments are stripped would swallow anything appended after it.
+function hasUnclosedComment(content) {
+  return stripComments(content).includes("<!--");
+}
+
+// The commands need a trail numbered in order: every ### heading under ## Entries is
+// ### T<n>, with ids strictly increasing in file order (so no duplicates either).
+function orderProblem(entries, last = 0) {
+  for (const entry of entries) {
+    if (entry.malformed) return { entry, problem: "has no number" };
+    if (entry.id <= last) return { entry, problem: "is out of order or duplicated" };
+    last = entry.id;
+  }
+  return null;
+}
+
+// A problem after the acknowledged prefix can still be renumbered by hand; one inside it cannot.
+function trailOrderAdvice(trail, acknowledgedTrail, command) {
+  const whole = orderProblem(parseTrailEntries(trail));
+  if (!whole) return null;
+  const prefix = trail.startsWith(acknowledgedTrail) ? acknowledgedTrail : null;
+  const prefixIds = prefix === null ? [] : parseTrailEntries(prefix).map((entry) => entry.id).filter(Number.isInteger);
+  const tail = prefix === null ? null : orderProblem(parseTrailEntries(`## Entries\n${trail.slice(prefix.length)}`), Math.max(0, ...prefixIds));
+  const ids = [...stripComments(trail).matchAll(/^### T(\d+)\b/gm)].map((match) => Number(match[1]));
+  const { entry, problem } = tail ?? whole;
+  return {
+    pending: Boolean(tail),
+    message: tail
+      ? `The trail heading "${entry.heading}" ${problem}. It is not acknowledged yet: number it by hand as T${Math.max(0, ...ids) + 1}, then run ${command} again.`
+      : `The trail heading "${entry.heading}" ${problem}, inside the acknowledged trail. The commands only work on a trail numbered in order, so capture for this lane is done by hand (the manual form).`
+  };
 }
 
 function localDate(date = new Date()) {
@@ -1321,6 +1354,9 @@ async function noteCommand(lane, fields) {
   if (!trail.startsWith(packet.trail)) throw new Error("The trail no longer begins with its acknowledged entries; earlier entries were edited. Nothing was written; restore them from the verified checkpoint.");
   const sections = stripComments(trail).split(/\r?\n/).filter((line) => line.startsWith("## "));
   if (sections.filter((line) => line.trim() === "## Entries").length !== 1 || sections.at(-1).trim() !== "## Entries") throw new Error(`${decisionTrailPath} must end with exactly one ## Entries section for note to append to. Nothing was written.`);
+  if (hasUnclosedComment(trail)) throw new Error(`${decisionTrailPath} has an unclosed "<!--". Nothing was written; close or remove it by hand first.`);
+  const order = trailOrderAdvice(trail, packet.trail, "note");
+  if (order?.pending) throw new Error(`${order.message} Nothing was written.`);
   const snapshot = await tracedSnapshot(lane.root);
   const changed = await driftedPaths(lane, packet, snapshot);
   const missing = changed.filter((name) => !fields.change.includes(name));
@@ -1360,14 +1396,14 @@ function draftSource(options, action) {
     if (options[flag] === undefined) throw new Error(`human-sync ${action} requires --${flag}.`);
   }
   const from = singleLine("from", options.from);
-  if (!/^(?:T[1-9]\d*|planning)$/.test(from)) throw new Error("--from must be T<n> or planning.");
+  if (!/^(?:T[1-9]\d*|planning(?:#[1-9]\d*)?)$/.test(from)) throw new Error("--from must be T<n>, planning or planning#<n>.");
   const kind = singleLine("kind", options.kind);
   if (!Object.hasOwn(draftKinds, kind)) throw new Error(`--kind must be one of ${Object.keys(draftKinds).join(", ")}.`);
   const outcome = action === "resolve" ? singleLine("as", options.as) : undefined;
   if (outcome !== undefined && !["approved", "dropped", "deferred"].includes(outcome)) throw new Error("--as must be approved, dropped or deferred.");
   if (action === "resolve" && options.text !== undefined && outcome !== "approved") throw new Error("--text is allowed only with --as approved (the user's edit of the draft).");
   const text = options.text === undefined ? undefined : singleLine("text", options.text);
-  return { from, source: from === "planning" ? "planning.md" : from, kind, heading: draftKinds[kind].heading, outcome, text };
+  return { from, source: from.replace(/^planning/, "planning.md"), kind, heading: draftKinds[kind].heading, outcome, text };
 }
 
 // Drafts in the inbox's ## Drafts section, with their raw line ranges. A hand-written
@@ -1383,41 +1419,47 @@ function inboxDrafts(inbox) {
     if (!lines[index].startsWith("###")) continue;
     let end = index + 1;
     while (end < lines.length && !lines[end].startsWith("###") && !lines[end].startsWith("## ")) end += 1;
-    const match = lines[index].match(/^###\s+(.+?)\s+·\s+from\s+`?(T[1-9]\d*|planning(?:\.md)?)`?\s*$/);
+    const match = lines[index].match(/^###\s+(.+?)\s+·\s+from\s+`?(T[1-9]\d*|planning(?:\.md)?(?:#[1-9]\d*)?)`?\s*$/);
     const field = (name) => lines.slice(index, end).find((line) => line.startsWith(`- ${name}:`))?.slice(name.length + 3).trim() ?? null;
-    drafts.push({ start: index, end, heading: match ? normalizeField(match[1]) : null, source: match ? match[2].replace(/^planning$/, "planning.md") : null, target: field("Target"), text: field("Draft") });
+    drafts.push({ start: index, end, heading: match ? normalizeField(match[1]) : null, source: match ? match[2].replace(/^planning(?:\.md)?/, "planning.md") : null, target: field("Target"), text: field("Draft") });
   }
   return { lines, drafts };
 }
 
-// The highest m such that every entry capture keeps after the cursor, up to m, has a draft.
+// The highest m such that every entry capture keeps after the cursor, up to m, has a
+// draft. Independent of file order: it stays below the smallest undrafted kept id, and
+// does not move while an unnumbered heading is after the cursor.
 function capturedThrough(trail, cursor, drafts) {
   const drafted = new Set(drafts.map((item) => item.source));
-  let through = cursor;
-  for (const entry of entriesAfterCursor(parseTrailEntries(trail), cursor)) {
-    if (entry.malformed) break;
-    if (captureKind(entry) && !drafted.has(`T${entry.id}`)) break;
-    through = Math.max(through, entry.id);
-  }
-  return through;
+  const after = entriesAfterCursor(parseTrailEntries(trail), cursor);
+  if (after.some((entry) => entry.malformed)) return cursor;
+  const blocking = Math.min(Infinity, ...after.filter((entry) => captureKind(entry) && !drafted.has(`T${entry.id}`)).map((entry) => entry.id));
+  return Math.max(cursor, ...after.map((entry) => entry.id).filter((id) => id < blocking));
 }
 
 function setCaptureCursor(inbox, through) {
-  const updated = inbox.replace(/^Captured through:\s*(?:`?T\d+`?|`?none`?)\s*$/im, `Captured through: ${through ? `T${through}` : "none"}`);
+  const updated = inbox.replace(/^Captured through:[ \t]*(?:`?T\d+`?|`?none`?)[ \t]*$/im, `Captured through: ${through ? `T${through}` : "none"}`);
   if (readCaptureCursor(updated) !== through) throw new Error(`Cannot locate the "Captured through:" line in ${humanInboxPath}. Nothing was written; reconcile it by hand.`);
   return updated;
 }
 
 async function draftCommand(lane, options) {
   const { from, source, kind, heading, text } = draftSource(options, "draft");
-  await readPacket(lane);
+  const packet = await readPacket(lane);
   const inboxFile = path.join(lane.directory, humanInboxPath);
   const inbox = await fs.readFile(inboxFile, "utf8");
   const trail = await fs.readFile(path.join(lane.directory, decisionTrailPath), "utf8");
+  for (const [name, content] of [[decisionTrailPath, trail], [humanInboxPath, inbox]]) {
+    if (hasUnclosedComment(content)) throw new Error(`${name} has an unclosed "<!--". Nothing was written; close or remove it by hand first.`);
+  }
+  const order = trailOrderAdvice(trail, packet.trail, "draft");
+  if (order) throw new Error(`${order.message} Nothing was written.`);
   const cursor = readCaptureCursor(inbox);
   const { drafts } = inboxDrafts(inbox);
   if (drafts.some((item) => item.source === source && item.heading === heading)) throw new Error(`A ${heading} draft from ${source} is already in the inbox. Nothing was written.`);
-  if (from !== "planning") {
+  const settled = from.startsWith("T") && (Array.isArray(packet.resolved) ? packet.resolved : []).find((item) => item.source === source && item.kind === heading && ["approved", "dropped"].includes(item.outcome));
+  if (settled) throw new Error(`The ${heading} draft from ${source} was already resolved as ${settled.outcome}. Nothing was written. If something changed, record a new note and draft that.`);
+  if (from.startsWith("T")) {
     const id = Number(from.slice(1));
     const entries = parseTrailEntries(trail);
     const position = entries.findIndex((entry) => entry.id === id);
@@ -1425,7 +1467,6 @@ async function draftCommand(lane, options) {
     const drafted = new Set(drafts.map((item) => item.source));
     for (const entry of entriesAfterCursor(entries, cursor)) {
       if (entries.indexOf(entry) >= position) break;
-      if (entry.malformed) throw new Error(`The trail heading "${entry.heading}" comes before ${from} and has no number. Nothing was written. Number it by hand first (the manual form), then draft it.`);
       if (captureKind(entry) && !drafted.has(`T${entry.id}`)) throw new Error(`T${entry.id} comes before ${from} and has no draft yet; draft T${entry.id} first. Nothing was written.`);
     }
   }
@@ -1460,10 +1501,10 @@ async function resolveCommand(lane, options) {
   await savePacket(lane, packet); // The record precedes the inbox change.
   await writePacketFile(lane, inboxFile, updated);
   const target = draft.target ?? Object.values(draftKinds).find((item) => item.heading === heading).target;
-  const next = outcome === "approved" ? `Approved: ${target} must carry it in the lane; if the writer has not written it yet, they still have to.`
-    : outcome === "dropped" ? "Dropped: the draft left the inbox; its trail entry remains."
-      : "Deferred: it stays in the inbox and is raised at the next intake; cleanup keeps the lane until it is resolved.";
-  console.log(`Resolved the ${heading} draft from ${source}. ${next} Nothing was written to Human/.`);
+  const next = outcome === "approved" ? `Recorded as approved. This command wrote nothing to Human/; the entry belongs in ${target} in this lane before the merge.`
+    : outcome === "dropped" ? "Dropped: the draft left the inbox; its trail entry remains. Nothing was written to Human/."
+      : "Deferred: it stays in the inbox and is raised at the next intake; cleanup keeps the lane until it is resolved. Nothing was written to Human/.";
+  console.log(`Resolved the ${heading} draft from ${source}. ${next}`);
 }
 
 // Starts a packet whose baseline is the lane's current traced state. Without
@@ -1538,8 +1579,12 @@ async function humanSync(options) {
     if (!(await exists(filePath))) throw new Error(`Missing task packet ${relativePath}; restore the verified checkpoint.`);
   }
   const cursor = readCaptureCursor(await fs.readFile(inboxFile, "utf8"));
-  const entries = entriesAfterCursor(parseTrailEntries(await fs.readFile(trailFile, "utf8")), cursor);
+  const trail = await fs.readFile(trailFile, "utf8");
+  const entries = entriesAfterCursor(parseTrailEntries(trail), cursor);
   const after = cursor === 0 ? "since the trail began" : `after T${cursor}`;
+  // Read-only: a trail the commands cannot work on gets one warning line.
+  const order = trailOrderAdvice(trail, options.acknowledgedTrail ?? "", "draft");
+  if (order) console.log(`Warning: ${order.message}`);
   if (entries.length === 0) {
     console.log(`Human sync: no new trail entries ${after}.`);
     return;
@@ -1558,7 +1603,11 @@ async function humanSync(options) {
     console.log(`  Change: ${change}`);
     console.log(`  Why: ${why}`);
   }
-  const numbering = kept.some(({ entry }) => entry.malformed) ? "number the malformed trail heading by hand first, then " : "";
+  if (order && !order.pending) {
+    console.log(`\nNext: capture this lane by hand (the manual form): write a draft for each entry under ## Drafts in ${humanInboxPath} and set "Captured through:".`);
+    return;
+  }
+  const numbering = order ? "number the heading as the warning says, then " : "";
   console.log(`\nNext: ${numbering}record a draft for each entry, in order: ${cliCommand} human-sync draft --from T<n> --kind "<decision|open-question|brief|reflection|readme>" --text "<draft>". The cursor moves as drafts are recorded.`);
 }
 
@@ -2055,6 +2104,10 @@ async function cleanupWorktree(target, branch) {
         const headings = stripComments(content).split(/\r?\n/).filter((line) => line.trim() === heading);
         if (headings.length !== 1) throw new Error(`Task packet requires exactly one ${heading} section; found ${headings.length}: ${directory}`);
       }
+      for (const [content, name] of [[inbox, humanInboxPath], [trail, decisionTrailPath]]) {
+        if (hasUnclosedComment(content)) throw new Error(`Task packet ${name} has an unclosed "<!--"; needs review: ${directory}`);
+      }
+      if (orderProblem(parseTrailEntries(trail).filter((item) => !item.malformed))) throw new Error(`Task packet trail entries are out of order or duplicated; needs review: ${directory}`);
       const counts = countInboxDrafts(inbox);
       if (counts.pending + counts.deferred) throw new Error(`Task packet has ${counts.pending} pending and ${counts.deferred} deferred draft(s): ${directory}`);
       if (sectionLines(inbox, "## Drafts").some((line) => line.startsWith("###"))) throw new Error(`Task packet has unresolved draft entries: ${directory}`);

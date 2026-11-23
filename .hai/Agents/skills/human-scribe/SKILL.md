@@ -36,25 +36,25 @@ Drift compares file content: `doctor` warns when a traced file differs from the 
 
 One writer slot: pause or hand off the lane writer before changing trail, drafts or cursor; no hidden second writer. Read-only capture may inspect a stable snapshot; its draft and cursor changes are serialized. Record the packet path in the task handoff.
 
-Capture reads the packet trail, packet `human-inbox.md` (drafts and the `Captured through: none` or `T{n}` cursor) and open `Decision needed from user` items in `Agents/planning.md`: the agent layer only, never chat transcripts. Do not read Human except the target file an assigned writer needs for a currently approved item. Preserve quoted user words for reflections.
+Capture reads the packet trail, packet `human-inbox.md` (drafts and the cursor) and open `Decision needed from user` items in `Agents/planning.md`: the agent layer only, never chat transcripts. Do not read Human except the target file an assigned writer needs for a currently approved item. Preserve quoted user words for reflections.
 
 ## 1. Capture (fast tier, low effort)
 
 1. Run `node .hai/Agents/hai-harness.mjs human-sync --target .` (or explicit `capture`). The CLI is offline, read-only and deterministic; it performs no model or network call. It lists entries after the packet cursor whose Origin is `user` or Area is `product`, `design`, or `process`, drops agent-origin `code`, and suppresses `- Applies: approved {draft}` reflections of already-approved items.
-2. If nothing remains to capture, nothing needs doing. Number a malformed heading by hand (the manual form), then draft it; never skip it.
-3. Otherwise record each listed entry, in order, with `node .hai/Agents/hai-harness.mjs human-sync draft --from T<n> --kind <kind> --text "<draft>" --target .`. It writes a pending draft and moves `Captured through:` past every entry that has one; duplicates and out-of-order drafts refuse.
+2. If nothing remains to capture, nothing needs doing. An unnumbered or out-of-order heading blocks the commands: number it by hand as the next number while unacknowledged, else capture that lane by hand.
+3. Otherwise record each listed entry, in order, with `node .hai/Agents/hai-harness.mjs human-sync draft --from T<n> --kind <kind> --text "<draft>" --target .`. It moves `Captured through:` itself; duplicate, resolved and out-of-order drafts refuse.
    - Origin `user` becomes a `decision`. Add a `brief` or `readme` draft only when it changes the current product story or public description.
    - Origin `agent` becomes an `open-question`: "Agents assumed {X}. Confirm or change?"
    - Unrecognized Origin/Area or malformed headings become open questions quoting the entry for review.
    - A `reflection` draft requires the user's quoted words.
-4. Draft each open `Decision needed from user` item once, with `--from planning`.
+4. Draft each open `Decision needed from user` item with `--from planning#<n>` (n counts from 1).
 
 Draft only what the source states. Do not add reasons or guess the user's view.
 
 ## 2. Closeout batch
 
 - A lane with no entries and no drafts needs no capture at closeout. Otherwise, before closeout, including blocked handoff, Claudia shows all pending/deferred drafts in one numbered batch. The user approves, edits, drops or defers each item; "approve all" applies to that batch only. No first backfill or unrelated Human change is implied.
-- After the user answers, record each draft with `human-sync resolve --from T<n> --kind <kind> --as approved|dropped|deferred`, adding `--text "<edit>"` when the user edited an approved one. For an approved item the writer writes the Human entry first, then resolves. Keep source IDs and approved text in the handoff until verified integration.
+- After the user answers, record each draft with `human-sync resolve --from T<n>|planning#<n> --kind <kind> --as approved|dropped|deferred`, adding `--text "<edit>"` when the user edited an approved one. For an approved item the writer writes the Human entry first, then resolves. Keep source IDs and approved text in the handoff until verified integration.
 - Dropped drafts leave the inbox but their trace remains. Deferred items keep `Status: deferred`; unaddressed items stay pending. Raise both at the next intake. Hand edits to the inbox remain valid.
 - Execution changes are reflected in Agents by their owning role. Its note adds `--applies "approved {draft}"` to avoid capture again.
 

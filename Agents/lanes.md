@@ -30,7 +30,7 @@ Cleanup is part of completion and needs no separate approval. A push alone is no
 
 1. Finish and verify the authorized integration, push, deployment and other requested outward work first; each outward act still needs its own approval. While outward work, an ongoing preview or follow-up remains, integrate with `worktree approve --keep-worktree --approved "<message>"` and keep the lane.
 2. After verified completion, stop only the preview or dev processes this task started and still owns, by their actual session or PID and verified cwd. Never kill by port or name, or stop shared or peer processes.
-3. From a surviving checkout, run `node .hai/Agents/hai-harness.mjs worktree cleanup <task-branch> --target <primary-checkout>`.
+3. Only when `approve` kept the lane: from a surviving checkout, run `node .hai/Agents/hai-harness.mjs worktree cleanup <task-branch> --target <primary-checkout>`.
 4. If it retains ignored files or orphan folders, remove only exact task-owned generated cache paths whose origin and disposable contents are established, after checking the complete contents for valuable files, symlinks and nested repositories, then retry. No broad recursive deletion and no forced worktree removal.
 5. Preserve unfinished work, pending or deferred decision drafts, active peer resources, and anything whose ownership or content is uncertain; report the precise blocker and path instead of offering generic cleanup.
 6. The final summary lists stopped processes, removed resources, what was kept and why, and the task packet path when it holds entries or drafts.
