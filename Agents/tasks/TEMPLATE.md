@@ -8,7 +8,7 @@ Keep this file execution-only. Do not copy product rationale, option analysis, o
 
 - Status: unassigned
 - Task / outcome: none
-- Read first: `../onboarding.md` → `../project_context.md` → `../{{ROLE_SLUG}}.md` → this file
+- Read first: `../onboarding.md` → `../project_context.md` → `../{{ROLE_SLUG}}.md` → `../worker.md` (for a worker) → this file
 - Active now: none
 - Next in sequence: none
 - Queue order and priority: none

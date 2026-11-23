@@ -20,9 +20,10 @@ The concrete visual language for this project. Hephaestus designs within it,
 builders match it, and reviewers check adherence to it. If it is not written
 here, it is not the standard.
 
-If this file still holds only the blank placeholders below, say so to the user,
-propose values that fit the product's existing look, and ask whether to record
-them here before building on them.
+If the work needs a style value this file does not define (it may still hold
+only the blank placeholders below), say so to the user, propose a value that
+fits the product's existing look, and ask whether to record it here before
+building on it. Work that needs no such value, such as a text-only edit, proceeds.
 
 ## Overview
 

@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "written": "2026-11-22",
-  "lane": "task/lean-core",
-  "base": "ca365f8",
+  "written": "2026-11-23",
+  "lane": "task/role-fixes",
+  "base": "16b5c41",
   "kinds": {
     "policy": "owner's decision about control or workflow",
     "safety": "protects Git state, data or approvals mechanically",
@@ -13,12 +13,12 @@
     "merged": "duplicates collapsed into the listed owner",
     "changed": "behavior or method content materially reworded (see note)",
     "removed": "no longer stated (see note)",
-    "new": "added in Follow-up 1 to close a gap (see note)"
+    "new": "added in a later change to close a gap or record a new owner decision (see note)"
   },
   "counts": {
-    "merged": 77,
+    "merged": 75,
     "kept": 32,
-    "changed": 9,
+    "changed": 12,
     "removed": 6,
     "new": 6
   },
@@ -85,7 +85,8 @@
       "location": [
         "scaffold/AGENTS.md step 2",
         "Agents/onboarding.md Your role and read path"
-      ]
+      ],
+      "note": "role-fixes: the worker line now reads the name file, then worker.md, then tasks/<you>.md."
     },
     {
       "id": "R005",
@@ -167,7 +168,8 @@
       "status": "merged",
       "location": [
         "Agents/onboarding.md Your role and read path"
-      ]
+      ],
+      "note": "role-fixes: the worker line now reads the name file, then worker.md, then tasks/<you>.md."
     },
     {
       "id": "R010",
@@ -273,9 +275,10 @@
       "status": "merged",
       "location": [
         "Agents/onboarding.md Before anything is built (triggers, row shape, UI checker, no patching after rejection)",
-        "scaffold/AGENTS.md Always 1"
+        "scaffold/AGENTS.md Always 1",
+        "Agents/claudia.md Understanding the request (Spec table skip)"
       ],
-      "note": "Gate dates from planning.md / handoffs/spec-gate.md (2026-11-04, second pass 2026-11-11); not recorded in Human/decisions.md. Follow-up 1: row shape, the UI checker and the rejection reset are restated briefly in the core so non-Claudia roots have them."
+      "note": "Gate dates from planning.md / handoffs/spec-gate.md (2026-11-04, second pass 2026-11-11); not recorded in Human/decisions.md. Follow-up 1: row shape, the UI checker and the rejection reset are restated briefly in the core so non-Claudia roots have them. role-fixes (2026-11-23): the core's checker sentence now carries R021's narrowed trigger; the gate's own triggers are unchanged. role-fixes Follow-up 1: the core now states claudia.md's exception, that a single-item change whose wording allows one reading skips the table but not the go-ahead, so non-Claudia roots do not read the two as contradictory."
     },
     {
       "id": "R017",
@@ -343,16 +346,19 @@
     {
       "id": "R021",
       "kind": "policy",
-      "rule": "A UI build gets one pass by a fresh fast-tier read-only checker who sees only the user's words and the screenshots.",
+      "rule": "A UI build whose confirmed spec table has two or more rows, or whose request already had a build rejected, gets one pass by a fresh fast-tier read-only checker who sees only the user's words and the screenshots; otherwise the builder's per-row evidence and screenshot stand.",
       "source": [
         "Agents/claudia.md Understanding the request",
         "Agents/onboarding.md Core Rules"
       ],
-      "decision": "2026-11-04",
-      "status": "merged",
+      "decision": "2026-11-23",
+      "status": "changed",
       "location": [
-        "Agents/claudia.md Understanding the request (Check)"
-      ]
+        "Agents/claudia.md Understanding the request (Check)",
+        "Agents/onboarding.md Before anything is built (spec gate, one sentence)"
+      ],
+      "origin": "owner, 2026-11-23 (\"Yes, fix roles\" on the master session's proposal)",
+      "note": "role-fixes: was every UI build. Narrowed because an independent reader earns its cost where a misreading is likely (several items, or a reading that already failed once), not on a one-word change. Supersedes requirement 3 of the 2026-11-04 spec-gate decision; the checker's shape (fresh, read-only, fast tier, words and screenshots only, one pass, mismatch routing) is unchanged."
     },
     {
       "id": "R022",
@@ -1308,18 +1314,21 @@
     {
       "id": "R081",
       "kind": "policy",
-      "rule": "Augustus and Julius own no fixed technical area unless the project or contract says so; prefer one worker.",
+      "rule": "Augustus and Julius own no fixed technical area unless the contract says so or project_context.md gives that name a standing default or guardrail; prefer one worker.",
       "source": [
         "Agents/claudia.md Decision Rules",
         "Agents/claudia.md header",
         "Agents/augustus.md"
       ],
-      "decision": null,
-      "status": "merged",
+      "decision": "2026-11-23",
+      "status": "changed",
       "location": [
         "Agents/claudia.md header comment",
-        "Agents/augustus.md Working rules"
-      ]
+        "Agents/worker.md Working rules",
+        "Agents/project_context.md Collaboration Map (optional worker line)"
+      ],
+      "origin": "owner, 2026-11-23 (\"Yes, fix roles\" on the master session's proposal)",
+      "note": "role-fixes: the optional Default Scope and Avoid By Default sections left the role files; a per-name bias now lives in the project's own project_context.md, so it no longer requires editing a core file."
     },
     {
       "id": "R082",
@@ -1392,9 +1401,9 @@
       "decision": "2026-09-24",
       "status": "merged",
       "location": [
-        "Agents/augustus.md Working rules",
-        "Agents/julius.md Working rules"
-      ]
+        "Agents/worker.md Working rules"
+      ],
+      "note": "role-fixes: the two identical copies in augustus.md and julius.md became one, in worker.md. role-fixes Follow-up 1: the direct debugging fix covers a bug inside the contract's scope; one outside it is reported, not fixed, matching implement."
     },
     {
       "id": "R087",
@@ -1407,9 +1416,10 @@
       "decision": "2026-10-07",
       "status": "kept",
       "location": [
-        "Agents/augustus.md Working rules",
+        "Agents/worker.md Working rules",
         "Agents/momus.md"
-      ]
+      ],
+      "note": "role-fixes: moved to worker.md."
     },
     {
       "id": "R088",
@@ -1423,9 +1433,9 @@
       "decision": null,
       "status": "merged",
       "location": [
-        "Agents/augustus.md Working rules",
-        "Agents/julius.md Working rules"
-      ]
+        "Agents/worker.md Working rules"
+      ],
+      "note": "role-fixes: the two identical copies in augustus.md and julius.md became one, in worker.md."
     },
     {
       "id": "R089",
@@ -1438,8 +1448,9 @@
       "decision": null,
       "status": "kept",
       "location": [
-        "Agents/augustus.md Working rules"
-      ]
+        "Agents/worker.md Working rules"
+      ],
+      "note": "role-fixes: moved to worker.md."
     },
     {
       "id": "R090",
@@ -1987,16 +1998,17 @@
     {
       "id": "R128",
       "kind": "capability",
-      "rule": "When design.md is still the blank template, say so, propose values that fit the existing look, and ask whether to record them.",
+      "rule": "When the work needs a style value design.md does not define (it may still be the blank template), say so, propose a value that fits the existing look, and ask whether to record it; work that needs none proceeds.",
       "source": [
         "Follow-up 1 (2026-11-22)"
       ],
-      "decision": null,
-      "status": "new",
+      "decision": "2026-11-23",
+      "status": "changed",
       "location": [
         "Agents/design.md header"
       ],
-      "note": "Follow-up 1 item 14; design.md is project-owned, so this reaches new installs only."
+      "note": "Follow-up 1 item 14; design.md is project-owned, so this reaches new installs only. role-fixes Follow-up 1 (2026-11-23): applies only when the work needs a style value the guide does not define; work that needs none, such as a text-only edit, proceeds. A replay read the old header as blocking all UI work.",
+      "origin": "master session, from a replay finding (owner's standing direction: use best judgement)"
     },
     {
       "id": "R129",
@@ -2029,6 +2041,29 @@
       ],
       "note": "Part B.",
       "origin": "owner delegated the choice to the master session"
+    },
+    {
+      "id": "R131",
+      "kind": "policy",
+      "rule": "Augustus and Julius are two named slots of one worker role, defined once in worker.md; each name file only names its slot and queue and links worker.md. Both names still assign the role, keep their generated tasks/<name>.md, and give Claudia two slots for the Parallel Split Gate; worker is reserved and no custom role may use it.",
+      "source": [
+        "role-fixes contract (2026-11-23)"
+      ],
+      "decision": "2026-11-23",
+      "status": "new",
+      "origin": "owner, 2026-11-23 (\"Yes, fix roles\" on the master session's proposal)",
+      "location": [
+        "Agents/worker.md",
+        "Agents/augustus.md",
+        "Agents/julius.md",
+        "Agents/onboarding.md Your role and read path (worker line)",
+        "Agents/tasks/TEMPLATE.md Read first",
+        "bin/hai-harness.mjs scaffoldPaths, doctor requiredPaths, tracedPaths and laterTracedPaths, reserved role names",
+        "Agents/onboarding.md Your role and read path (custom role line)",
+        "Agents/skills/traffic-control/SKILL.md Roles",
+        "bin/hai-harness.mjs customWarnings"
+      ],
+      "note": "Two copies of one file drift and hide that there is one role. Existing installs need no migration: update replaces an unedited old name file and adds worker.md; an edited one is kept and reported; pre-change packets read worker.md as unacknowledged drift until a trace adopts it. role-fixes Follow-up 1: doctor's warning for a custom role named worker says the name now belongs to the shared worker role and, when it is the block's default, how to move the default; a custom role picks up the worker path from tasks/<you>.md on; traffic-control names the two slots of one worker role."
     }
   ]
 }

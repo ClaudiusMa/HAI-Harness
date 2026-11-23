@@ -79,6 +79,7 @@ const scaffoldPaths = [
   "Agents/claudia.md",
   "Agents/augustus.md",
   "Agents/julius.md",
+  "Agents/worker.md",
   "Agents/athena.md",
   "Agents/hephaestus.md",
   "Agents/momus.md",
@@ -120,6 +121,8 @@ const projectStateDocs = new Set(["planning.md", "project_context.md", "design.m
 const customRolesPath = "Agents/custom/roles";
 const customSkillsPath = "Agents/custom/skills";
 const builtInRoles = ["claudia", "momus", "augustus", "julius", "athena", "hephaestus"];
+// The role Augustus and Julius share (Agents/worker.md); reserved like a built-in name.
+const reservedRoleNames = [...builtInRoles, "worker"];
 // Default-role values that mean "no default role"; never custom role names.
 // `own` is the stored value (every released CLI reads it); `none` is accepted as input.
 const noDefaultRoles = ["own", "none"];
@@ -161,15 +164,16 @@ Captured through: none
 };
 const captureAreas = new Set(["product", "design", "process"]);
 // Same set the trail duty covers. Role docs are the ones named in the
-// onboarding role index, plus the project's custom roles. The trail, the
+// onboarding role index, the worker role they share, plus the project's custom roles. The trail, the
 // inbox, task contracts, and handoffs are excluded on purpose.
 const roleDocs = [
   ...builtInRoles.map((role) => `Agents/${role}.md`),
+  "Agents/worker.md",
   customRolesPath
 ];
 // Traced after packets already existed: an older packet has no hash for them,
 // which reads as drift until an ordinary trace acknowledgment adopts it.
-const laterTracedPaths = new Set(["Agents/momus.md", customRolesPath]);
+const laterTracedPaths = new Set(["Agents/momus.md", "Agents/worker.md", customRolesPath]);
 const tracedPaths = [
   "Agents/planning.md",
   "Agents/project_context.md",
@@ -744,7 +748,7 @@ async function assertDefaultRole(projectRoot, options) {
     options.defaultRole = "own";
     return;
   }
-  if (!/^[a-z][a-z0-9-]*$/.test(value) || builtInRoles.includes(value)) {
+  if (!/^[a-z][a-z0-9-]*$/.test(value) || reservedRoleNames.includes(value)) {
     throw new Error(`--default-role takes ${defaultRoleChoices}; "${value}" is not one.`);
   }
   for (const base of [path.join(projectRoot, harnessDirectory), projectRoot]) {
@@ -832,6 +836,7 @@ async function doctor(options) {
     "Agents/planning.md",
     "Agents/design.md",
     ...builtInRoles.map((role) => `Agents/${role}.md`),
+    "Agents/worker.md",
     "Agents/tasks/augustus.md",
     "Agents/tasks/julius.md",
     "Agents/lessons/INDEX.md",
@@ -944,7 +949,12 @@ async function customWarnings(projectRoot, harness) {
     const shown = shownPath(projectRoot, harness, `${customRolesPath}/${entry.name}`);
     const slug = entry.name.slice(0, -3);
     const fields = frontmatter(await fs.readFile(path.join(rolesDirectory, entry.name), "utf8")) ?? {};
-    if (builtInRoles.includes(slug.toLowerCase()) || builtInRoles.includes((fields.name ?? "").toLowerCase())) {
+    if (!builtInRoles.includes(slug.toLowerCase()) && [slug, fields.name ?? ""].some((name) => name.toLowerCase() === "worker")) {
+      const isDefault = (await entryDefault(projectRoot)) === slug.toLowerCase();
+      warnings.push(`Custom role ${shown} is named worker, which is now the name of the role Augustus and Julius share, so agents ignore it. Rename it${isDefault ? `; it is this project's default role, so then run "${upstreamCommand} update --default-role <new name>" (or own, or claudia)` : ""}.`);
+      continue;
+    }
+    if (reservedRoleNames.includes(slug.toLowerCase()) || reservedRoleNames.includes((fields.name ?? "").toLowerCase())) {
       warnings.push(`Custom role ${shown} uses a built-in role name; agents ignore it. Rename it.`);
       continue;
     }

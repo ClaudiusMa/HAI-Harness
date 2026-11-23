@@ -288,3 +288,10 @@ Archive or reset this file before changing the version header convention.
 - Why: The user said the harness "was built from the less intelligent model", wants it to "work well with the lates model inteligentce", and wants "a way to auto adjust and tese or update or whatever, so when model get smarter the harenss dont limit it". The user then had subagents do both pieces at once and told the agent to use its best judgment.
 - Tradeoffs: Not yet measured: the rewrite was checked by an independent review and agent replays, not by a baseline.
 - Follow-up: Run the first baseline (approved by the user on 2026-11-23: "Yes, run it").
+
+- Date: 2026-11-23
+- Decision: Augustus and Julius are two named slots of one worker role, defined once in `worker.md`. Both names keep working and existing installs need no migration. A UI build gets a separate read-only checker only when its confirmed spec table has two or more rows, or an earlier build of the same request was rejected; otherwise the builder's own evidence and screenshot stand. Athena and Hephaestus are unchanged.
+- Supersedes: the part of the 2026-11-04 spec-gate change that gave every UI build a separate checker (recorded in planning; it has no dated entry in this log).
+- Why: Asked "Are all the roles fixed or just the momus?", the user was shown these two fixes and answered "Yes, fix roles".
+- Tradeoffs: A one-item UI change is no longer checked by a second agent.
+- Follow-up: Not stated.
