@@ -145,3 +145,79 @@ An independent review of `350f723` found no blocker, one should-fix and several 
 6. **Two doc sentences in `Agents/skills/human-scribe/SKILL.md`**, kept short: (a) when `note` or `init` creates a packet for a lane that had none, its baseline is the lane's state at that moment, so earlier edits to traced files are adopted without an entry; (b) a lane and its packet use one CLI version: after a harness update, merge `main` into an open lane before recording there, and an older CLI copy that reports a packet written by a newer one as invalid is a version mismatch, not a reason to restore a checkpoint. The skill must still end shorter than the 1,875 words it had before this task.
 
 Then the usual: `node scripts/shipped-hashes.mjs`, `./hai-meta sync`, `npm test`, `node --test .hai/evals/test/calibrate.test.mjs`, `git diff --check`, remove the untracked ignored `.hai/.hai-harness.json` if sync created it, commit, and append a "Follow-up 1" section to the handoff with what changed, test counts, word counts and anything unverified. Do not touch the lane's task packet (it holds T1 from your by-hand run; the master session handles its closeout) and do not touch `Human/`.
+
+## Follow-up 2 — closeout without hand edits (2026-11-23, master session)
+
+### The owner's words (verbatim)
+
+After two replays on clean installs the master session reported: "closeout still needs two hand edits inside the Git folder (writing the draft, moving the 'captured through' marker). A permission check blocked the marker edit, so cleanup refused and the lane stayed on disk. This gap exists on main today too. My call on that gap: add two small commands (`human-sync draft` and `human-sync resolve`) in the same lane, so closeout needs no hand edits and the marker can only move past an entry that has a draft for you to see." The owner answered:
+
+> go ahead
+
+### Background
+
+In the replay, an agent recorded one decision with `human-sync note`, ran capture, hand-wrote the draft into the packet's `human-inbox.md`, and was then refused (by its host's permission check, not by the harness) when it tried to hand-edit `Captured through: none` to `T1`. After the owner approved the draft and the merge, cleanup refused with "Task packet has uncaptured review items" and the lane stayed. The packet lives in the Git common directory; an agent editing a review marker there by hand looks like tampering, and nothing checks that the marker only passes entries the user will see.
+
+Read first: `humanSync` (capture), `entriesAfterCursor`, `captureKind`, `readCaptureCursor`, `countInboxDrafts`, `sectionLines`, the inbox template in `packetTemplates`, the packet checks in worktree cleanup, and sections 1 to 3 of `Agents/skills/human-scribe/SKILL.md`.
+
+### 2a. `human-sync draft`
+
+```
+human-sync draft --from T<n>|planning --kind decision|open-question|brief|reflection|readme --text <text> [--target <dir>]
+```
+
+Appends one pending draft to the packet's `human-inbox.md` under `## Drafts`, in the template's format, and moves the capture cursor itself.
+
+- **Format written.** Heading `### <kind as the template spells it> · from T<n>` (`open-question` is written `open question`; `--from planning` is written `from planning.md`), then `- Status: pending`, `- Target: <file>`, `- Draft: <text>`. Target follows from the kind: decision → `Human/decisions.md`, open question → `Human/open_questions.md`, brief → `Human/brief.md`, reflection → `Human/reflections.md`, readme → `README.md`. Use the template's exact separator character.
+- **Validation before any write.** All three flags required; values trimmed, non-empty, single line, no `<!--` (same rules and wording as `note`). `--from T<n>` must be a numbered entry present in the trail. Refuse a draft whose kind and source already have a draft in the inbox. The inbox must have exactly one `## Drafts` section and it must be the last `## ` section (the guard `note` has for the trail).
+- **In order.** Refuse `--from T<n>` while an earlier entry after the cursor that capture keeps (`captureKind` is not null) has no draft in the inbox; name that entry in the error. A trail heading that is not `### T<n>` and sits after the cursor blocks the same way: the error quotes the heading and says to number it by hand first (the manual form), then draft it. Entries capture drops are never required.
+- **Cursor.** After the draft is appended, set `Captured through:` to the highest numbered entry m such that every entry after the old cursor up to m that capture keeps has a draft in the inbox. Entries capture drops are passed. The cursor never moves backward. `--from planning` writes the draft and leaves the cursor where the same rule puts it.
+- **Write.** One atomic write of the inbox (temporary file in the packet directory, rename, same mode), as `note` now does for the trail.
+- **Output.** What was drafted, for which file, the cursor after the command, and "Nothing was written to Human/."
+
+### 2b. `human-sync resolve`
+
+```
+human-sync resolve --from T<n>|planning --kind <kind> --as approved|dropped|deferred [--text <text>] [--target <dir>]
+```
+
+Records what the user said about one draft.
+
+- `approved` and `dropped` remove that draft's block from the inbox (its heading through the line before the next `###`, `## ` or the end). `deferred` keeps the block and sets its `- Status:` to `deferred`.
+- No such draft: refuse, write nothing.
+- Before the inbox changes, append a record to `packet.json` under `resolved` (an array): source, kind, outcome, the draft text as it stood, the final text when `--text` is given (the user's edit of an approved draft), and the time. Save it the way `savePacket` does. A packet with this extra key must stay readable by this CLI and by the previous one (check `readPacket` in both; if the previous one would refuse it, stop and report).
+- `--text` is allowed only with `approved`, single line, no `<!--`.
+- It never writes `Human/`. For `approved`, the output names the target file and says the writer still has to write it in the lane; for `dropped` and `deferred` it says what the skill says happens next.
+- Atomic inbox write as above.
+
+### 2c. Capture stays read-only
+
+`human-sync` / `capture` writes nothing, as now. Only its closing guidance changes: when entries are listed, the "Next:" line shows the `draft` command and says the cursor moves as drafts are recorded; when nothing is kept, it says nothing needs doing (no instruction to set the cursor by hand). The matching guidance for a malformed heading stays.
+
+### 2d. Unchanged
+
+Cleanup's refusals (pending or deferred drafts, uncaptured kept entries), `captureKind`, the inbox format, everything about how an approved item reaches `Human/`, and the validity of a hand-edited inbox (a draft written by hand can be resolved by command and the reverse). Guards for the new flags: `--from`, `--kind`, `--as`, `--text` are refused on other actions, following the existing pattern.
+
+### Docs
+
+- `Agents/skills/human-scribe/SKILL.md`, sections 1 to 3: capture step 2 (nothing to capture: nothing to do), step 3 (one `draft` command per listed entry, with the kind rules that are there now), step 4 (`--from planning`), and drop step 5 (the cursor moves itself). Closeout batch: after the user answers, one `resolve` per draft; for an approved item the writer writes the `Human/` entry first, then resolves. Say in one sentence that hand edits to the inbox remain valid. The skill is at 1,822 words and must end at or below that.
+- `README.md` "Keeping Human/ current": one or two sentences; no longer than it is now.
+- The `usage` text.
+- `.hai/evals/assumptions.json`: add the rule(s); update R053 and any rule whose wording this changes.
+- The word-budget test must pass with unchanged limits.
+
+### Tests
+
+- `draft` writes a well-formed pending draft with the right target for each kind; the cursor moves; capture then lists nothing new; doctor reports one pending draft; cleanup still refuses while it is pending.
+- The cursor passes entries capture drops (T1 agent/code, T2 user/product: drafting T2 leaves the cursor at T2).
+- Out of order is refused naming the earlier entry, with the inbox byte-identical; so are a duplicate, an unknown `T<n>`, a bad kind, a multi-line or `<!--` text, a missing flag, and the new flags on another action.
+- A non-numbered heading after the cursor blocks with the message described.
+- `--from planning` writes the draft.
+- `resolve`: approved and dropped remove exactly that block and leave other drafts and the cursor; deferred flips the status and keeps the block; each appends a `resolved` record with the text; a missing draft is refused with nothing written; `--text` outside `approved` is refused.
+- End to end in one lane: `note` (user, product), `draft`, `resolve --as approved`, then the lane's cleanup succeeds and prints the packet line.
+- A draft added by hand is resolved by command; a draft added by command and removed by hand leaves a state every command still reads.
+- Capture is still byte-for-byte read-only.
+
+### Mechanics and done
+
+As before: `node scripts/shipped-hashes.mjs`, `./hai-meta sync`, `npm test`, `node --test .hai/evals/test/calibrate.test.mjs`, `git diff --check`, remove the untracked ignored `.hai/.hai-harness.json` if sync created it, one new commit on top of `690c36b` ending with the line `Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>`, and a "Follow-up 2" section in the handoff (changes by file, choices this section did not fix and why, test counts, word counts, anything unverified). Do not touch the lane's own task packet (the master session closes it out with these commands as the real-use check) and do not touch `Human/`. If a requirement conflicts with the code or would weaken a guard, stop and report.

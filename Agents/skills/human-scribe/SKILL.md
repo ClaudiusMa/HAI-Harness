@@ -41,27 +41,26 @@ Capture reads the packet trail, packet `human-inbox.md` (drafts and the `Capture
 ## 1. Capture (fast tier, low effort)
 
 1. Run `node .hai/Agents/hai-harness.mjs human-sync --target .` (or explicit `capture`). The CLI is offline, read-only and deterministic; it performs no model or network call. It lists entries after the packet cursor whose Origin is `user` or Area is `product`, `design`, or `process`, drops agent-origin `code`, and suppresses `- Applies: approved {draft}` reflections of already-approved items.
-2. If nothing remains to capture, serialize the cursor update to the latest entry named and stop; no model call is needed. If a heading is malformed, preserve it for review and follow the command's numbering/cursor guidance rather than skipping it.
-3. Otherwise add a draft for each listed entry under packet `## Drafts`, with `Status: pending`, `Target`, `Draft` and `from T{n}`. Skip a source/target draft already present; respect the existing cursor.
-   - Origin `user` becomes a `decision` for `Human/decisions.md`. Add a `brief` or `readme` draft only when it changes the current product story or public description.
-   - Origin `agent` becomes an `open question` for `Human/open_questions.md`: "Agents assumed {X}. Confirm or change?"
+2. If nothing remains to capture, nothing needs doing. Number a malformed heading by hand (the manual form), then draft it; never skip it.
+3. Otherwise record each listed entry, in order, with `node .hai/Agents/hai-harness.mjs human-sync draft --from T<n> --kind <kind> --text "<draft>" --target .`. It writes a pending draft and moves `Captured through:` past every entry that has one; duplicates and out-of-order drafts refuse.
+   - Origin `user` becomes a `decision`. Add a `brief` or `readme` draft only when it changes the current product story or public description.
+   - Origin `agent` becomes an `open-question`: "Agents assumed {X}. Confirm or change?"
    - Unrecognized Origin/Area or malformed headings become open questions quoting the entry for review.
    - A `reflection` draft requires the user's quoted words.
-4. Draft each open `Decision needed from user` item without an existing draft, marked `from planning.md`.
-5. Serialize `Captured through:` to the latest numbered entry read, including filtered entries. Keep pending/deferred drafts; do not recapture or merge source entries.
+4. Draft each open `Decision needed from user` item once, with `--from planning`.
 
 Draft only what the source states. Do not add reasons or guess the user's view.
 
 ## 2. Closeout batch
 
 - A lane with no entries and no drafts needs no capture at closeout. Otherwise, before closeout, including blocked handoff, Claudia shows all pending/deferred drafts in one numbered batch. The user approves, edits, drops or defers each item; "approve all" applies to that batch only. No first backfill or unrelated Human change is implied.
-- Approved/edited items go to the assigned writer; the user's edit replaces the draft. Keep source IDs and approved text in the handoff until verified integration.
-- Dropped drafts leave the inbox but their trace remains. Deferred items retain `Status: deferred`; unaddressed items stay pending. Raise both at the next intake.
+- After the user answers, record each draft with `human-sync resolve --from T<n> --kind <kind> --as approved|dropped|deferred`, adding `--text "<edit>"` when the user edited an approved one. For an approved item the writer writes the Human entry first, then resolves. Keep source IDs and approved text in the handoff until verified integration.
+- Dropped drafts leave the inbox but their trace remains. Deferred items keep `Status: deferred`; unaddressed items stay pending. Raise both at the next intake. Hand edits to the inbox remain valid.
 - Execution changes are reflected in Agents by their owning role. Its note adds `--applies "approved {draft}"` to avoid capture again.
 
 ## 3. Writer (fast tier, medium effort)
 
-Write the current approved batch in a verified isolated candidate together with the accepted changes before integration. That candidate is normally Claudia's own task lane; when a worker holds the lane's writer slot, assign the batch to that worker. The primary/shared checkout is not a direct Human write destination. Recheck the candidate identity and baseline, serialize shared Human log updates across candidates, and deduplicate against the latest accepted entries. Remove approved drafts only after successful candidate writes; retain approved-source evidence through integration. A rejected or interrupted candidate never promotes provisional choices; preserve its packet and handoff.
+Write the current approved batch in a verified isolated candidate together with the accepted changes before integration. That candidate is normally Claudia's own task lane; when a worker holds the lane's writer slot, assign the batch to that worker. The primary/shared checkout is not a direct Human write destination. Recheck the candidate identity and baseline, serialize shared Human log updates across candidates, and deduplicate against the latest accepted entries. Resolve approved drafts only after successful candidate writes; retain approved-source evidence through integration. A rejected or interrupted candidate never promotes provisional choices; preserve its packet and handoff.
 
 - `Human/decisions.md`: preserve version header and fields (`Date`, `Decision`, `Why`, `Tradeoffs`, `Follow-up`). Remove `- None recorded yet.` on the first entry. Skip decisions already recorded. Use `Not stated.` for unsupplied fields. A replacement adds `- Supersedes: {date}: {earlier decision}` while keeping the earlier entry. For an older version header with real entries, stop for an explicit archive/reset decision.
 - `Human/open_questions.md`: preserve its fields; `Current leaning` states the agents' current behavior. Skip listed questions. Remove a resolved question only with the approved decision's own entry.

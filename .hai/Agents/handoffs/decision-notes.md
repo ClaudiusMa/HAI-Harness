@@ -105,3 +105,69 @@ At closeout it becomes a decision draft for the user's log. No Human item was ap
   - The re-check failure path is still untested; it cannot be triggered deterministically.
   - A crash between the temp write and the rename is reasoned about, not tested. The trail stays at its old content, which is what makes it safe.
   - `savePacket`'s own temporary name is still `<packet.json>.<pid>.tmp` with `wx`. A leftover from a crashed process with the same pid would make a later save refuse. That was outside these six items, so it is left as it was.
+
+## Follow-up 2 (2026-11-23, closeout without hand edits)
+
+### Changes by file
+
+- `bin/hai-harness.mjs`
+  - New actions `draft` and `resolve` (`draftCommand`, `resolveCommand`) and their helpers:
+    - `draftSource` validates all flags before the packet is read.
+    - `inboxDrafts` parses `## Drafts` with raw line ranges.
+    - `capturedThrough` computes the cursor rule.
+    - `setCaptureCursor` rewrites the cursor line.
+    - `writePacketFile` does the atomic temp-and-rename write, now shared with `note`.
+  - `singleLine` holds the trim, single-line and no-`<!--` rule, shared by `note`, `draft` and `resolve`.
+  - `draftKinds` maps each kind to its heading spelling and Human target.
+  - New flags `--from`, `--kind`, `--as`, `--text`. On other actions they are refused with "--from, --kind and --text require draft or resolve." or "--as requires resolve."
+  - Capture's closing guidance:
+    - Nothing kept: `Next: nothing needs doing.`
+    - Entries listed: `Next: record a draft for each entry, in order: <cli> human-sync draft --from T<n> --kind "<decision|open-question|brief|reflection|readme>" --text "<draft>". The cursor moves as drafts are recorded.`
+    - A malformed heading listed: the same line, prefixed with "number the malformed trail heading by hand first, then".
+  - Usage text lists both commands.
+- `test/hai-harness.test.mjs`
+  - Five new tests: draft kinds/cursor/planning/cleanup refusal; draft refusals; resolve; the end-to-end closeout; mixed hand and command drafts. The resolve test also checks capture stays byte-for-byte read-only.
+  - Two existing assertions changed from "Captured through: T<n>" guidance to "nothing needs doing". The malformed-heading test checks the new guidance.
+- `Agents/skills/human-scribe/SKILL.md`
+  - Capture steps 2 to 4 use `draft`; step 5 is gone.
+  - Closeout batch uses `resolve` (writer first, then resolve) and says hand edits remain valid.
+  - Writer: "Resolve approved drafts only after successful candidate writes".
+- `README.md` "Keeping Human/ current": the capture paragraph names `draft` and `resolve` (396 to 394 words).
+- `.hai/evals/assumptions.json`: R053 changed; new R135 (`draft`, safety) and R136 (`resolve`). Counts 71/32/16/6/11, 136 rules.
+- Generated: `scaffold/shipped-hashes.json` (40 paths, 266 hashes) and two `.hai/` mirrors.
+
+### Choices this section did not fix, and why
+
+- **Draft matching.** A draft counts when its heading reads `<kind> · from T<n>` or `from planning.md`/`planning`, backticks allowed. Kind is compared case-insensitively. That is enough for hand drafts written from the template.
+- **Order check.** It walks the entries after the cursor in trail order, up to the source entry. A source at or before the cursor (a second kind for an already captured entry, such as a brief) is never blocked. A source that capture drops (agent/code) may still be drafted.
+- **Comments.** `draft` and `resolve` refuse when there is any `<!--` under `## Drafts`. They work on raw lines, and a stray comment there could hide or misplace a block.
+- **Ambiguous resolve.** If more than one draft matches the source and kind (only possible by hand), `resolve` refuses and says to resolve by hand.
+- **Deferring a statusless hand draft.** `resolve --as deferred` on a hand draft with no `- Status:` line inserts `- Status: deferred` after its heading.
+- **Resolved record.** Shape is `{ source, kind (heading spelling), outcome, draft (the `- Draft:` value or null), text (only with --text), recordedAt }`. A `resolved` key that is present but not an array refuses. `packet.json` is saved before the inbox is rewritten.
+- **Messages.**
+  - Approved: "Approved: <Target> must carry it in the lane; if the writer has not written it yet, they still have to." The target comes from the draft's own Target line, or from the kind. The skill has the writer write first, so this wording covers both orders.
+  - Dropped: "Dropped: the draft left the inbox; its trail entry remains."
+  - Deferred: "Deferred: it stays in the inbox and is raised at the next intake; cleanup keeps the lane until it is resolved."
+- **Cursor line.** It is rewritten with the regex `readCaptureCursor` uses and then verified with `readCaptureCursor`. If they disagree (a commented-out cursor line first), nothing is written.
+
+### Disagreement
+
+- **One planning draft per kind.** "Refuse a draft whose kind and source already have a draft" means `--from planning` allows only one draft of each kind at a time. Two open `Decision needed from user` items cannot both be drafted as open questions by command, and the skill still says to draft each item. I built it as specified. The workaround is a hand draft, or resolving the first before drafting the second. A fix would be an item label in the planning source; that needs your decision.
+
+### Compatibility check (run by hand in a scratch repository, then deleted)
+
+- A packet with a `resolved` record (note, draft, `resolve --as deferred`) is read by the `690c36b` CLI: `status` and capture work.
+- The `1889954` CLI (before this task) refuses it as "Invalid task packet". The cause is Change 2, not `resolved`: packets made without the `Agents/planning.md` hash fail that CLI's path check, as any packet from this lane does. This is the version mismatch the skill now describes. Its `readPacket` has no check on extra keys.
+
+### Verification
+
+- `npm test`: `ℹ tests 64`, `ℹ pass 64`, `ℹ fail 0`.
+- `node --test .hai/evals/test/calibrate.test.mjs`: `ℹ tests 16`, `ℹ pass 16`, `ℹ fail 0`.
+- `git diff --check` clean; `./hai-meta doctor`: no warnings. `.hai/.hai-harness.json` was created by sync and removed.
+- Word counts: worker path 2,198 / 2,200; lead path 5,679 / 5,800; human-scribe 1,817 (at or below 1,822).
+- This lane's own packet was not touched.
+
+### Unverified
+
+- Crash windows: between saving the `resolved` record and rewriting the inbox, a crash leaves a record with the draft still present. A retry then appends a second record.
+- Atomic writes are reasoned about, not crash-tested.

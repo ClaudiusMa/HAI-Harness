@@ -1106,7 +1106,7 @@ test("human-sync task packet filters, cursor, malformed review and approved supp
   const code = harness(root, "human-sync", "--target", root);
   assert.equal(code.status, 0, code.stderr);
   assert.match(code.stdout, /nothing to capture/);
-  assert.match(code.stdout, /Captured through: T2/);
+  assert.match(code.stdout, /^Next: nothing needs doing\.$/m);
   await setCaptureCursor(packet, "T2");
   await appendTrail(packet, [trailEntry(3, "user", "code"), trailEntry(4, "agent", "design"), trailEntry(5, "agent", "process"), trailEntry(6, "agent", "code"), trailEntry(7, "someone", "product"), `${trailEntry(8, "user", "product")}- Applies: approved draft\n`, "### malformed heading\n"]);
   const files = ["decision-trail.md", "human-inbox.md", "packet.json"];
@@ -1118,6 +1118,7 @@ test("human-sync task packet filters, cursor, malformed review and approved supp
   assert.match(kept.stdout, /^T4 · open question/m);
   assert.match(kept.stdout, /^T7 · review/m);
   assert.match(kept.stdout, /^malformed heading · review/m);
+  assert.match(kept.stdout, /^Next: number the malformed trail heading by hand first, then record a draft for each entry, in order: .*human-sync draft --from T<n> --kind "<decision\|open-question\|brief\|reflection\|readme>" --text "<draft>"\. The cursor moves as drafts are recorded\.$/m);
   assert.doesNotMatch(kept.stdout, /^T6 ·|^T8 ·/m);
   assert.deepEqual(await Promise.all(files.map((name) => fs.readFile(path.join(packet, name), "utf8"))), before);
   await setCaptureCursor(packet, "`none`");
@@ -1503,7 +1504,7 @@ test("human-sync note numbers after hand-appended entries and gaps, with or with
   assert.match(trail, /- Area: code\n\n### T10\n- Date:/);
   const capture = harness(root, "human-sync", "--target", root);
   assert.match(capture.stdout, /5 new trail entries were agent-origin code changes/);
-  assert.match(capture.stdout, /Captured through: T10/);
+  assert.match(capture.stdout, /^Next: nothing needs doing\.$/m);
 });
 
 test("a note containing --> leaves later entries visible, and the trail is replaced atomically", async (t) => {
@@ -1583,6 +1584,164 @@ test("a packet acknowledged under the old basis stays readable and adopts the co
   git(root, "add", "-A");
   git(root, "commit", "-m", "Role");
   assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
+});
+
+function draft(root, ...args) {
+  return harness(root, "human-sync", "draft", "--target", root, ...args);
+}
+
+function resolve(root, ...args) {
+  return harness(root, "human-sync", "resolve", "--target", root, ...args);
+}
+
+async function readInbox(packet) {
+  return fs.readFile(path.join(packet, "human-inbox.md"), "utf8");
+}
+
+test("human-sync draft writes a pending draft per kind, moves the cursor past dropped entries, and keeps cleanup's refusal", async (t) => {
+  const { repo, lane, root, packet } = await makePacketFixture(t);
+  await appendTrail(packet, [trailEntry(1, "agent", "code"), trailEntry(2, "user", "product")]);
+  const capture = harness(root, "human-sync", "--target", root);
+  assert.match(capture.stdout, /^Next: record a draft for each entry, in order: /m);
+  const first = draft(root, "--from", "T2", "--kind", "decision", "--text", " Weekly digests by default ");
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(first.stdout, "Drafted decision from T2 for Human/decisions.md. Captured through: T2. Nothing was written to Human/.\n");
+  const inbox = await readInbox(packet);
+  assert.match(inbox, /^Captured through: T2$/m);
+  assert.match(inbox, /## Drafts\n\n### decision · from T2\n- Status: pending\n- Target: Human\/decisions\.md\n- Draft: Weekly digests by default\n$/);
+  assert.match(harness(root, "human-sync", "--target", root).stdout, /no new trail entries after T2/);
+  assert.match(harness(root, "doctor", "--target", root).stdout, /1 pending and 0 deferred/);
+  for (const [kind, heading, target] of [["open-question", "open question", "Human/open_questions.md"], ["brief", "brief", "Human/brief.md"], ["reflection", "reflection", "Human/reflections.md"], ["readme", "readme", "README.md"]]) {
+    const made = draft(root, "--from", "T2", "--kind", kind, "--text", `${kind} text`);
+    assert.equal(made.status, 0, made.stderr);
+    assert.match(await readInbox(packet), new RegExp(`### ${heading} · from T2\\n- Status: pending\\n- Target: ${target.replace(".", "\\.")}\\n- Draft: ${kind} text\\n`));
+  }
+  // A planning item becomes a draft and leaves the cursor where the rule puts it.
+  const planning = draft(root, "--from", "planning", "--kind", "open-question", "--text", "Which plan?");
+  assert.equal(planning.status, 0, planning.stderr);
+  assert.match(await readInbox(packet), /### open question · from planning\.md\n- Status: pending\n/);
+  assert.match(planning.stdout, /Captured through: T2\./);
+  await fs.writeFile(path.join(lane, "result.txt"), "approved\n");
+  const approved = harness(lane, "worktree", "approve", "--approved", "Draft fixture", "--target", lane);
+  assert.equal(approved.status, 0, approved.stderr);
+  assert.match(approved.stdout, /6 pending/);
+  assert.ok(await fs.stat(lane));
+  assert.notEqual(harness(repo, "worktree", "cleanup", "task/capture", "--target", repo).status, 0);
+});
+
+test("human-sync draft refuses out-of-order, duplicate and invalid drafts without writing", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  await appendTrail(packet, [trailEntry(1, "user", "product"), trailEntry(2, "agent", "design")]);
+  const before = await packetBytes(packet);
+  for (const [args, pattern] of [
+    [["--from", "T2", "--kind", "open-question", "--text", "x"], /T1 comes before T2 and has no draft yet; draft T1 first\. Nothing was written\./],
+    [["--from", "T9", "--kind", "decision", "--text", "x"], /T9 is not a numbered entry in the trail/],
+    [["--from", "T1", "--kind", "verdict", "--text", "x"], /--kind must be one of decision, open-question, brief, reflection, readme/],
+    [["--from", "1", "--kind", "decision", "--text", "x"], /--from must be T<n> or planning/],
+    [["--from", "T1", "--kind", "decision", "--text", "a\nb"], /--text must be a single line/],
+    [["--from", "T1", "--kind", "decision", "--text", "a <!-- b"], /--text must not contain "<!--"; write it in words/],
+    [["--from", "T1", "--kind", "decision"], /requires --text/],
+    [["--from", "T1", "--kind", "decision", "--text", "x", "--as", "approved"], /--as requires resolve/]
+  ]) {
+    const refused = draft(root, ...args);
+    assert.notEqual(refused.status, 0, args.join(" "));
+    assert.match(refused.stderr, pattern);
+    assert.deepEqual(await packetBytes(packet), before);
+  }
+  for (const action of ["status", "note", "acknowledge", "capture", "init", "checkpoint"]) {
+    assert.match(harness(root, "human-sync", action, "--target", root, "--from", "T1").stderr, /require draft or resolve/);
+  }
+  assert.equal(draft(root, "--from", "T1", "--kind", "decision", "--text", "x").status, 0);
+  const once = await packetBytes(packet);
+  assert.match(draft(root, "--from", "T1", "--kind", "decision", "--text", "y").stderr, /A decision draft from T1 is already in the inbox/);
+  assert.deepEqual(await packetBytes(packet), once);
+  // A heading with no number after the cursor blocks a later draft.
+  assert.equal(draft(root, "--from", "T2", "--kind", "open-question", "--text", "x").status, 0);
+  await appendTrail(packet, ["### unnumbered\n- Origin: user\n", trailEntry(3, "user", "process")]);
+  const blocked = await packetBytes(packet);
+  assert.match(draft(root, "--from", "T3", "--kind", "decision", "--text", "x").stderr, /The trail heading "### unnumbered" comes before T3 and has no number\. Nothing was written\. Number it by hand first \(the manual form\), then draft it\./);
+  assert.deepEqual(await packetBytes(packet), blocked);
+});
+
+test("human-sync resolve records the user's answer for one draft and never writes Human/", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  await appendTrail(packet, [trailEntry(1, "user", "product"), trailEntry(2, "user", "design"), trailEntry(3, "agent", "process")]);
+  assert.equal(draft(root, "--from", "T1", "--kind", "decision", "--text", "one").status, 0);
+  assert.equal(draft(root, "--from", "T2", "--kind", "decision", "--text", "two").status, 0);
+  assert.equal(draft(root, "--from", "T3", "--kind", "open-question", "--text", "three").status, 0);
+  const humanBefore = await fs.readFile(path.join(root, "Human/decisions.md"), "utf8");
+  const before = await packetBytes(packet);
+  for (const [args, pattern] of [
+    [["--from", "T9", "--kind", "decision", "--as", "approved"], /No decision draft from T9 is in the inbox\. Nothing was written\./],
+    [["--from", "T1", "--kind", "decision", "--as", "dropped", "--text", "edit"], /--text is allowed only with --as approved/],
+    [["--from", "T1", "--kind", "decision", "--as", "kept"], /--as must be approved, dropped or deferred/],
+    [["--from", "T1", "--kind", "decision"], /requires --as/]
+  ]) {
+    const refused = resolve(root, ...args);
+    assert.notEqual(refused.status, 0, args.join(" "));
+    assert.match(refused.stderr, pattern);
+    assert.deepEqual(await packetBytes(packet), before);
+  }
+  const approved = resolve(root, "--from", "T2", "--kind", "decision", "--as", "approved", "--text", "two, as the user edited it");
+  assert.equal(approved.status, 0, approved.stderr);
+  assert.match(approved.stdout, /Approved: Human\/decisions\.md must carry it in the lane; if the writer has not written it yet, they still have to\. Nothing was written to Human\//);
+  let inbox = await readInbox(packet);
+  assert.doesNotMatch(inbox, /from T2/);
+  assert.match(inbox, /### decision · from T1\n- Status: pending\n- Target: Human\/decisions\.md\n- Draft: one\n\n### open question · from T3\n/);
+  assert.match(inbox, /^Captured through: T3$/m);
+  assert.match(resolve(root, "--from", "T1", "--kind", "decision", "--as", "dropped").stdout, /Dropped: the draft left the inbox; its trail entry remains\./);
+  assert.match(resolve(root, "--from", "T3", "--kind", "open-question", "--as", "deferred").stdout, /Deferred: it stays in the inbox/);
+  inbox = await readInbox(packet);
+  assert.match(inbox, /## Drafts\n\n### open question · from T3\n- Status: deferred\n- Target: Human\/open_questions\.md\n- Draft: three\n$/);
+  assert.match(harness(root, "doctor", "--target", root).stdout, /0 pending and 1 deferred/);
+  const records = JSON.parse(await fs.readFile(path.join(packet, "packet.json"), "utf8")).resolved;
+  assert.deepEqual(records.map(({ recordedAt, ...rest }) => (assert.match(recordedAt, /^\d{4}-/), rest)), [
+    { source: "T2", kind: "decision", outcome: "approved", draft: "two", text: "two, as the user edited it" },
+    { source: "T1", kind: "decision", outcome: "dropped", draft: "one" },
+    { source: "T3", kind: "open question", outcome: "deferred", draft: "three" }
+  ]);
+  assert.equal(harness(root, "human-sync", "status", "--target", root).status, 0);
+  assert.equal(await fs.readFile(path.join(root, "Human/decisions.md"), "utf8"), humanBefore);
+  // Capture stays byte-for-byte read-only.
+  const quiet = await packetBytes(packet);
+  assert.equal(harness(root, "human-sync", "--target", root).status, 0);
+  assert.deepEqual(await packetBytes(packet), quiet);
+});
+
+test("closeout needs no hand edit: note, draft, resolve, then cleanup removes the lane", async (t) => {
+  const { repo, lane, root, packet } = await makePacketFixture(t);
+  assert.equal(note(root, "--change", "Weekly digests", "--why", "The user asked", "--origin", "user", "--area", "product").status, 0);
+  assert.equal(draft(root, "--from", "T1", "--kind", "decision", "--text", "Digests are weekly").status, 0);
+  await fs.writeFile(path.join(lane, "result.txt"), "approved\n");
+  const approved = harness(lane, "worktree", "approve", "--approved", "Closeout fixture", "--target", lane);
+  assert.equal(approved.status, 0, approved.stderr);
+  assert.ok(await fs.stat(lane));
+  assert.equal(resolve(root, "--from", "T1", "--kind", "decision", "--as", "approved").status, 0);
+  const cleaned = harness(repo, "worktree", "cleanup", "task/capture", "--target", repo);
+  assert.equal(cleaned.status, 0, cleaned.stdout + cleaned.stderr);
+  assert.match(cleaned.stdout, /Task packet retained: /);
+  assert.equal(await fs.stat(lane).catch(() => null), null);
+  assert.ok(await fs.stat(path.join(packet, "packet.json")));
+});
+
+test("hand-written and command-written drafts mix", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  await appendTrail(packet, [trailEntry(1, "user", "product"), trailEntry(2, "user", "process")]);
+  const inboxFile = path.join(packet, "human-inbox.md");
+  await fs.appendFile(inboxFile, "\n### decision · from T1\n- Status: pending\n- Target: Human/decisions.md\n- Draft: by hand\n");
+  // The hand draft counts for order and cursor.
+  const made = draft(root, "--from", "T2", "--kind", "decision", "--text", "by command");
+  assert.equal(made.status, 0, made.stderr);
+  assert.match(made.stdout, /Captured through: T2\./);
+  assert.equal(resolve(root, "--from", "T1", "--kind", "decision", "--as", "approved").status, 0);
+  // Remove the command-written draft by hand; every command still reads the inbox.
+  await fs.writeFile(inboxFile, (await fs.readFile(inboxFile, "utf8")).replace(/\n### decision · from T2\n[\s\S]*$/, "\n"));
+  assert.equal(harness(root, "human-sync", "--target", root).status, 0);
+  assert.match(harness(root, "doctor", "--target", root).stdout, /looks installed/);
+  assert.match(resolve(root, "--from", "T2", "--kind", "decision", "--as", "dropped").stderr, /No decision draft from T2/);
+  assert.equal(draft(root, "--from", "planning", "--kind", "decision", "--text", "plan item").status, 0);
+  assert.equal(resolve(root, "--from", "planning", "--kind", "decision", "--as", "deferred").status, 0);
+  assert.match(await readInbox(packet), /### decision · from planning\.md\n- Status: deferred\n/);
 });
 
 test("cleanup retains current-task pending and uncaptured packets but leaves peer packets alone", async (t) => {

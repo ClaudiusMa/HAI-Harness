@@ -20,7 +20,7 @@
     "kept": 32,
     "changed": 16,
     "removed": 6,
-    "new": 9
+    "new": 11
   },
   "rules": [
     {
@@ -871,7 +871,7 @@
     {
       "id": "R053",
       "kind": "policy",
-      "rule": "Closeout batch: run human-scribe capture and present every pending and deferred draft in one batch, a blocked handoff included; a lane with no entries and no drafts needs no capture; only approved items reach Human/, written in the verified lane before integration; README via the lane.",
+      "rule": "Closeout batch: run human-scribe capture, record each listed entry with human-sync draft, and present every pending and deferred draft in one batch, a blocked handoff included; a lane with no entries and no drafts needs no capture; record each answer with human-sync resolve (for an approved item after the writer wrote it); only approved items reach Human/, written in the verified lane before integration; README via the lane.",
       "source": [
         "Agents/onboarding.md Core Rules",
         "Agents/claudia.md Decision Capture",
@@ -881,10 +881,10 @@
       "status": "changed",
       "location": [
         "Agents/claudia.md Lessons and closeout",
-        "Agents/skills/human-scribe/SKILL.md Closeout batch"
+        "Agents/skills/human-scribe/SKILL.md Capture and Closeout batch"
       ],
       "origin": "owner, 2026-11-23 (\"1 and 2 together\", on the master session's bookkeeping options)",
-      "note": "decision-notes: every lane now has a packet from creation, so an empty one asks for nothing; cleanup and the lanes.md final summary name the packet only when it holds entries or drafts."
+      "note": "decision-notes: every lane now has a packet from creation, so an empty one asks for nothing; cleanup and the lanes.md final summary name the packet only when it holds entries or drafts. decision-notes Follow-up 2 (owner, 2026-11-23 (\"go ahead\", on the master session's proposal to add human-sync draft and resolve)): drafting and resolving are commands, so closeout needs no hand edit in the packet; hand edits to the inbox stay valid."
     },
     {
       "id": "R054",
@@ -2120,6 +2120,38 @@
         "Agents/skills/human-scribe/SKILL.md When to record, and how"
       ],
       "note": "Staging or committing noted content no longer reads as drift. Gives up: a traced file changed, committed and then returned to the acknowledged content needs no entry. Files merged in from main still read as drift."
+    },
+    {
+      "id": "R135",
+      "kind": "safety",
+      "rule": "human-sync draft appends one pending draft (heading '<kind> · from T<n>' or 'from planning.md', Status, Target from the kind, Draft) and moves Captured through: to the highest entry m such that every entry capture keeps after the old cursor up to m has a draft; dropped entries are passed, the cursor never moves back, and the cursor can only pass an entry that has a draft for the user to see. It refuses, writing nothing, an out-of-order or duplicate draft, an unknown T<n>, a malformed heading before the source, invalid values, and an inbox whose last section is not one ## Drafts; the inbox write is atomic.",
+      "source": [
+        "decision-notes Follow-up 2 (2026-11-23)"
+      ],
+      "decision": "2026-11-23",
+      "status": "new",
+      "origin": "owner, 2026-11-23 (\"go ahead\", on the master session's proposal to add human-sync draft and resolve)",
+      "location": [
+        "bin/hai-harness.mjs draftCommand, capturedThrough, inboxDrafts",
+        "Agents/skills/human-scribe/SKILL.md Capture"
+      ],
+      "note": "Replaces the hand edits of the inbox and the cursor inside the Git common directory; capture itself stays read-only and its guidance names the draft command."
+    },
+    {
+      "id": "R136",
+      "kind": "policy",
+      "rule": "human-sync resolve records the user's answer to one draft: approved and dropped remove its block, deferred sets Status: deferred; each first appends a record (source, kind, outcome, draft text, the user's edit when --text is given with approved, time) to packet.json resolved. It never writes Human/; a missing draft refuses with nothing written.",
+      "source": [
+        "decision-notes Follow-up 2 (2026-11-23)"
+      ],
+      "decision": "2026-11-23",
+      "status": "new",
+      "origin": "owner, 2026-11-23 (\"go ahead\", on the master session's proposal to add human-sync draft and resolve)",
+      "location": [
+        "bin/hai-harness.mjs resolveCommand",
+        "Agents/skills/human-scribe/SKILL.md Closeout batch"
+      ],
+      "note": "Cleanup's refusals, captureKind, the inbox format and the Human write path are unchanged; older CLIs ignore the resolved key."
     }
   ]
 }
