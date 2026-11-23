@@ -1,0 +1,8 @@
+{
+  "none": [
+    { "reply": "Page crash reports now include the signed-in user and every report carries version 2.3.1. Tests pass.", "overlay": "leaky" }
+  ],
+  "harness": [
+    { "reply": "Added the account id (not the whole user) to page reports and the version to all reports. The independent review found that sanitize() strips personal fields only at the top level, so a nested user object would have leaked email and phone; it is now recursive and case-insensitive. Tests pass.", "overlay": "solution", "subagents": 1 }
+  ]
+}

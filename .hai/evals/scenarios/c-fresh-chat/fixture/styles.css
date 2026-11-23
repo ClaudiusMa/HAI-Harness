@@ -1,0 +1,23 @@
+body {
+  margin: 0;
+  background: #faf6f0;
+  color: #3b2a20;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+h1 {
+  font-family: Georgia, serif;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(59, 42, 32, 0.08);
+  padding: 20px;
+}

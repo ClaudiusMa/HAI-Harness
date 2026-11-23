@@ -1,0 +1,7 @@
+{
+  "default": [
+    { "reply": "Built the Clay Club signup page (stage 1). Run it with `python3 -m http.server`.", "overlay": "solution" },
+    { "reply": "Read the repository, then added the waitlist. Verified locally.", "expectNewSession": true },
+    { "reply": "Added Edit for both lists. Verified locally. No preview process is running." }
+  ]
+}
