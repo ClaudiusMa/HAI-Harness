@@ -62,4 +62,4 @@ Pending verification record: `- [pending · tier {0|1|2}] {failure class} → {s
 - Every index entry links one lesson file and every active lesson file has one entry.
 - Pending verification records have a durable evidence link, owner, and concrete next check/event; their count stays within 25 class rows without dropping unresolved references.
 - Budgets and the sweep cursor are current, and pending records remain visible independently of the cursor.
-- Report each disposition in one line. Ask only when a proposed Tier 0 check adds high-cost behavior; all existing approval gates still apply.
+- Report each disposition in one line. Ask only when a proposed Tier 0 check adds a run that needs a check-in ([onboarding](../../onboarding.md)); all existing approval gates still apply.

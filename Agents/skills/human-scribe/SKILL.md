@@ -5,11 +5,11 @@ description: Capture task-owned why-entries into provisional packet drafts, pres
 
 # Human Scribe
 
-Agents maintain `Human/` and the public README; the user owns them by approving. Nothing reaches either without approval in the current batch. Claudia coordinates capture and review, and writes approved items herself in her task lane or assigns the worker holding the lane's writer slot. A direct Momus controller uses this method for its incident-specific choices; a delegated Momus reports them to its parent Claudia, who owns packet mutations. Neither entry authorizes global planning or direct Human writes by Momus. Provisional choices stay outside Agents and product files in the registered task packet.
+Agents maintain `Human/` and the public README; the user owns them by approving. Nothing reaches either without approval in the current batch. Claudia coordinates capture and review, and writes approved items herself in her task lane or assigns the worker or Momus holding the lane's writer slot. A direct Momus controller uses this method for its incident-specific choices; a delegated Momus reports them to its parent Claudia, who owns packet mutations. Neither entry authorizes global planning or direct Human writes by Momus. Provisional choices stay outside Agents and product files in the registered task packet.
 
 ## Packet adoption and discovery
 
-Run commands from the retained recognized task lane, using one consistent physical harness target (`.` for root or `.hai` for the outer harness):
+Run commands from the root of the retained recognized task lane with `--target .`; in an installed project the CLI resolves `.` and `.hai` to the same packet, so use one consistently:
 
 ```sh
 node .hai/Agents/hai-harness.mjs human-sync init --target .
@@ -25,7 +25,7 @@ If legacy `Agents/decision-trail.md` and `Agents/human-inbox.md` both exist, use
 ## Sources and trace duty
 
 - Packet `decision-trail.md`: append-only numbered `### T{n}` entries. Claudia, Athena, Hephaestus and direct Momus controllers trace changes to planning, project context, design guide, `designs/`, or role docs. Workers provide code-level evidence through handoffs, not trail entries. Trail/inbox, task contracts and handoffs need no entry.
-- Entry fields: `Date`, `Change` (what changed and every affected traced path, relative to this harness target), `Why`, `Origin: user | agent`, `Area: product | design | process | code`. Origin `user` requires the user's actual statement or confirmation; never upgrade an assumption. Correct earlier entries by appending a numbered correction, not editing old text.
+- Entry fields: `Date`, `Change` (what changed and every affected traced path, relative to this harness target), `Why`, `Origin: user | agent`, `Area: product | design | process | code`. Origin `user` requires the user's actual statement or confirmation of every decision in the entry; never upgrade an assumption. Quoting the request in `Why` does not make a plan the user's, and a plan with an unconfirmed `Assumed` line is Origin `agent`. Correct earlier entries by appending a numbered correction, not editing old text.
 - Packet `human-inbox.md`: pending/deferred drafts and the `Captured through: none` or `Captured through: T{n}` cursor.
 - Open `Decision needed from user` items in `Agents/planning.md`.
 

@@ -268,3 +268,23 @@ Archive or reset this file before changing the version header convention.
 - Why: In an Engram session Claudia was asked to discuss and still planned to build, implement and merge. The user: "oct decsioin is good, build is alwasy gated, need users to confirm". The 2026-10-14 decision (Claudia builds by default) stays; it decides who builds, this decides when.
 - Tradeoffs: One extra round trip for small, clear fixes unless the user says to just do it.
 - Follow-up: None.
+
+- Date: 2026-11-22
+- Decision: Agents run local work without a check-in: app builds, test runs including the full suite, typechecks and linters, local previews, and installing dependencies the project already declares. A check-in is still required before anything that spends money or a metered quota, reaches a live system outside the machine, changes shared or durable data, or cannot be undone by discarding the task lane. Push, pull request, deploy and publish keep their own approvals.
+- Supersedes: the earlier high-cost list (app builds, full test runs, dependency installation, broad migrations or backfills, networked verification, long-running scans), which had no dated entry in this log.
+- Why: Asked "Should local builds, test runs and installs run without a check-in?", the user answered "Yes, allow local". The old list stopped agents from verifying their own work.
+- Tradeoffs: Three parts are the agent's reading, not the user's words: "installs" means dependencies the project already declares, a long local run proceeds without a question, and a project can set tighter or looser limits in its own project context.
+- Follow-up: Not stated.
+
+- Date: 2026-11-22
+- Decision: Momus may write probes, the fix and its regression test himself in the incident lane while he holds its writer slot. A fix in a risk area, or one the user asks to have checked, still gets a fresh reader who did not write it. Handing a fix to a worker is optional. The stop after three unsuccessful fixes, the go-ahead rule and his re-check of the original symptom are unchanged.
+- Supersedes: 2026-10-07: the part of "Add Momus and one debugging skill" that has Momus coordinate a scoped worker fix for every repair.
+- Why: Asked "Should Momus be allowed to write probes and fixes himself?", the user answered "use your best judgment", and the agent chose yes: a forced second agent for every unclear bug adds a hand-off without adding independence.
+- Tradeoffs: Not stated.
+- Follow-up: Not stated.
+
+- Date: 2026-11-22
+- Decision: The shipped harness docs state each rule once, and each role reads only what it needs (worker reading 5,672 to 2,167 words, lead reading 10,567 to 5,564), enforced by word-budget tests. A rule inventory marks each rule as the user's policy, a safety guard, or a crutch for a model weakness. A calibration suite of six scenarios compares harness versions when a new model ships. A role the user addresses directly with no contract treats the user as its assigner.
+- Why: The user said the harness "was built from the less intelligent model", wants it to "work well with the lates model inteligentce", and wants "a way to auto adjust and tese or update or whatever, so when model get smarter the harenss dont limit it". The user then had subagents do both pieces at once and told the agent to use its best judgment.
+- Tradeoffs: Not yet measured: the rewrite was checked by an independent review and agent replays, not by a baseline.
+- Follow-up: Run the first baseline (approved by the user on 2026-11-23: "Yes, run it").

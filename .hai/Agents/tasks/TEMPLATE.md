@@ -32,13 +32,13 @@ Keep this file execution-only. Do not copy product rationale, option analysis, o
 - Routed lessons / Standing Gates: none; list matching rule and its source when applicable
 - Required worker evidence: one line per spec row with what you observed (a screenshot for anything visual), then the observed result and links to durable artifacts; distinguish instructions/scenario inspection from an executed replay or check
 - User-approved to execute: no
-- High-cost approval: not granted
+- Check-in runs approved (paid, external, shared-data or irreversible; local runs need none): none
 - Outward acts authorized: none
 
 For implementation assignments, name `../skills/implement/SKILL.md`. For an explicitly assigned read-only review, name `../skills/code-review/SKILL.md` instead. Include the specific requirements, design, and verification references the worker needs to complete the assignment; do not route a review through the implementation method.
 
 ## Stop Conditions
 
-- Stop before writing until Claudia assigns a clear, approved queue with explicit scope and verification.
+- Stop before writing until Claudia, or the user addressing you directly, assigns a clear, approved queue with explicit scope and verification.
 - Stop before writing any change while `Go-ahead from user` is `no`. Stop before writing anything the user will look at, or a request that names two or more items, while `Spec confirmed by user` is `no`; stop and report when the spec table and the user's words disagree.
-- Stop for a broken assumption, scope expansion, missing high-cost approval, or unapproved outward act.
+- Stop for a broken assumption, scope expansion, a run that needs a check-in and has none, or an unapproved outward act.

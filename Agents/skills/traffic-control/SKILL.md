@@ -5,7 +5,7 @@ description: Reconcile concurrent controller sessions, child workers, write scop
 
 # Traffic Control
 
-Traffic control is a coordination gate, not a delegation engine. It decides whether the current root controller may safely build in its own lane or coordinate the current task's workers, and whether its bounded delegated Momus may coordinate an incident worker. It never implements product work, assigns work to a peer controller, or converts a peer controller into a worker.
+Traffic control is a coordination gate, not a delegation engine. It decides whether the current root controller may safely build in its own lane or coordinate the current task's workers, and whether its bounded delegated Momus may write in the incident lane or coordinate an incident worker. It never implements product work, assigns work to a peer controller, or converts a peer controller into a worker.
 
 The contract is runtime-neutral. A host may call the units tasks, threads, chats, sessions, agents, or subprocesses; map those names onto the identities below without changing their authority.
 
@@ -13,7 +13,7 @@ The contract is runtime-neutral. A host may call the units tasks, threads, chats
 
 - **Root controller:** the lead session that received the user's request. It may write in its own task lane as that lane's single writer, or delegate to child workers. Claudia is the default root controller; an explicitly named Momus root owns its own bug task. A delegated Momus is an incident coordinator under the existing root, not a new peer controller.
 - **Parent task:** that exact root user task, identified by its task/session identity. It is not the repository, branch, worktree, task document, or product area.
-- **Child worker:** a role-isolated execution session belonging to that parent task. Augustus and Julius are the default worker roles. Bounded Momus may reuse the named authorized same-task worker or spawn at most one probe/repair child at a time; preserve root/parent provenance and the settled lane.
+- **Child worker:** a role-isolated execution session belonging to that parent task. Augustus and Julius are the default worker roles. Bounded Momus may write probes and fixes himself while holding the incident lane's writer slot, or reuse the named authorized same-task worker or spawn at most one probe/repair child at a time; preserve root/parent provenance and the settled lane.
 - **Peer controller:** another root planning session with its own user request. It remains a controller even when it owns overlapping files or active workers.
 
 Role and parent-task provenance are immutable during ordinary traffic control. A handoff may transfer a queue only after an explicit user decision and an accepted handoff; file overlap alone never transfers authority.

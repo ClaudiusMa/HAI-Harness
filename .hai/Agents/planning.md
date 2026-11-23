@@ -2,14 +2,44 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-11-19 — build gate: every build waits for the user's go-ahead; lane `task/build-gate`
-Last updated by: Claudia
+Last updated: 2026-11-23 — lean core rewrite and calibration eval suite; lanes `task/lean-core` and `task/calibration-evals`
+Last updated by: direct session (no HAI role), acting as master for builder, reviewer and replay subagents
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
 
-## Current iteration — build gate, 2026-11-19
+## Current iteration — lean core and calibration evals, 2026-11-22
+
+- Request (verbatim): "check all roles, instrauciotns, workflow, etc / from your best judgemtn and community advice / what are some imrpovements and adjusgment I need to have / the harness was built from the less intelligent model, and I want it work well with the lates model inteligentce / there also should be a way to auto adjust and tese or update or whatever, so when model get smarter the harenss dont limit it" — then "you need to have different sub agent ideally using opus to solve the problme for you / you will be the master agent report and discuss with me / use your best judgement / i dont see a reason why we cant have multiple agents doing both at the same time".
+- Who did it: a direct session with no HAI role acted as master. One builder subagent per lane, one independent read-only reviewer, and seven replay agents on clean installs.
+- Lanes (both from base `ca365f8`):
+  - `task/lean-core`: contract [lean-core](tasks/lean-core.md), evidence [handoff](handoffs/lean-core.md), rule inventory `../evals/assumptions.json`.
+  - `task/calibration-evals`: contract [calibration-evals](tasks/calibration-evals.md), evidence [handoff](handoffs/calibration-evals.md), suite in `../evals/`.
+- Delivered, lean core:
+  - `onboarding.md` is a short core every role reads; lane mechanics moved to a new core file `lanes.md`; lead-only method lives in `claudia.md`. Each rule has one owning location.
+  - Reading load in shipped method files: worker 5,672 → 2,167 words; lead (counting `implement`) 10,567 → 5,564; the `AGENTS.md` block stays at 450. A test enforces budgets of 2,200 and 5,800.
+  - Rule inventory of 130 rules, each marked `policy`, `safety` or `capability`: 32 kept, 77 merged, 9 changed, 6 removed, 6 new.
+  - Stale spots fixed (retired `decision-logger` reference, Athena and "the worker", duplicate handoff template, read-before-edit rule, mentions of retired paths).
+  - Gaps closed: a role addressed directly with no contract; asking needs no lane; "just do it" covers the build only; an unfilled design guide; the `human-scribe` target.
+- Decisions applied (user, 2026-11-22; logged in `Human/decisions.md`):
+  - Local runs need no check-in ("Yes, allow local").
+  - Momus may probe and fix himself ("use your best judgment"; the agent chose yes).
+- Delivered, calibration evals: `calibrate.mjs` with `list`, `run` and `report`; six scenarios (same-chat build, discussion-heavy build, fresh-chat continuity, ambiguous visual request, misplaced bug, risk review); a deterministic scripted user; adapters for Claude Code, Codex and a stub; verdicts `helps`, `no measurable effect`, `hurts`, `inconclusive`.
+- Verification:
+  - Lean core: `npm test` 46/46 (run by the master session after each pass); mirrors match; independent review found no lost owner decision and its eight findings were fixed; seven replays held the go-ahead gate, the spec gate, the local-runs rule, the direct-role rule and the Momus rule.
+  - Calibration evals: suite 16/16 with the stub host; one real smoke run of the ambiguous-request scenario on Codex.
+- Found by the smoke run: under Codex's default sandbox the harness cannot create a task lane (no write access to `.git/refs`). Not fixed.
+- Integration: user approved the local merge of both lanes and the three decision entries on 2026-11-23 ("Yes, merge both"). No push is approved.
+- Not done, in the order the master session would take them:
+  1. First baseline (approved, "Yes, run it"): no harness, the pre-rewrite harness and the lean harness. Waiting on the user's login to the Claude command-line tool.
+  2. Gate strictness as a project setting, decided from baseline numbers. Includes whether a one-row or bug-fix UI change needs the spec table and the separate UI reader.
+  3. Move decision-packet bookkeeping (init, trail entry, status, acknowledge) into `worktree create` and `worktree approve`.
+  4. Augustus and Julius are still one file twice; merging them is a product decision.
+  5. Component-removal variants for the calibration suite, built from the rule inventory.
+  6. Doctor staleness checks from the Engram field report.
+
+## Previous iteration — build gate, 2026-11-19
 
 - Request (verbatim): "oct decsioin is good, build is alwasy gated, need users to confirm" — then "make sure that its best practice / come up with some edge cases and send a cheap agent to test them / and if result look good to you / commit merge push".
 - Cause: in an Engram session Claudia was asked to discuss and her plan still ended in build, implement and merge steps. The 2026-10-14 decision settled who builds; nothing said a build waits for the user, and the spec gate could be skipped for a clear single-item change.

@@ -1,0 +1,2034 @@
+{
+  "schema": 1,
+  "written": "2026-11-22",
+  "lane": "task/lean-core",
+  "base": "ca365f8",
+  "kinds": {
+    "policy": "owner's decision about control or workflow",
+    "safety": "protects Git state, data or approvals mechanically",
+    "capability": "compensates for a model weakness"
+  },
+  "statuses": {
+    "kept": "same rule, one owning location",
+    "merged": "duplicates collapsed into the listed owner",
+    "changed": "behavior or method content materially reworded (see note)",
+    "removed": "no longer stated (see note)",
+    "new": "added in Follow-up 1 to close a gap (see note)"
+  },
+  "counts": {
+    "merged": 77,
+    "kept": 32,
+    "changed": 9,
+    "removed": 6,
+    "new": 6
+  },
+  "rules": [
+    {
+      "id": "R001",
+      "kind": "policy",
+      "rule": "The update check runs at start, only notifies, and never applies an update without the user's explicit approval.",
+      "source": [
+        "scaffold/AGENTS.md step 1",
+        "Agents/onboarding.md intro and Core Rules"
+      ],
+      "decision": "2026-08-14",
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md step 1",
+        "Agents/onboarding.md Lanes, runs and outward acts"
+      ],
+      "note": "Follow-up 1: restored the fallback to run the check if the entry block did not."
+    },
+    {
+      "id": "R002",
+      "kind": "policy",
+      "rule": "A role is assigned only when the message or contract addresses or assigns it; misspellings count; a mention assigns nothing; an unmatched name names none.",
+      "source": [
+        "scaffold/AGENTS.md step 2",
+        "Agents/onboarding.md Core Rules"
+      ],
+      "decision": "2026-10-17",
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md step 2",
+        "Agents/onboarding.md Your role and read path"
+      ]
+    },
+    {
+      "id": "R003",
+      "kind": "policy",
+      "rule": "With no role named, the AGENTS.md block marker sets the default (Claudia, a custom role, or the project's own instructions under which HAI does not apply); with a Claudia default even plain coding gets Claudia and the user is not asked to pick.",
+      "source": [
+        "scaffold/AGENTS.md step 2",
+        "Agents/onboarding.md Core Rules",
+        "Agents/onboarding.md Custom roles and skills 1"
+      ],
+      "decision": "2026-10-17",
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md step 2",
+        "Agents/onboarding.md Your role and read path"
+      ]
+    },
+    {
+      "id": "R004",
+      "kind": "capability",
+      "rule": "Read onboarding and the role's read path before any other action; re-read after pause, compaction or resume; a new message continues without re-reading; a reused worker reads only its new contract.",
+      "source": [
+        "scaffold/AGENTS.md step 2",
+        "Agents/onboarding.md Required Read Order",
+        "Agents/claudia.md Read Order",
+        "Agents/augustus.md Collaboration Contract"
+      ],
+      "decision": "2026-10-13",
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md step 2",
+        "Agents/onboarding.md Your role and read path"
+      ]
+    },
+    {
+      "id": "R005",
+      "kind": "capability",
+      "rule": "Each role's read path is stated once.",
+      "source": [
+        "Agents/onboarding.md Role Index",
+        "Agents/onboarding.md Required Read Order",
+        "Agents/claudia.md Read Order",
+        "Agents/athena.md Read Order",
+        "Agents/hephaestus.md Read Order",
+        "Agents/momus.md Read path"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Your role and read path"
+      ],
+      "note": "Three copies of each path reduced to one list; role docs no longer restate it (test checks). Follow-up 1: custom-role path again ends with the worker path for contracts or handoffs addressed to it."
+    },
+    {
+      "id": "R006",
+      "kind": "capability",
+      "rule": "A role lasts the session; spawning or directing a child is delegation, not switching; a child keeps its contract role over the default.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/augustus.md",
+        "Agents/julius.md",
+        "Agents/athena.md Harness Rules",
+        "Agents/hephaestus.md Harness Rules",
+        "Agents/claudia.md Non-Goals",
+        "Agents/project_context.md Collaboration Map"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Your role and read path"
+      ],
+      "note": "Per-role 'stays X for its lifetime, never switch into Y' repetitions removed; one statement in the core."
+    },
+    {
+      "id": "R007",
+      "kind": "policy",
+      "rule": "Claudia's startup: planning plus open handoffs addressed to her as work sources; lessons INDEX with every pending row regardless of cursor; deferred inbox drafts raised; traffic-control on overlap; custom role frontmatter only.",
+      "source": [
+        "Agents/onboarding.md Required Read Order (Claudia)",
+        "Agents/claudia.md Read Order"
+      ],
+      "decision": "2026-09-29",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Startup"
+      ],
+      "note": "Follow-up 1: the inbox-drafts step applies when resuming a task that has a packet; a new task has none at intake."
+    },
+    {
+      "id": "R008",
+      "kind": "policy",
+      "rule": "Workers treat open Athena/Hephaestus handoffs addressed to them as work, archive them once addressed, and stop and ask if two design directions conflict.",
+      "source": [
+        "Agents/onboarding.md Required Read Order (Worker 5)"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/onboarding.md Your role and read path (Augustus, Julius)"
+      ]
+    },
+    {
+      "id": "R009",
+      "kind": "capability",
+      "rule": "Read only the context the task and role need; lessons and shared docs only when the contract or user points there.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/onboarding.md Worker read order 7-8",
+        "Agents/augustus.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Your role and read path"
+      ]
+    },
+    {
+      "id": "R010",
+      "kind": "policy",
+      "rule": "Every harness rule binds custom roles; a role file may add or narrow, never loosen; on conflict follow the harness and tell the user; a custom role never writes beyond its writes level; built-in names win; only the project sets the default.",
+      "source": [
+        "scaffold/AGENTS.md step 2",
+        "Agents/onboarding.md Custom roles and skills 2-3",
+        "Agents/claudia.md Custom roles"
+      ],
+      "decision": "2026-10-17",
+      "status": "merged",
+      "location": [
+        "Agents/custom/roles/README.md (unchanged)",
+        "scaffold/AGENTS.md step 2",
+        "Agents/claudia.md Custom roles"
+      ]
+    },
+    {
+      "id": "R011",
+      "kind": "policy",
+      "rule": "Claudia reads only custom role frontmatter, routes only on a clear route-when match with the usual contract naming the writes level, never gives code to docs/none roles, asks when two roles fit, records routing in planning.md, skips incomplete roles.",
+      "source": [
+        "Agents/onboarding.md Custom roles and skills 4-5",
+        "Agents/claudia.md Custom roles"
+      ],
+      "decision": "2026-10-17",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Custom roles"
+      ]
+    },
+    {
+      "id": "R012",
+      "kind": "policy",
+      "rule": "A role file with incomplete frontmatter addressed by name: say the file is incomplete before acting as that role.",
+      "source": [
+        "Agents/onboarding.md Custom roles and skills 5"
+      ],
+      "decision": "2026-10-17",
+      "status": "merged",
+      "location": [
+        "Agents/custom/roles/README.md"
+      ]
+    },
+    {
+      "id": "R013",
+      "kind": "policy",
+      "rule": "Custom skills: read frontmatter when choosing a method, load when the contract names one or it clearly fits; shipped skills win.",
+      "source": [
+        "Agents/onboarding.md Custom roles and skills 2,6"
+      ],
+      "decision": "2026-10-17",
+      "status": "merged",
+      "location": [
+        "Agents/custom/skills/README.md (unchanged)"
+      ]
+    },
+    {
+      "id": "R014",
+      "kind": "policy",
+      "rule": "Project routing notes go in project_context.md; never edit core role files to add a custom role.",
+      "source": [
+        "Agents/claudia.md Custom roles"
+      ],
+      "decision": "2026-10-17",
+      "status": "kept",
+      "location": [
+        "Agents/claudia.md Custom roles",
+        "Agents/project_context.md Collaboration Map"
+      ]
+    },
+    {
+      "id": "R015",
+      "kind": "policy",
+      "rule": "Every build waits for the user's go-ahead in chat, with what counts, the 'just do it' exception, discuss/review/propose requests ending with a proposal, what never counts, carry-through when recorded in planning.md, and scope limits.",
+      "source": [
+        "Agents/claudia.md Understanding the request",
+        "scaffold/AGENTS.md Always 1",
+        "Agents/skills/implement/SKILL.md",
+        "Agents/tasks/TEMPLATE.md"
+      ],
+      "decision": "2026-11-19",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Before anything is built (owner)",
+        "scaffold/AGENTS.md Always 1",
+        "Agents/skills/implement/SKILL.md Before writing",
+        "Agents/tasks/TEMPLATE.md"
+      ],
+      "note": "Definition moved from claudia.md to the core so any root session (a directly named worker, Hephaestus, custom role) has it; wording tightened, trigger and effect unchanged. Follow-up 1: restored that a build step inside a proposal is marked as waiting for the go-ahead, and stated that 'just do it' covers the build only."
+    },
+    {
+      "id": "R016",
+      "kind": "policy",
+      "rule": "Spec gate triggers: a request that makes or changes something the user will look at, or names two or more items, gets a spec table and Assumed list before anyone builds.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Understanding the request",
+        "scaffold/AGENTS.md Always 1"
+      ],
+      "decision": "2026-11-04",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Before anything is built (triggers, row shape, UI checker, no patching after rejection)",
+        "scaffold/AGENTS.md Always 1"
+      ],
+      "note": "Gate dates from planning.md / handoffs/spec-gate.md (2026-11-04, second pass 2026-11-11); not recorded in Human/decisions.md. Follow-up 1: row shape, the UI checker and the rejection reset are restated briefly in the core so non-Claudia roots have them."
+    },
+    {
+      "id": "R017",
+      "kind": "policy",
+      "rule": "Spec table content: one row per item (what the user sees, what changes, between which values, what stays fixed), quoted words for interpreted rows, only the questions a wrong reading turns on; skip only for a one-reading single-item change or when the user says so.",
+      "source": [
+        "Agents/claudia.md Understanding the request",
+        "Agents/onboarding.md Core Rules"
+      ],
+      "decision": "2026-11-04",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Understanding the request"
+      ]
+    },
+    {
+      "id": "R018",
+      "kind": "policy",
+      "rule": "Assumed list: every unstated decision with the choice and why; visible or organizing assumptions are questions that block building; later work is not decided by building it; say so if none.",
+      "source": [
+        "Agents/claudia.md Understanding the request",
+        "Agents/onboarding.md Core Rules"
+      ],
+      "decision": "2026-11-04",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Understanding the request"
+      ]
+    },
+    {
+      "id": "R019",
+      "kind": "policy",
+      "rule": "The user's words travel verbatim with the confirmed table into planning.md and any contract; the builder compares them before writing and stops on a mismatch.",
+      "source": [
+        "Agents/claudia.md Understanding the request",
+        "Agents/onboarding.md Core Rules",
+        "Agents/skills/implement/SKILL.md"
+      ],
+      "decision": "2026-11-04",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Before anything is built",
+        "Agents/skills/implement/SKILL.md Before writing",
+        "Agents/claudia.md Understanding the request (Record)"
+      ]
+    },
+    {
+      "id": "R020",
+      "kind": "policy",
+      "rule": "Per-row evidence: one line per spec row with observed evidence, a screenshot for anything visual.",
+      "source": [
+        "Agents/claudia.md Understanding the request",
+        "Agents/onboarding.md Core Rules",
+        "Agents/skills/implement/SKILL.md",
+        "Agents/tasks/TEMPLATE.md"
+      ],
+      "decision": "2026-11-04",
+      "status": "merged",
+      "location": [
+        "Agents/skills/implement/SKILL.md Verify and report",
+        "Agents/claudia.md Understanding the request (Check)",
+        "Agents/tasks/TEMPLATE.md"
+      ]
+    },
+    {
+      "id": "R021",
+      "kind": "policy",
+      "rule": "A UI build gets one pass by a fresh fast-tier read-only checker who sees only the user's words and the screenshots.",
+      "source": [
+        "Agents/claudia.md Understanding the request",
+        "Agents/onboarding.md Core Rules"
+      ],
+      "decision": "2026-11-04",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Understanding the request (Check)"
+      ]
+    },
+    {
+      "id": "R022",
+      "kind": "policy",
+      "rule": "A rejection resets to the spec: name the misreading, corrected table, record Rejected attempts, run lesson-logger, rebuild only after confirmation via a fresh worker; after a second rejection ask for a sketch or route to Hephaestus; builders never rebuild a rejected attempt.",
+      "source": [
+        "Agents/claudia.md Understanding the request",
+        "Agents/onboarding.md Core Rules",
+        "Agents/skills/implement/SKILL.md"
+      ],
+      "decision": "2026-11-04",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Understanding the request",
+        "Agents/skills/implement/SKILL.md Before writing"
+      ]
+    },
+    {
+      "id": "R023",
+      "kind": "capability",
+      "rule": "The gates fire on the kind of request and the user's reaction, never on an agent's sense of doubt.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Understanding the request",
+        "Agents/onboarding.md Core Rules (spec gate decides)"
+      ],
+      "decision": "2026-11-04",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Before anything is built"
+      ]
+    },
+    {
+      "id": "R024",
+      "kind": "policy",
+      "rule": "Once the spec is confirmed (or the gate does not apply) and the go-ahead given, Claudia plans, assigns and spawns without a further check-in; she pauses only for the listed conditions.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Lead and delegation",
+        "Agents/onboarding.md Core Rules (root controller)",
+        "Agents/project_context.md Collaboration Map"
+      ],
+      "decision": "2026-10-14",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Understanding the request (last bullet)"
+      ]
+    },
+    {
+      "id": "R025",
+      "kind": "policy",
+      "rule": "Unclear requirements, API contracts or behavior: stop and get clarity before building or assigning; a broken assumption goes to the user, material replanning returns to the user.",
+      "source": [
+        "Agents/claudia.md Decision Rules",
+        "Agents/claudia.md Planning Rules",
+        "Agents/onboarding.md File Semantics"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Records",
+        "Agents/claudia.md Understanding the request (last bullet)"
+      ]
+    },
+    {
+      "id": "R026",
+      "kind": "policy",
+      "rule": "Claudia builds by default in the lane after recording requirements, rejected options and acceptance; building is part of her role, not a switch into a worker.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Purpose",
+        "Agents/claudia.md Lead and delegation",
+        "scaffold/AGENTS.md Always 2"
+      ],
+      "decision": "2026-10-14",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md intro and Understanding the request (Record)",
+        "scaffold/AGENTS.md Always 2"
+      ]
+    },
+    {
+      "id": "R027",
+      "kind": "safety",
+      "rule": "One writer per lane: Claudia does not edit while a delegated or Momus repair worker holds the slot; a peer controller's lane is never hers.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Lead and delegation",
+        "scaffold/AGENTS.md Always 2",
+        "Agents/onboarding.md File Semantics"
+      ],
+      "decision": "2026-10-14",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Lanes, runs and outward acts",
+        "Agents/claudia.md Delegation",
+        "scaffold/AGENTS.md Always 2"
+      ]
+    },
+    {
+      "id": "R028",
+      "kind": "policy",
+      "rule": "Delegation triggers 1-9, acted on without asking; the installed harness is the owner's standing request for who builds, never what or whether.",
+      "source": [
+        "scaffold/AGENTS.md Always 2",
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Lead and delegation"
+      ],
+      "decision": "2026-10-14",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Delegation (owner)",
+        "scaffold/AGENTS.md Always 2 (summary)"
+      ],
+      "note": "Walkthrough triage's ambiguous-visual routing folded into trigger 7; small edits stay with Claudia."
+    },
+    {
+      "id": "R029",
+      "kind": "policy",
+      "rule": "The contract carries the verbatim request, spec, Assumed lines, go-ahead, requirements, rejected options and attempts, acceptance, the whole ordered queue with dependencies, write scope, method, references, routed lessons, tier and effort, and stop conditions; forward the request, not the discussion; workers continue through the queue; coordinate directly, never ask the user to open a worker session.",
+      "source": [
+        "Agents/claudia.md Lead and delegation",
+        "Agents/claudia.md Planning Rules",
+        "Agents/claudia.md Output Expectations",
+        "Agents/claudia.md Walkthrough Triage"
+      ],
+      "decision": "2026-10-13",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Delegation (The contract is the bridge)",
+        "Agents/tasks/TEMPLATE.md"
+      ]
+    },
+    {
+      "id": "R030",
+      "kind": "policy",
+      "rule": "One engineer per lane: spawn once, named by slug; follow-ups as small new contracts through the continue tool; respawn only for review, different scope, escalation or rebuild after rejection.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Lead and delegation"
+      ],
+      "decision": "2026-10-13",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Delegation"
+      ]
+    },
+    {
+      "id": "R031",
+      "kind": "policy",
+      "rule": "Compact, don't reset: sessions continue through compaction; a new session takes over only when the host cannot resume the old one.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Lead and delegation",
+        "Agents/augustus.md"
+      ],
+      "decision": "2026-10-14",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Delegation",
+        "Agents/onboarding.md Reporting"
+      ]
+    },
+    {
+      "id": "R032",
+      "kind": "policy",
+      "rule": "Wait, don't poll: one blocking wait or end the turn; message a running worker only to change its contract or answer it.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Lead and delegation"
+      ],
+      "decision": "2026-10-13",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Delegation"
+      ]
+    },
+    {
+      "id": "R033",
+      "kind": "policy",
+      "rule": "Delegated agents report once, when done or blocked; no progress messages.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/augustus.md",
+        "Agents/julius.md"
+      ],
+      "decision": "2026-10-13",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Reporting"
+      ]
+    },
+    {
+      "id": "R034",
+      "kind": "policy",
+      "rule": "Claudia accepts a worker's reported evidence without re-running its checks; missing or contradictory evidence goes back.",
+      "source": [
+        "Agents/onboarding.md Core Rules (Review)",
+        "Agents/claudia.md Lead and delegation"
+      ],
+      "decision": "2026-10-13",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Delegation (Judge from evidence)"
+      ]
+    },
+    {
+      "id": "R035",
+      "kind": "policy",
+      "rule": "Peer controllers are never workers; a top-level peer task exists only when the user wants it; overlap means sequencing or a user-approved queue transfer; never route the queue to another root controller.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/onboarding.md File Semantics",
+        "Agents/claudia.md Lead and delegation",
+        "Agents/claudia.md Decision Rules",
+        "Agents/claudia.md Non-Goals",
+        "Agents/augustus.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Delegation (Peers are not workers)"
+      ]
+    },
+    {
+      "id": "R036",
+      "kind": "policy",
+      "rule": "Parallel Split Gate: five checks, the fallbacks, and recording dependencies and rationale.",
+      "source": [
+        "Agents/claudia.md Parallel Split Gate",
+        "Agents/claudia.md Decision Rules"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/claudia.md Parallel Split Gate"
+      ]
+    },
+    {
+      "id": "R037",
+      "kind": "policy",
+      "rule": "Worker tier and effort chosen per task from five signals; fast/standard/deep; start lighter only for checkable work; escalate on evidence; never lower mid-task; Claudia's own setting untouched; record in contract.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Model and effort routing"
+      ],
+      "decision": "2026-10-14",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Model and effort"
+      ]
+    },
+    {
+      "id": "R038",
+      "kind": "policy",
+      "rule": "Harness files never name a provider, model or version.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Model and effort routing"
+      ],
+      "decision": "2026-10-14",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Model and effort"
+      ]
+    },
+    {
+      "id": "R039",
+      "kind": "policy",
+      "rule": "Risk-based review: a fresh read-only reviewer (never Claudia for her own build) or eligible Momus, for security, authentication, data leaving the device, shared interfaces, dependencies, migrations, installer/CLI/worktree, or on request; none for verified self-contained features, prose or mechanical edits; effort separate from capability; escalate.",
+      "source": [
+        "Agents/onboarding.md Core Rules (Review)",
+        "Agents/claudia.md Lead and delegation"
+      ],
+      "decision": "2026-10-13",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Review",
+        "Agents/skills/code-review/SKILL.md"
+      ],
+      "note": "Follow-up 1 / Part B: Momus can be the independent reviewer only of a change he did not write; a risk-area fix he wrote gets a fresh reader."
+    },
+    {
+      "id": "R040",
+      "kind": "policy",
+      "rule": "Review findings: Claudia fixes her own build; otherwise the producing worker; reviewer reports evidence and never edits or approves.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Lead and delegation",
+        "Agents/skills/code-review/SKILL.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Review",
+        "Agents/skills/code-review/SKILL.md"
+      ]
+    },
+    {
+      "id": "R041",
+      "kind": "policy",
+      "rule": "traffic-control runs before adding delegation, shared verification, generated rewrites, server changes or outward acts when work may overlap; it never turns a peer into a worker.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/onboarding.md Claudia read order 7",
+        "Agents/claudia.md Core Responsibilities",
+        "Agents/claudia.md Traffic Control",
+        "Agents/momus.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Traffic control, at startup and whenever overlap appears",
+        "Agents/momus.md The loop",
+        "Agents/skills/traffic-control/SKILL.md"
+      ],
+      "note": "Follow-up 1: stated as a standing rule, not only a startup step."
+    },
+    {
+      "id": "R042",
+      "kind": "policy",
+      "rule": "Bug routing: the lane's writer keeps obvious, reproduced, bounded fixes; unclear causes, failed repairs and runtime evidence go to a fresh Momus child with authority, lane, symptom, attempts and worker; Claudia keeps planning, packets, lessons and closeout.",
+      "source": [
+        "Agents/claudia.md Bug routing",
+        "Agents/onboarding.md Core Rules",
+        "Agents/augustus.md",
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "decision": "2026-11-22",
+      "status": "changed",
+      "location": [
+        "Agents/claudia.md Bugs",
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "origin": "owner delegated the choice to the master session",
+      "note": "Part B: Claudia hands Momus the writer slot and he may probe and fix himself; a risk-area fix he wrote gets a fresh reviewer."
+    },
+    {
+      "id": "R043",
+      "kind": "policy",
+      "rule": "Momus's loop: he coordinates and verifies, never writes product code or probes; at most one probe/repair worker at a time; diagnosis at deep tier; symptom verified after probes removed; stops after three unsuccessful applied fixes, count never reset; can satisfy assigned review.",
+      "source": [
+        "Agents/momus.md",
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "decision": "2026-11-22",
+      "status": "changed",
+      "location": [
+        "Agents/momus.md",
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "origin": "owner delegated the choice to the master session",
+      "note": "Part B supersedes the 2026-10-07 part that had Momus coordinate a worker for every probe and fix. He may write probes, instrumentation, the fix and its regression test while holding the incident lane's slot; a worker is optional. Unchanged: diagnosis-only, repair authority, symptom re-check after probe removal, stop before a fourth failed fix, count never reset."
+    },
+    {
+      "id": "R044",
+      "kind": "policy",
+      "rule": "Athena is review-only and assigns fixes to the producer (Claudia or the worker) through a handoff; asks the user when the producer is unclear.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/onboarding.md Role Index (stale: 'the worker who produced it')",
+        "Agents/athena.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/athena.md",
+        "Agents/onboarding.md Your role and read path"
+      ],
+      "note": "Stale onboarding wording that fixes go to 'the worker' removed with the Role Index."
+    },
+    {
+      "id": "R045",
+      "kind": "policy",
+      "rule": "Hephaestus never touches product code; the lane's builder implements his design contract.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/hephaestus.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/hephaestus.md",
+        "Agents/onboarding.md Your role and read path"
+      ]
+    },
+    {
+      "id": "R046",
+      "kind": "policy",
+      "rule": "Athena, Hephaestus and Momus never edit product files.",
+      "source": [
+        "Agents/onboarding.md File Semantics"
+      ],
+      "decision": "2026-11-22",
+      "status": "changed",
+      "location": [
+        "Agents/athena.md",
+        "Agents/hephaestus.md",
+        "Agents/momus.md Writes and report",
+        "Agents/skills/guardian/SKILL.md"
+      ],
+      "origin": "owner delegated the choice to the master session",
+      "note": "Part B: Athena and Hephaestus still never edit product files; Momus may, only in the incident lane while holding its writer slot and within the incident's authority."
+    },
+    {
+      "id": "R047",
+      "kind": "policy",
+      "rule": "Momus may write only the incident handoff and bounded incident worker contracts.",
+      "source": [
+        "Agents/onboarding.md File Semantics",
+        "Agents/momus.md"
+      ],
+      "decision": "2026-11-22",
+      "status": "changed",
+      "location": [
+        "Agents/momus.md Writes and report"
+      ],
+      "origin": "owner delegated the choice to the master session",
+      "note": "Part B: Momus's durable records are still the incident handoff and incident contracts; product writes are allowed only in the incident lane under R046."
+    },
+    {
+      "id": "R048",
+      "kind": "policy",
+      "rule": "Latest confirmed human decision wins; flag conflicts, stop when precedence is unclear; owning role updates the stale source; archives are evidence only.",
+      "source": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Core Rules",
+        "Agents/planning.md Governing Rule"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Records",
+        "Agents/onboarding.md Files (archive)",
+        "Agents/planning.md Governing Rule (template, unchanged)"
+      ]
+    },
+    {
+      "id": "R049",
+      "kind": "safety",
+      "rule": "Human/ is read only when the user asks and written only through human-scribe with approval.",
+      "source": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Purpose",
+        "Agents/onboarding.md Core Rules",
+        "Agents/athena.md",
+        "Agents/hephaestus.md",
+        "Agents/claudia.md Allowed Write Scope"
+      ],
+      "decision": "2026-09-30",
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Files",
+        "Agents/skills/human-scribe/SKILL.md"
+      ]
+    },
+    {
+      "id": "R050",
+      "kind": "policy",
+      "rule": "Decision trail: Claudia, Athena, Hephaestus and direct Momus append a why-entry in the same change to planning, project context, design guide, designs/ or role docs; trail, inbox, contracts and handoffs need none; workers write none.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Decision Capture",
+        "Agents/athena.md",
+        "Agents/hephaestus.md",
+        "Agents/skills/human-scribe/SKILL.md"
+      ],
+      "decision": "2026-09-30",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Records",
+        "Agents/skills/human-scribe/SKILL.md",
+        "Agents/athena.md Decision Capture",
+        "Agents/hephaestus.md Decision Capture"
+      ]
+    },
+    {
+      "id": "R051",
+      "kind": "policy",
+      "rule": "Origin user only when every decision in the entry is the user's or confirmed; quoting the request does not make a plan theirs; an unconfirmed Assumed line makes it agent.",
+      "source": [
+        "Agents/claudia.md Decision Capture",
+        "Agents/skills/human-scribe/SKILL.md"
+      ],
+      "decision": "2026-09-30",
+      "status": "merged",
+      "location": [
+        "Agents/skills/human-scribe/SKILL.md Sources and trace duty"
+      ]
+    },
+    {
+      "id": "R052",
+      "kind": "policy",
+      "rule": "One bookkeeping pass per request: one planning record, one trail entry, status folded into the next change or closeout.",
+      "source": [
+        "Agents/claudia.md Decision Capture"
+      ],
+      "decision": "2026-10-13",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Understanding the request (Record)"
+      ]
+    },
+    {
+      "id": "R053",
+      "kind": "policy",
+      "rule": "Closeout batch: run human-scribe capture and present every pending and deferred draft in one batch, a blocked handoff included; only approved items reach Human/, written in the verified lane before integration; README via the lane.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Decision Capture",
+        "Agents/skills/human-scribe/SKILL.md"
+      ],
+      "decision": "2026-09-30",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Lessons and closeout",
+        "Agents/skills/human-scribe/SKILL.md"
+      ]
+    },
+    {
+      "id": "R054",
+      "kind": "policy",
+      "rule": "Task packet coordination: adoption, discovery, separate root/.hai identities, one writer for packet mutations, read-only capture, no Human write in the primary, deferred choices kept with the task.",
+      "source": [
+        "Agents/onboarding.md Task packet coordination",
+        "Agents/athena.md Task packet coordination",
+        "Agents/hephaestus.md Task packet coordination"
+      ],
+      "decision": "2026-10-05",
+      "status": "merged",
+      "location": [
+        "Agents/skills/human-scribe/SKILL.md (already stated there)"
+      ],
+      "note": "Three identical paragraphs removed; every sentence is already in human-scribe."
+    },
+    {
+      "id": "R055",
+      "kind": "policy",
+      "rule": "Lessons: Claudia owns capture, promotion, pending verification and retirement through lesson-logger at work, intake and closeout; workers and reviewers give evidence only; routed lessons go into contracts and reviewer acceptance.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/onboarding.md File Semantics",
+        "Agents/claudia.md Lesson Capture",
+        "Agents/augustus.md",
+        "Agents/julius.md",
+        "Agents/hephaestus.md",
+        "Agents/athena.md"
+      ],
+      "decision": "2026-09-29",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Records",
+        "Agents/claudia.md Startup 2",
+        "Agents/claudia.md Lessons and closeout",
+        "Agents/skills/lesson-logger/SKILL.md (unchanged)"
+      ]
+    },
+    {
+      "id": "R056",
+      "kind": "policy",
+      "rule": "Standing Gates live between markers in project_context.md and change only through lesson-logger.",
+      "source": [
+        "Agents/project_context.md",
+        "Agents/claudia.md Allowed Write Scope"
+      ],
+      "decision": "2026-09-29",
+      "status": "kept",
+      "location": [
+        "Agents/project_context.md (unchanged)",
+        "Agents/claudia.md Write scope"
+      ]
+    },
+    {
+      "id": "R057",
+      "kind": "policy",
+      "rule": "planning.md is Claudia's and the iteration source of truth; a worker contract authorizes only its worker within its write scope; task docs are execution-only.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/onboarding.md File Semantics",
+        "Agents/claudia.md Planning Rules",
+        "Agents/tasks/TEMPLATE.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Records",
+        "Agents/tasks/TEMPLATE.md"
+      ]
+    },
+    {
+      "id": "R058",
+      "kind": "policy",
+      "rule": "Keep planning and task files current-only; history to handoffs or _archive/; doctor enforces line budgets.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/tasks/TEMPLATE.md"
+      ],
+      "decision": "2026-08-02",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Records",
+        "Agents/tasks/TEMPLATE.md"
+      ]
+    },
+    {
+      "id": "R059",
+      "kind": "capability",
+      "rule": "Read the latest version of another agent's role doc, planning or shared handoff before editing it.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/augustus.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Records"
+      ]
+    },
+    {
+      "id": "R060",
+      "kind": "policy",
+      "rule": "A project_context collaboration map saying Claudia only edits coordination docs, or every build goes to a worker, is stale: follow onboarding and flag it.",
+      "source": [
+        "Agents/onboarding.md Core Rules"
+      ],
+      "decision": "2026-10-14",
+      "status": "kept",
+      "location": [
+        "Agents/onboarding.md Records"
+      ]
+    },
+    {
+      "id": "R061",
+      "kind": "policy",
+      "rule": "Core files belong to the harness; project changes go in project_context.md or custom/.",
+      "source": [
+        "Agents/onboarding.md Core Rules"
+      ],
+      "decision": "2026-10-17",
+      "status": "kept",
+      "location": [
+        "Agents/onboarding.md Files"
+      ],
+      "note": "Follow-up 1: corrected to say update keeps and reports a core file the project edited."
+    },
+    {
+      "id": "R062",
+      "kind": "policy",
+      "rule": "Keep source and field instances distinct: promote method changes path by path, never bulk-copy a field Agents/ tree into the scaffold.",
+      "source": [
+        "Agents/onboarding.md Core Rules"
+      ],
+      "decision": "2026-08-02",
+      "status": "kept",
+      "location": [
+        "Agents/onboarding.md Files"
+      ]
+    },
+    {
+      "id": "R063",
+      "kind": "policy",
+      "rule": "Storybook only when the user explicitly asks.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/hephaestus.md Design References"
+      ],
+      "decision": "2026-08-02",
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Lanes, runs and outward acts"
+      ]
+    },
+    {
+      "id": "R064",
+      "kind": "safety",
+      "rule": "Lane before any write: clean primary check, worktree create from the primary, work only in the lane; workers and successors use the named lane; CLI failure means stop; never git worktree add, hai* config or a private integration branch.",
+      "source": [
+        "scaffold/AGENTS.md step 3",
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing",
+        "Agents/augustus.md"
+      ],
+      "decision": "2026-10-07",
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md step 3",
+        "Agents/onboarding.md Lanes, runs and outward acts",
+        "Agents/lanes.md Create"
+      ],
+      "note": "Follow-up 1: the lane is created at the first write; asking writes nothing."
+    },
+    {
+      "id": "R065",
+      "kind": "policy",
+      "rule": "Lanes live at <parent>/_worktrees/<project>/<task-slug> and integrate into the checked-out branch; do not ask which branch.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing"
+      ],
+      "decision": "2026-10-21",
+      "status": "merged",
+      "location": [
+        "Agents/lanes.md Create"
+      ]
+    },
+    {
+      "id": "R066",
+      "kind": "policy",
+      "rule": "The project CLI needs no PATH, npm or network; only init, update and migrate use npx.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing"
+      ],
+      "decision": "2026-10-17",
+      "status": "merged",
+      "location": [
+        "Agents/lanes.md Create"
+      ]
+    },
+    {
+      "id": "R067",
+      "kind": "safety",
+      "rule": "The primary checkout stays clean; never edit there; dirty means stop and have the user commit; never reset, stash, clean or copy dirty files to fake a baseline anywhere; a decision about main never means editing the primary.",
+      "source": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing"
+      ],
+      "decision": "2026-10-05",
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Lanes, runs and outward acts",
+        "Agents/lanes.md Create"
+      ]
+    },
+    {
+      "id": "R068",
+      "kind": "safety",
+      "rule": "Integrate only through worktree approve from the lane with explicit approval; no hand merge, no --no-verify; the lane's writer runs it.",
+      "source": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing",
+        "Agents/augustus.md"
+      ],
+      "decision": "2026-10-05",
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Lanes, runs and outward acts",
+        "Agents/lanes.md Integrate"
+      ]
+    },
+    {
+      "id": "R069",
+      "kind": "policy",
+      "rule": "Approve merges main into the lane first: stop and retest when main moved; on conflict nothing changes, ask the user about code, keep both sides of shared notes.",
+      "source": [
+        "Agents/onboarding.md Core Rules"
+      ],
+      "decision": "2026-10-05",
+      "status": "kept",
+      "location": [
+        "Agents/lanes.md Integrate"
+      ]
+    },
+    {
+      "id": "R070",
+      "kind": "policy",
+      "rule": "Integrate once per task, when the user says it is done; follow-ups stay in the open lane with the same worker.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing"
+      ],
+      "decision": "2026-10-14",
+      "status": "merged",
+      "location": [
+        "Agents/lanes.md Create",
+        "Agents/lanes.md Integrate",
+        "Agents/onboarding.md Lanes, runs and outward acts"
+      ]
+    },
+    {
+      "id": "R071",
+      "kind": "safety",
+      "rule": "Preserve the lane when the target is dirty or a merge fails.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/lanes.md Integrate"
+      ]
+    },
+    {
+      "id": "R072",
+      "kind": "policy",
+      "rule": "Routine cleanup is part of completion without separate approval: outward work first with --keep-worktree while it remains, stop only owned processes by PID and cwd, run cleanup, remove only established task-owned generated caches, no broad deletion or forced removal, preserve uncertain work, report what was stopped, removed and kept.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing"
+      ],
+      "decision": "2026-10-06",
+      "status": "merged",
+      "location": [
+        "Agents/lanes.md Closeout and cleanup"
+      ]
+    },
+    {
+      "id": "R073",
+      "kind": "safety",
+      "rule": "Never delete <name> <N> conflict copies by hand; sweep quarantines provably redundant ones; kept copies need the user; --quarantine only for an approved path.",
+      "source": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Core Rules"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Lanes, runs and outward acts",
+        "Agents/lanes.md Conflict copies"
+      ]
+    },
+    {
+      "id": "R074",
+      "kind": "policy",
+      "rule": "Run the project's preview from the lane; HAI owns no server, route, framework or port.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing",
+        "Agents/augustus.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/lanes.md Preview"
+      ]
+    },
+    {
+      "id": "R075",
+      "kind": "policy",
+      "rule": "Push, pull request, deploy and publish each need their own explicit approval; approve does none of them and adds no provider attribution.",
+      "source": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Worktree And Approval Routing",
+        "Agents/augustus.md",
+        "Agents/hephaestus.md Harness Rules"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "scaffold/AGENTS.md Always",
+        "Agents/onboarding.md Lanes, runs and outward acts",
+        "Agents/lanes.md Integrate"
+      ]
+    },
+    {
+      "id": "R076",
+      "kind": "policy",
+      "rule": "Local runs need no check-in: builds, test runs including the full suite, typechecks, linters, local preview, installing declared dependencies; say when a run is long and carry on; run the checks that establish the result. Check in before paid or metered runs, live systems outside this machine, shared or durable data changes, or anything not undone by discarding the lane. project_context.md limits win.",
+      "source": [
+        "Agents/claudia.md High-Cost Behavior",
+        "Agents/onboarding.md Core Rules",
+        "scaffold/AGENTS.md Always",
+        "Agents/project_context.md",
+        "Agents/planning.md",
+        "Agents/tasks/TEMPLATE.md",
+        "Agents/skills/implement/SKILL.md",
+        "Agents/skills/debugging/SKILL.md",
+        "Agents/momus.md",
+        "Agents/skills/lesson-logger/SKILL.md"
+      ],
+      "decision": "2026-11-22",
+      "status": "changed",
+      "location": [
+        "Agents/onboarding.md Lanes, runs and outward acts (owner)",
+        "scaffold/AGENTS.md Always",
+        "Agents/planning.md",
+        "Agents/tasks/TEMPLATE.md",
+        "Agents/project_context.md",
+        "Agents/skills/implement/SKILL.md",
+        "Agents/skills/debugging/SKILL.md",
+        "Agents/momus.md",
+        "Agents/skills/lesson-logger/SKILL.md",
+        "Agents/athena.md Non-Goals",
+        ".hai/Agents/project_context.md",
+        "scaffold/AGENTS.md (shared-data class named)",
+        "README.md Layer 1 gates line"
+      ],
+      "note": "Supersedes the old high-cost list (app builds, full test runs, dependency installation, broad migrations or backfills, networked verification, long-running scans). Owner: 'Yes, allow local'. Athena's design High-Cost Behavior section unchanged."
+    },
+    {
+      "id": "R077",
+      "kind": "safety",
+      "rule": "Without required approval (go-ahead or a check-in run), whoever would build or run stays blocked.",
+      "source": [
+        "Agents/onboarding.md File Semantics"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Lanes, runs and outward acts",
+        "Agents/onboarding.md Before anything is built"
+      ]
+    },
+    {
+      "id": "R078",
+      "kind": "policy",
+      "rule": "Report each request with the artifact path, how to run it, what was verified and not, row by row; record Decision needed from user; update Last updated and Last updated by.",
+      "source": [
+        "Agents/claudia.md Output Expectations"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Lessons and closeout"
+      ]
+    },
+    {
+      "id": "R079",
+      "kind": "policy",
+      "rule": "Claudia keeps no worker-style task file or retrospective for her own builds; planning.md records them.",
+      "source": [
+        "Agents/claudia.md Non-Goals"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Write scope"
+      ]
+    },
+    {
+      "id": "R080",
+      "kind": "policy",
+      "rule": "Claudia's write scope.",
+      "source": [
+        "Agents/claudia.md Allowed Write Scope",
+        "Agents/onboarding.md File Semantics"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md Write scope"
+      ]
+    },
+    {
+      "id": "R081",
+      "kind": "policy",
+      "rule": "Augustus and Julius own no fixed technical area unless the project or contract says so; prefer one worker.",
+      "source": [
+        "Agents/claudia.md Decision Rules",
+        "Agents/claudia.md header",
+        "Agents/augustus.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md header comment",
+        "Agents/augustus.md Working rules"
+      ]
+    },
+    {
+      "id": "R082",
+      "kind": "capability",
+      "rule": "Complexity is handled by planning: clarify, decompose, sequence or return to the user.",
+      "source": [
+        "Agents/claudia.md Lead and delegation",
+        "Agents/claudia.md Core Responsibilities",
+        "Agents/claudia.md Planning Rules"
+      ],
+      "decision": null,
+      "status": "removed",
+      "location": [
+        "removed"
+      ],
+      "note": "Generic method a capable lead applies unprompted; the pause conditions (R024) keep the behavior that matters."
+    },
+    {
+      "id": "R083",
+      "kind": "capability",
+      "rule": "Break work into ordered verifiable steps.",
+      "source": [
+        "Agents/claudia.md Core Responsibilities",
+        "Agents/claudia.md Planning Rules"
+      ],
+      "decision": null,
+      "status": "removed",
+      "location": [
+        "removed"
+      ],
+      "note": "Generic planning method; the contract's ordered queue (R029) keeps the harness-specific part."
+    },
+    {
+      "id": "R084",
+      "kind": "capability",
+      "rule": "Core Responsibilities list restating the sections below it.",
+      "source": [
+        "Agents/claudia.md Core Responsibilities"
+      ],
+      "decision": null,
+      "status": "removed",
+      "location": [
+        "removed"
+      ],
+      "note": "Pure duplication of the sections it summarized."
+    },
+    {
+      "id": "R085",
+      "kind": "capability",
+      "rule": "Claudia does not impersonate other roles or take over a peer's work.",
+      "source": [
+        "Agents/claudia.md Non-Goals"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Your role and read path",
+        "Agents/claudia.md Delegation (Peers)"
+      ]
+    },
+    {
+      "id": "R086",
+      "kind": "policy",
+      "rule": "Workers build with implement, review read-only with code-review only when explicitly assigned, and use debugging directly for obvious bounded fixes.",
+      "source": [
+        "Agents/augustus.md",
+        "Agents/julius.md",
+        "Agents/onboarding.md Worker read order 6"
+      ],
+      "decision": "2026-09-24",
+      "status": "merged",
+      "location": [
+        "Agents/augustus.md Working rules",
+        "Agents/julius.md Working rules"
+      ]
+    },
+    {
+      "id": "R087",
+      "kind": "policy",
+      "rule": "A Momus incident contract may direct a same-task worker: it keeps role and lane, reports evidence to Momus and scope changes to its parent.",
+      "source": [
+        "Agents/augustus.md",
+        "Agents/julius.md"
+      ],
+      "decision": "2026-10-07",
+      "status": "kept",
+      "location": [
+        "Agents/augustus.md Working rules",
+        "Agents/momus.md"
+      ]
+    },
+    {
+      "id": "R088",
+      "kind": "policy",
+      "rule": "Workers write only their contract scope and the task handoff; not planning, other role docs, lessons, Standing Gates or Human unless a product-source task assigns the file.",
+      "source": [
+        "Agents/augustus.md",
+        "Agents/julius.md",
+        "Agents/onboarding.md File Semantics"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/augustus.md Working rules",
+        "Agents/julius.md Working rules"
+      ]
+    },
+    {
+      "id": "R089",
+      "kind": "policy",
+      "rule": "When another role should continue, the worker reports to its parent and leaves a handoff; the parent routes.",
+      "source": [
+        "Agents/augustus.md",
+        "Agents/julius.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/augustus.md Working rules"
+      ]
+    },
+    {
+      "id": "R090",
+      "kind": "policy",
+      "rule": "Frontend work reads design.md and follows any Hephaestus contract.",
+      "source": [
+        "Agents/augustus.md Default Scope",
+        "scaffold/AGENTS.md Always"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Your role and read path (worker line)",
+        "scaffold/AGENTS.md Always"
+      ],
+      "note": "Follow-up 1: restored on the worker's own path so it does not depend on the AGENTS block being loaded into a child session."
+    },
+    {
+      "id": "R091",
+      "kind": "policy",
+      "rule": "Use implement for every build, Claudia's included.",
+      "source": [
+        "Agents/onboarding.md Core Rules",
+        "Agents/claudia.md Purpose",
+        "Agents/skills/implement/SKILL.md"
+      ],
+      "decision": "2026-09-24",
+      "status": "merged",
+      "location": [
+        "Agents/claudia.md intro",
+        "Agents/skills/implement/SKILL.md"
+      ]
+    },
+    {
+      "id": "R092",
+      "kind": "capability",
+      "rule": "Trace the affected flow through callers, interfaces, data and failure paths and find the root cause before editing.",
+      "source": [
+        "Agents/skills/implement/SKILL.md"
+      ],
+      "decision": null,
+      "status": "changed",
+      "location": [
+        "Agents/skills/implement/SKILL.md Before writing (root cause only)"
+      ],
+      "note": "Tracing method removed as generic; 'find the root cause or real gap before editing' kept."
+    },
+    {
+      "id": "R093",
+      "kind": "policy",
+      "rule": "Reuse project patterns; add custom code or a dependency only when needed, with reason, scope and cost in the evidence.",
+      "source": [
+        "Agents/skills/implement/SKILL.md"
+      ],
+      "decision": "2026-09-24",
+      "status": "kept",
+      "location": [
+        "Agents/skills/implement/SKILL.md Building"
+      ]
+    },
+    {
+      "id": "R094",
+      "kind": "capability",
+      "rule": "Avoid speculative features, abstractions and configuration; do not compress code at the expense of clarity; choose the straightforward approach.",
+      "source": [
+        "Agents/skills/implement/SKILL.md"
+      ],
+      "decision": "2026-09-24",
+      "status": "removed",
+      "location": [
+        "Agents/skills/code-review/SKILL.md (complexity check)"
+      ],
+      "note": "Generic method from the builder; the reviewer's concrete-complexity check still enforces it on risk-area changes."
+    },
+    {
+      "id": "R095",
+      "kind": "safety",
+      "rule": "Keep changes within assigned files and behavior; preserve requirements, validation, error handling, security, accessibility and data-loss protections; never bypass checks or approval gates; report requirement conflicts before expanding scope.",
+      "source": [
+        "Agents/skills/implement/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/implement/SKILL.md Building"
+      ]
+    },
+    {
+      "id": "R096",
+      "kind": "policy",
+      "rule": "Meaningful tests that catch requested behavior or regressions, not ones that restate wording.",
+      "source": [
+        "Agents/skills/implement/SKILL.md",
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/implement/SKILL.md Verify and report",
+        "Agents/skills/debugging/SKILL.md"
+      ]
+    },
+    {
+      "id": "R097",
+      "kind": "policy",
+      "rule": "Final report: per-row results, actual commands and results, coverage gaps, what could not be verified.",
+      "source": [
+        "Agents/skills/implement/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/implement/SKILL.md Verify and report",
+        "Agents/onboarding.md Reporting"
+      ]
+    },
+    {
+      "id": "R098",
+      "kind": "policy",
+      "rule": "Routed lessons and Standing Gates become part of approach and acceptance; report whether the rule was exercised or inspected; a replay verifies only the tested case.",
+      "source": [
+        "Agents/skills/implement/SKILL.md",
+        "Agents/skills/code-review/SKILL.md",
+        "Agents/tasks/TEMPLATE.md"
+      ],
+      "decision": "2026-09-29",
+      "status": "kept",
+      "location": [
+        "Agents/skills/implement/SKILL.md",
+        "Agents/skills/code-review/SKILL.md",
+        "Agents/tasks/TEMPLATE.md"
+      ]
+    },
+    {
+      "id": "R099",
+      "kind": "policy",
+      "rule": "hai-defer marker: optional, only for real compromises, recorded in the handoff, no debt ledger.",
+      "source": [
+        "Agents/skills/implement/SKILL.md",
+        "Agents/skills/handoff/SKILL.md",
+        "Agents/skills/code-review/SKILL.md"
+      ],
+      "decision": "2026-09-24",
+      "status": "kept",
+      "location": [
+        "Agents/skills/implement/SKILL.md",
+        "Agents/skills/handoff/SKILL.md",
+        "Agents/skills/code-review/SKILL.md"
+      ]
+    },
+    {
+      "id": "R100",
+      "kind": "capability",
+      "rule": "Passing checks show the result works, not that it is what was asked.",
+      "source": [
+        "Agents/skills/implement/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/implement/SKILL.md Verify and report"
+      ]
+    },
+    {
+      "id": "R101",
+      "kind": "policy",
+      "rule": "Debugging keeps one task-centric handoff with expected/actual, environment, controller, lane, authority, cumulative attempts and next action.",
+      "source": [
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "decision": "2026-10-07",
+      "status": "kept",
+      "location": [
+        "Agents/skills/debugging/SKILL.md Establish the incident"
+      ]
+    },
+    {
+      "id": "R102",
+      "kind": "safety",
+      "rule": "Never invent a baseline or revert user or peer work to reproduce.",
+      "source": [
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/debugging/SKILL.md Establish the incident"
+      ]
+    },
+    {
+      "id": "R103",
+      "kind": "capability",
+      "rule": "Hypothesis method: falsifiable hypotheses, cheapest discriminating check, existing tools before instrumentation, bounded plans for intermittent failures, report inconclusive, no speculative repairs as proven causes.",
+      "source": [
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "decision": null,
+      "status": "changed",
+      "location": [
+        "Agents/skills/debugging/SKILL.md Diagnose"
+      ],
+      "note": "Condensed; 'no fixed hypothesis count', 'logging service optional' and 'compare a working case' removed as generic."
+    },
+    {
+      "id": "R104",
+      "kind": "policy",
+      "rule": "Probes belong to the authorized worker, who removes them; Momus never writes them; logs small, marked, redacted.",
+      "source": [
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "decision": "2026-11-22",
+      "status": "changed",
+      "location": [
+        "Agents/skills/debugging/SKILL.md Diagnose"
+      ],
+      "origin": "owner delegated the choice to the master session",
+      "note": "Part B: probes belong to whoever holds the writer slot (Momus or the worker he handed the fix to), who removes them."
+    },
+    {
+      "id": "R105",
+      "kind": "safety",
+      "rule": "One coherent correction at a time; undo failed fixes only through their owner's attributable edits; never stack corrections or reset, stash or clean a lane.",
+      "source": [
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/debugging/SKILL.md Apply one correction"
+      ]
+    },
+    {
+      "id": "R106",
+      "kind": "policy",
+      "rule": "Recheck the original symptom on the final candidate after probe cleanup; UI bugs need the rendered interaction; harness bugs compare instructions with the actual role, task and lane; label verified, mitigation or unverified.",
+      "source": [
+        "Agents/skills/debugging/SKILL.md",
+        "Agents/momus.md"
+      ],
+      "decision": "2026-10-07",
+      "status": "kept",
+      "location": [
+        "Agents/skills/debugging/SKILL.md",
+        "Agents/momus.md The loop"
+      ],
+      "note": "Part B: Momus re-checks the symptom himself whoever wrote the fix."
+    },
+    {
+      "id": "R107",
+      "kind": "policy",
+      "rule": "Stop before a fourth unsuccessful applied fix, sooner on listed conditions; counts never reset; three failures do not prove an architecture defect; more attempts need a revised authorized approach.",
+      "source": [
+        "Agents/skills/debugging/SKILL.md",
+        "Agents/momus.md"
+      ],
+      "decision": "2026-10-07",
+      "status": "kept",
+      "location": [
+        "Agents/skills/debugging/SKILL.md Bound the loop",
+        "Agents/momus.md The loop"
+      ]
+    },
+    {
+      "id": "R108",
+      "kind": "policy",
+      "rule": "Momus entry and authority: named Momus owns the user's bug; delegated keeps parent identity, lane, scope and authority; diagnosis-only stays read-only; decisions and wider scope go upward.",
+      "source": [
+        "Agents/momus.md"
+      ],
+      "decision": "2026-10-07",
+      "status": "kept",
+      "location": [
+        "Agents/momus.md Entry and authority"
+      ],
+      "note": "Follow-up 1: restored 'do not load global planning or Human by default'."
+    },
+    {
+      "id": "R109",
+      "kind": "policy",
+      "rule": "Momus reports supported cause, change, fresh recheck, limits, retained resources and next step; verified is not integrated.",
+      "source": [
+        "Agents/momus.md"
+      ],
+      "decision": "2026-10-07",
+      "status": "kept",
+      "location": [
+        "Agents/momus.md Writes and report"
+      ]
+    },
+    {
+      "id": "R110",
+      "kind": "safety",
+      "rule": "Code review is read-only: no edits, no mutating commands, no new worktree, no approval or integration.",
+      "source": [
+        "Agents/skills/code-review/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/code-review/SKILL.md"
+      ]
+    },
+    {
+      "id": "R111",
+      "kind": "policy",
+      "rule": "Review scope is the exact lane diff against recorded requirements, including untracked files and needed callers; no whole-repo audit unless asked.",
+      "source": [
+        "Agents/skills/code-review/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/code-review/SKILL.md"
+      ]
+    },
+    {
+      "id": "R112",
+      "kind": "policy",
+      "rule": "Findings are actionable, sourced, with severity, location, consequence and direction; uncertainty labeled; no invented findings; state what was inspected and not verified; recheck only changed areas.",
+      "source": [
+        "Agents/skills/code-review/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/code-review/SKILL.md"
+      ]
+    },
+    {
+      "id": "R113",
+      "kind": "policy",
+      "rule": "One current task-centric handoff per task at Agents/handoffs/{task-id}.md, overwritten not appended, reading only what it needs.",
+      "source": [
+        "Agents/skills/handoff/SKILL.md",
+        "Agents/onboarding.md File Semantics",
+        "Agents/handoffs/TEMPLATE.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/skills/handoff/SKILL.md",
+        "Agents/onboarding.md Files"
+      ]
+    },
+    {
+      "id": "R114",
+      "kind": "capability",
+      "rule": "The handoff skill embedded its own template.",
+      "source": [
+        "Agents/skills/handoff/SKILL.md"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/handoffs/TEMPLATE.md"
+      ],
+      "note": "The embedded copy lacked Rejected attempts and Failure reflection; the skill now links TEMPLATE.md, the one template."
+    },
+    {
+      "id": "R115",
+      "kind": "policy",
+      "rule": "A handoff changes no other file (project_context, lessons) apart from keeping the task file's handoff path accurate.",
+      "source": [
+        "Agents/skills/handoff/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/handoff/SKILL.md"
+      ]
+    },
+    {
+      "id": "R116",
+      "kind": "policy",
+      "rule": "Athena's design review lenses, required states, verdict handoff, discussion before finalizing, decision capture and design High-Cost Behavior.",
+      "source": [
+        "Agents/athena.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/athena.md (unchanged)"
+      ]
+    },
+    {
+      "id": "R117",
+      "kind": "policy",
+      "rule": "Hephaestus's design standard, artifacts, handoffs, code boundary, write scope, decision capture and harness rules.",
+      "source": [
+        "Agents/hephaestus.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/hephaestus.md (unchanged apart from duplicates)"
+      ]
+    },
+    {
+      "id": "R118",
+      "kind": "policy",
+      "rule": "Task contract fields and stop conditions (go-ahead, spec confirmation, check-in runs, outward acts).",
+      "source": [
+        "Agents/tasks/TEMPLATE.md"
+      ],
+      "decision": "2026-11-22",
+      "status": "changed",
+      "location": [
+        "Agents/tasks/TEMPLATE.md"
+      ],
+      "note": "High-cost approval field reworded to the check-in run rule. Follow-up 1: the first stop condition now reads 'until Claudia, or the user addressing you directly, assigns'."
+    },
+    {
+      "id": "R119",
+      "kind": "capability",
+      "rule": "Always read a file before editing it, even mid-session.",
+      "source": [
+        "Agents/project_context.md Non-Negotiable Rules"
+      ],
+      "decision": null,
+      "status": "removed",
+      "location": [
+        "removed"
+      ],
+      "note": "Host tools already enforce read-before-edit; the rule made agents re-read files they had just written."
+    },
+    {
+      "id": "R120",
+      "kind": "capability",
+      "rule": "project_context Collaboration Map restating roles, planning ownership and delegation.",
+      "source": [
+        "Agents/project_context.md Collaboration Map"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/project_context.md Collaboration Map (pointer to onboarding)"
+      ],
+      "note": "Copies here drift (onboarding already had to warn about stale maps); the template now points to onboarding and keeps only project routing notes."
+    },
+    {
+      "id": "R121",
+      "kind": "policy",
+      "rule": "project_context template non-negotiables repeating never merge or push to main unless asked.",
+      "source": [
+        "Agents/project_context.md Non-Negotiable Rules"
+      ],
+      "decision": null,
+      "status": "merged",
+      "location": [
+        "Agents/onboarding.md Lanes, runs and outward acts"
+      ]
+    },
+    {
+      "id": "R122",
+      "kind": "policy",
+      "rule": "Retired patterns.md, graveyard.md, retrospective and decision-logger paths are tombstones, not write paths.",
+      "source": [
+        "Agents/onboarding.md File Semantics",
+        "Agents/claudia.md Lesson Capture",
+        "Agents/claudia.md Non-Goals",
+        "Agents/augustus.md",
+        "Agents/julius.md",
+        "Agents/hephaestus.md",
+        "Agents/skills/handoff/SKILL.md",
+        ".hai/Agents/project_context.md line 62"
+      ],
+      "decision": null,
+      "status": "removed",
+      "location": [
+        "tombstone files kept; mentions removed from live docs"
+      ],
+      "note": "Naming retired paths in live docs invites reads; the tombstone files remain for old installs. Outer project_context now routes decisions through human-scribe."
+    },
+    {
+      "id": "R123",
+      "kind": "policy",
+      "rule": "Guardian: read-only audit only when the user asks; reports mismatches, never resolves them.",
+      "source": [
+        "Agents/skills/guardian/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "Agents/skills/guardian/SKILL.md (unchanged)"
+      ]
+    },
+    {
+      "id": "R124",
+      "kind": "policy",
+      "rule": "human-scribe, lesson-logger and traffic-control procedures.",
+      "source": [
+        "Agents/skills/human-scribe/SKILL.md",
+        "Agents/skills/lesson-logger/SKILL.md",
+        "Agents/skills/traffic-control/SKILL.md"
+      ],
+      "decision": null,
+      "status": "kept",
+      "location": [
+        "unchanged apart from R051 and R076 edits"
+      ]
+    },
+    {
+      "id": "R125",
+      "kind": "policy",
+      "rule": "A non-Claudia role the user addresses directly with no contract treats the user as its assigner, applies the go-ahead and spec rules as any root, records the words, spec and go-ahead in tasks/<role>.md (Momus: the incident handoff), reports to the user, and creates and closes its own lane through lanes.md.",
+      "source": [
+        "Follow-up 1 (2026-11-22)"
+      ],
+      "decision": null,
+      "status": "new",
+      "location": [
+        "Agents/onboarding.md Your role and read path"
+      ],
+      "note": "Follow-up 1 item 11: replays had to guess; the old docs had the same gap."
+    },
+    {
+      "id": "R126",
+      "kind": "policy",
+      "rule": "Asking needs no lane: a proposal, spec table or question writes nothing; the lane is created at the first write.",
+      "source": [
+        "Follow-up 1 (2026-11-22)"
+      ],
+      "decision": null,
+      "status": "new",
+      "location": [
+        "Agents/onboarding.md Lanes, runs and outward acts",
+        "Agents/claudia.md Startup"
+      ],
+      "note": "Follow-up 1 item 12."
+    },
+    {
+      "id": "R127",
+      "kind": "policy",
+      "rule": "'Just do it' covers the build only; a paid, external, shared-data or irreversible run asked for in the same message still needs its own check-in.",
+      "source": [
+        "Follow-up 1 (2026-11-22)"
+      ],
+      "decision": "2026-11-22",
+      "status": "new",
+      "location": [
+        "Agents/onboarding.md Before anything is built"
+      ],
+      "note": "Follow-up 1 item 13."
+    },
+    {
+      "id": "R128",
+      "kind": "capability",
+      "rule": "When design.md is still the blank template, say so, propose values that fit the existing look, and ask whether to record them.",
+      "source": [
+        "Follow-up 1 (2026-11-22)"
+      ],
+      "decision": null,
+      "status": "new",
+      "location": [
+        "Agents/design.md header"
+      ],
+      "note": "Follow-up 1 item 14; design.md is project-owned, so this reaches new installs only."
+    },
+    {
+      "id": "R129",
+      "kind": "capability",
+      "rule": "human-scribe runs from the lane root with --target .; the CLI resolves . and .hai to the same packet in an installed project.",
+      "source": [
+        "Follow-up 1 (2026-11-22)"
+      ],
+      "decision": null,
+      "status": "new",
+      "location": [
+        "Agents/skills/human-scribe/SKILL.md Packet adoption"
+      ],
+      "note": "Follow-up 1 item 15."
+    },
+    {
+      "id": "R130",
+      "kind": "policy",
+      "rule": "A fix Momus wrote in a risk area, or one the user asks to have checked, gets a fresh reader who did not write it; Momus cannot review his own fix.",
+      "source": [
+        "Follow-up 1 (2026-11-22)"
+      ],
+      "decision": "2026-11-22",
+      "status": "new",
+      "location": [
+        "Agents/momus.md The loop",
+        "Agents/claudia.md Bugs",
+        "Agents/claudia.md Review",
+        "Agents/skills/debugging/SKILL.md"
+      ],
+      "note": "Part B.",
+      "origin": "owner delegated the choice to the master session"
+    }
+  ]
+}

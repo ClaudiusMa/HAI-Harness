@@ -5,28 +5,24 @@ description: Implement a product or source change, whether Claudia builds it in 
 
 # Implementation
 
-Use this method for every build, by Claudia in her task lane or by an assigned worker. Follow the request's exact scope, requirements, design contracts, and approval gates: the `planning.md` entry when Claudia builds, or the task contract for a worker. For read-only review, use [code-review](../code-review/SKILL.md) instead; do not switch roles to perform the task.
+Use this for every build, by Claudia or an assigned worker. Scope, requirements, design contracts and approvals come from the request's `planning.md` entry when Claudia builds, or the worker's task contract.
 
-## Understand the change
+## Before writing
 
-Read the current request entry or task contract, its acceptance criteria, and each requirement, design, or verification reference it names. Trace the affected flow from its entry point through relevant callers, interfaces, data, and failure paths. Identify the behavior the user needs and the root cause of the gap or defect before editing. Keep investigation within the assigned scope unless evidence shows the contract cannot be met without an explicit scope update.
+- Start only when the entry or contract records the user's go-ahead in their own words. For anything the user will look at, or a request naming two or more items, also wait until it records the spec table and every `Assumed` line as confirmed.
+- Read the user's verbatim words against the table. If a row does not follow from the words, or the words allow a reading the table does not cover, stop and report the mismatch quoting both; do not pick a reading. Build none of the listed rejected attempts again.
+- Find the root cause or real gap before editing. If the contract cannot be met within scope, report that instead of widening it.
+- Make each routed lesson or Standing Gate part of your approach and acceptance.
 
-Do not start any build until the entry or contract records the user's go-ahead in their own words. Before writing code, read the user's request text, which the entry or contract quotes verbatim, against the spec table. For anything the user will look at, or a request that names two or more items, do not start until the entry records the table and every `Assumed` line as confirmed by the user. If a row does not follow from the user's words, or the words allow a reading the table does not cover, stop and report the mismatch, quoting both; do not pick a reading. When the entry lists rejected attempts, build none of them again.
+## Building
 
-## Choose a fitting approach
-
-Inspect the actual project implementation and reuse its established code and patterns when they fit the stated behavior and design. Prefer a standard-library, native-platform, or already-installed capability only when it meets the explicit requirements and constraints; availability alone is not a reason to use it.
-
-Add custom code or a dependency only when the existing project approach and suitable installed or native capabilities cannot meet the requirements. Give the concrete reason, the affected scope, and the cost of the addition in the task evidence. Avoid speculative features, abstractions, configuration, and generalized flexibility without an assigned need. Do not compress or minimize code at the expense of clarity, completeness, or maintainability. Choose the straightforward approach that fully satisfies the request.
-
-## Preserve the contract
-
-Keep changes within the assigned files and behavior. Preserve explicit requirements and design contracts, existing validation and error handling, security and accessibility expectations, and protections against data loss. Do not bypass existing checks or approval gates to make the change pass. When a requirement conflicts with current behavior or a referenced contract, report the conflict before expanding scope.
+- Reuse the project's own code and patterns where they fit. Add custom code or a new dependency only when the project and its installed or native capabilities cannot meet the requirement, and give the reason, scope and cost in your evidence.
+- Keep changes inside the assigned files and behavior. Preserve explicit requirements and design contracts, validation and error handling, security, accessibility and data-loss protections. Never bypass a check or an approval gate to make the change pass; report a conflict between a requirement and current behavior before acting on it.
+- For a real compromise left behind, you may add a comment `hai-defer: limit=<actual limit>; revisit=<concrete condition>` and record it in the handoff; no markers for routine choices, no debt ledger.
 
 ## Verify and report
 
-Run checks suited to the changed behavior and the task's verification contract. Add or update meaningful tests when they verify requested behavior or an important failure or regression case; avoid tests that only match wording or mirror implementation details. Follow project instructions for focused checks and approval before high-cost runs. Passing checks show the result works, not that it is what was asked. When the entry has a spec table, verify each row and report one line per row with what you observed and its evidence; for anything visual, that evidence is a screenshot of the item, not a statement that the page renders. In one final report, give the per-row results, the actual commands and results, relevant coverage gaps, and any behavior you could not verify. A delegated worker's controller relies on this evidence instead of re-running its checks; Claudia's own report goes to the user.
-
-When a task routes a lesson or Standing Gate, inspect it before implementation and make its rule part of the approach and acceptance criteria. Report observable evidence for the required replay or check, link any durable artifacts, and state whether the rule was behaviorally exercised or only inspected. A successful replay verifies only the tested case.
-
-If a material compromise remains and a nearby marker will help maintainers find it, add a language-appropriate comment containing `hai-defer: limit=<actual limit>; revisit=<concrete condition>`. Keep it optional and use it only for a real deferred compromise. Record the marker location, limit, and revisit condition in the task handoff. Do not create a separate debt ledger or add markers for routine choices.
+- Run the checks that establish the result: the project's own tests and build, which run locally without a check-in. Add tests that catch the requested behavior or an important regression, not ones that restate wording.
+- Passing checks show the result works, not that it is what was asked. With a spec table, report one line per row with what you observed; for anything visual the evidence is a screenshot of the item, not a statement that the page renders.
+- For a routed lesson or gate, report the evidence for its replay or check and say whether its rule was exercised or only inspected; a replay verifies only the tested case.
+- Give one final report: per-row results, the actual commands and results, coverage gaps, and what you could not verify. A worker's controller relies on it instead of re-running your checks.

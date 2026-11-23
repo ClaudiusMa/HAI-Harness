@@ -75,6 +75,7 @@ const scaffoldPaths = [
   ...[
   "Agents/check-for-update.mjs",
   "Agents/onboarding.md",
+  "Agents/lanes.md",
   "Agents/claudia.md",
   "Agents/augustus.md",
   "Agents/julius.md",
@@ -826,6 +827,7 @@ async function doctor(options) {
     installedCliPath,
     "Agents/check-for-update.mjs",
     "Agents/onboarding.md",
+    "Agents/lanes.md",
     "Agents/project_context.md",
     "Agents/planning.md",
     "Agents/design.md",

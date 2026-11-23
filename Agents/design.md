@@ -20,6 +20,10 @@ The concrete visual language for this project. Hephaestus designs within it,
 builders match it, and reviewers check adherence to it. If it is not written
 here, it is not the standard.
 
+If this file still holds only the blank placeholders below, say so to the user,
+propose values that fit the product's existing look, and ask whether to record
+them here before building on them.
+
 ## Overview
 
 - Product / surface this guide covers:
