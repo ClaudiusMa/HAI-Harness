@@ -295,3 +295,16 @@ Archive or reset this file before changing the version header convention.
 - Why: Asked "Are all the roles fixed or just the momus?", the user was shown these two fixes and answered "Yes, fix roles".
 - Tradeoffs: A one-item UI change is no longer checked by a second agent.
 - Follow-up: Not stated.
+
+- Date: 2026-11-23
+- Decision: A why-entry is needed only when project context, the design guide, a design contract or a role doc changes, or when a decision is made that the user should see again; recording a request in the plan needs none. One command, `human-sync note`, writes the entry and acknowledges the changed files, and every lane starts with its packet.
+- Supersedes: 2026-09-30: the part of "Agents maintain the Human folder and the public README" that has agents record why each planning change was made.
+- Why: Shown that every plan edit cost five manual steps and that routine requests were being drafted as decisions for this log, and asked "Which bookkeeping design should I build: options 1 and 2 together, or only option 1?", the user answered "1 and 2 together".
+- Tradeoffs: The install check no longer flags a plan edit that has no entry, and a decision written only in the plan reaches this log only if an agent notes it. One part is the agent's choice, not the user's words: the drift check now compares file content only, so a traced file that was changed, committed and then returned to its noted content needs no entry.
+- Follow-up: Not stated.
+
+- Date: 2026-11-23
+- Decision: Closeout uses two commands instead of hand edits inside the Git folder: `human-sync draft` records a draft for the user and moves the "captured through" marker itself, only past entries that have a draft; `human-sync resolve` records the user's answer. Neither writes `Human/`.
+- Why: A replay showed a host permission check blocking the hand edit of the marker, which left a merged lane on disk. Told this and the plan to add the two commands, the user answered "go ahead".
+- Tradeoffs: The commands refuse on a trail that is not numbered in order; such a lane is captured by hand as before. One state is still not caught at cleanup: an unnumbered trail heading placed before the marker's entry, together with a marker moved by hand.
+- Follow-up: Not stated.
