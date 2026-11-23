@@ -19,7 +19,7 @@ Read path: ../../project_context.md, then this file, then the task contract.
 Rules for this role go here.
 ```
 
-- `name`: the name users address. It must not be a built-in role (Claudia, Momus, Augustus, Julius, Athena, Hephaestus) or a reserved name (Own, None).
+- `name`: the name users address. It must not be a built-in role (Claudia, Momus, Augustus, Julius, Athena, Hephaestus, or Worker, the role Augustus and Julius share) or a reserved name (Own, None).
 - `description`: one line on what the role does.
 - `route-when`: one line naming the requests Claudia sends to this role.
 - `writes`: `code` (may change product code inside its contract), `docs` (documents and design artifacts only), or `none` (read-only).

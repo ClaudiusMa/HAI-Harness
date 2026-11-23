@@ -2,14 +2,26 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-11-23 — lean core rewrite and calibration eval suite; lanes `task/lean-core` and `task/calibration-evals`
+Last updated: 2026-11-23 — role fixes (one worker role, narrower UI checker), lane `task/role-fixes`; before that, the lean core rewrite and calibration eval suite
 Last updated by: direct session (no HAI role), acting as master for builder, reviewer and replay subagents
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
 
-## Current iteration — lean core and calibration evals, 2026-11-22
+## Current iteration — role fixes, 2026-11-23
+
+- Request (verbatim): "Are all the roles fixed or just the momus?" — the master session answered that three role issues were open and proposed two fixes; the user answered "Yes, fix roles".
+- Lane `task/role-fixes` (base `16b5c41`); contract [role-fixes](tasks/role-fixes.md); evidence [handoff](handoffs/role-fixes.md). One builder subagent, one independent read-only reviewer (the installer is a risk area), two replay agents.
+- Delivered:
+  - One worker role: new core file `worker.md` holds the worker rules once; `augustus.md` and `julius.md` are two-line name files that point to it. Both names keep working and existing installs need no migration. A per-worker bias now belongs in the project's `project_context.md`. `worker` is reserved as a custom-role name.
+  - The separate read-only UI checker runs only when the confirmed spec table has two or more rows, or an earlier build of the same request was rejected.
+  - Smaller corrections from review and replays: the single-item spec-table exception is stated in the shared core; `worker.md` limits direct bug fixes to the contract's scope; the blank-design-guide note applies only when a style value is missing; the custom-role read path and one `traffic-control` line are corrected.
+- Verification: `npm test` 50/50 and the eval suite 16/16, run by the master session; mirrors match; worker path 2,199 of 2,200 words and lead path 5,652 of 5,800. The reviewer found no lost rule and confirmed by a scratch install that `update` from the previous version replaces both worker files and adds `worker.md`. Replays: "Julius, …" worked on an upgraded install; a one-row footer change started no checker.
+- Integration: user approved the local merge and the decision entry on 2026-11-23 ("Yes, merge"). No push is approved.
+- Still open from the list below: the baseline (waiting on the user's login to the Claude command-line tool), gate strictness, decision-packet bookkeeping in the CLI (two replays now show five manual commands for a one-line change), component-removal variants, doctor staleness checks. Athena and Hephaestus were left as they are on purpose.
+
+## Previous iteration — lean core and calibration evals, 2026-11-22
 
 - Request (verbatim): "check all roles, instrauciotns, workflow, etc / from your best judgemtn and community advice / what are some imrpovements and adjusgment I need to have / the harness was built from the less intelligent model, and I want it work well with the lates model inteligentce / there also should be a way to auto adjust and tese or update or whatever, so when model get smarter the harenss dont limit it" — then "you need to have different sub agent ideally using opus to solve the problme for you / you will be the master agent report and discuss with me / use your best judgement / i dont see a reason why we cant have multiple agents doing both at the same time".
 - Who did it: a direct session with no HAI role acted as master. One builder subagent per lane, one independent read-only reviewer, and seven replay agents on clean installs.
@@ -35,7 +47,7 @@ Remote acts approved: 2026-10-05 — push `main` so the release workflow opens t
   1. First baseline (approved, "Yes, run it"): no harness, the pre-rewrite harness and the lean harness. Waiting on the user's login to the Claude command-line tool.
   2. Gate strictness as a project setting, decided from baseline numbers. Includes whether a one-row or bug-fix UI change needs the spec table and the separate UI reader.
   3. Move decision-packet bookkeeping (init, trail entry, status, acknowledge) into `worktree create` and `worktree approve`.
-  4. Augustus and Julius are still one file twice; merging them is a product decision.
+  4. Augustus and Julius are still one file twice; merging them is a product decision. (Done 2026-11-23; see the role-fixes iteration above.)
   5. Component-removal variants for the calibration suite, built from the rule inventory.
   6. Doctor staleness checks from the Engram field report.
 

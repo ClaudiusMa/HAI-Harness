@@ -68,6 +68,7 @@ Shared high-level context for all agents. This file is intentionally architectur
 
 - Roles, files and shared rules are in [onboarding.md](onboarding.md); do not restate them here.
 - Add only project-specific routing notes (for example, "send schema changes to Apollo first").
+- Optional standing default or guardrail for one worker name (for example, "Julius: frontend first; never touches migrations"):
 
 ## 8. Non-Negotiable Rules
 

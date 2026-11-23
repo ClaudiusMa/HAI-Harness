@@ -466,6 +466,9 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.doesNotMatch(await fs.readFile(path.join(target, "Agents/tasks/augustus.md"), "utf8"), /\{\{ROLE_/);
   assert.equal(await fs.readFile(path.join(target, "Agents/momus.md"), "utf8"), await fs.readFile(path.join(projectRoot, "Agents/momus.md"), "utf8"));
   assert.equal(await fs.stat(path.join(target, "Agents/tasks/momus.md")).catch(() => null), null);
+  // The worker role is one shipped file; it gets no task file of its own.
+  assert.equal(await fs.readFile(path.join(target, "Agents/worker.md"), "utf8"), await fs.readFile(path.join(projectRoot, "Agents/worker.md"), "utf8"));
+  assert.equal(await fs.stat(path.join(target, "Agents/tasks/worker.md")).catch(() => null), null);
   // A .hai folder is never a project root.
   const nested = harness(project, "update", "--target", target);
   assert.notEqual(nested.status, 0);
@@ -516,6 +519,7 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   await fs.unlink(path.join(target, "Agents/hai-harness.mjs"));
   await fs.unlink(path.join(target, "Agents/momus.md"));
   await fs.unlink(path.join(target, "Agents/lanes.md"));
+  await fs.unlink(path.join(target, "Agents/worker.md"));
   const missingReviewSkill = harness(project, "doctor", "--target", project);
   assert.notEqual(missingReviewSkill.status, 0);
   assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/hai-harness\.mjs/);
@@ -524,9 +528,11 @@ test("init, update, and doctor preserve state and flag polluted startup context"
   assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/skills\/debugging\/SKILL\.md/);
   assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/momus\.md/);
   assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/lanes\.md/);
+  assert.match(missingReviewSkill.stdout, /\.hai\/Agents\/worker\.md/);
   const restoredReviewSkill = harness(project, "update", "--target", project);
   assert.equal(restoredReviewSkill.status, 0, restoredReviewSkill.stderr);
   assert.equal(await fs.readFile(path.join(target, "Agents/hai-harness.mjs"), "utf8"), await fs.readFile(cli, "utf8"));
+  assert.equal(await fs.readFile(path.join(target, "Agents/worker.md"), "utf8"), await fs.readFile(path.join(projectRoot, "Agents/worker.md"), "utf8"));
   for (const skill of shippedSkills) {
     const skillFile = `Agents/skills/${skill}/SKILL.md`;
     assert.equal(await fs.readFile(path.join(target, skillFile), "utf8"), await fs.readFile(path.join(projectRoot, skillFile), "utf8"));
@@ -549,14 +555,14 @@ test("init, update, and doctor preserve state and flag polluted startup context"
 });
 
 // Startup reading is paid on every session. The worker count is the shipped files a worker is told
-// to read (the shared core, its role doc and the implement method); the lead count is the AGENTS.md
+// to read (the shared core, its name file, the worker role and the implement method); the lead count is the AGENTS.md
 // block, the core, lanes.md, claudia.md and implement. The block is also capped on its own (450
 // words) in the install test. Detail belongs in the file of the role or skill that uses it.
 test("startup reading paths stay within their word budgets", async () => {
   const words = async (relative) => (await fs.readFile(path.join(projectRoot, relative), "utf8")).split(/\s+/).filter(Boolean).length;
   const total = async (files) => (await Promise.all(files.map(words))).reduce((sum, count) => sum + count, 0);
   for (const role of ["augustus", "julius"]) {
-    const worker = await total(["Agents/onboarding.md", `Agents/${role}.md`, "Agents/skills/implement/SKILL.md"]);
+    const worker = await total(["Agents/onboarding.md", `Agents/${role}.md`, "Agents/worker.md", "Agents/skills/implement/SKILL.md"]);
     assert.ok(worker <= 2200, `${role} startup path is ${worker} words; the budget is 2,200`);
   }
   const lead = await total(["scaffold/AGENTS.md", "Agents/onboarding.md", "Agents/lanes.md", "Agents/claudia.md", "Agents/skills/implement/SKILL.md"]);
@@ -564,8 +570,50 @@ test("startup reading paths stay within their word budgets", async () => {
   // Each role's read path is stated once, in the core; role docs link to it instead of restating it.
   const onboarding = await fs.readFile(path.join(projectRoot, "Agents/onboarding.md"), "utf8");
   for (const role of ["Claudia", "Augustus, Julius", "Momus", "Athena", "Hephaestus", "Custom role"]) assert.match(onboarding, new RegExp(`^- \\*\\*${role}\\*\\*`, "m"), role);
-  for (const doc of ["claudia", "augustus", "julius", "momus", "athena", "hephaestus"]) {
+  for (const doc of ["claudia", "augustus", "julius", "worker", "momus", "athena", "hephaestus"]) {
     assert.doesNotMatch(await fs.readFile(path.join(projectRoot, `Agents/${doc}.md`), "utf8"), /^## (Required )?Read (Order|path)/im, `${doc}.md restates its read path`);
+  }
+  // The worker line reads the name file, then the shared worker role, then the contract.
+  assert.match(onboarding, /^- \*\*Augustus, Julius\*\* \(workers\): your name file, \[worker\.md\]\(worker\.md\), `tasks\/<you>\.md`/m);
+});
+
+// One worker role, two names: the rules live once in worker.md, and each name file only says which
+// slot it is, where its queue is, and links the role, so the two copies cannot drift.
+test("Augustus and Julius are name files for one worker role", async () => {
+  const read = (relative) => fs.readFile(path.join(projectRoot, relative), "utf8");
+  const augustus = await read("Agents/augustus.md");
+  const julius = await read("Agents/julius.md");
+  assert.equal(augustus.replaceAll("Augustus", "Julius").replaceAll("augustus", "julius"), julius);
+  for (const [name, file] of [["augustus", augustus], ["julius", julius]]) {
+    assert.match(file, /\]\(worker\.md\)/, `${name}.md links worker.md`);
+    assert.match(file, new RegExp(`\\]\\(tasks/${name}\\.md\\)`), `${name}.md names its queue`);
+    assert.ok(file.split(/\s+/).filter(Boolean).length <= 40, `${name}.md is a name file, not a second copy of the role`);
+    assert.doesNotMatch(file, /^## /m, `${name}.md holds no rules or optional sections`);
+  }
+  const worker = await read("Agents/worker.md");
+  assert.match(worker, /Augustus and Julius/);
+  assert.match(worker, /`tasks\/<your name>\.md`/);
+  assert.match(worker, /\[implement\]\(skills\/implement\/SKILL\.md\)/);
+  assert.match(worker, /\[code-review\]\(skills\/code-review\/SKILL\.md\)/);
+  assert.match(worker, /\[debugging\]\(skills\/debugging\/SKILL\.md\)/);
+  assert.match(worker, /Momus incident contract/);
+  // A per-worker bias lives in the project's own context, not in an edited core file.
+  assert.match(worker, /`project_context\.md`/);
+  assert.match(await read("Agents/project_context.md"), /worker name/);
+  assert.match(await read("Agents/tasks/TEMPLATE.md"), /`\.\.\/\{\{ROLE_SLUG\}\}\.md` → `\.\.\/worker\.md`/);
+});
+
+// The UI checker runs only where a misreading is likely: two or more spec rows, or a request whose
+// earlier build was rejected. Otherwise the builder's own per-row evidence stands.
+test("the fresh UI checker is required only for multi-row or previously rejected builds", async () => {
+  for (const file of ["Agents/claudia.md", "Agents/onboarding.md"]) {
+    const text = await fs.readFile(path.join(projectRoot, file), "utf8");
+    // The old rule (every UI build gets a checker) is gone.
+    assert.doesNotMatch(text, /For a UI build, before the user sees it, a fresh|A UI build is checked by a fresh/, file);
+    // The checker's trigger names both conditions.
+    const trigger = text.match(/[^.]*\bfresh[^.]*read-only (checker|reader)[^.]*\./)?.[0] ?? "";
+    assert.match(trigger, /two or more rows/, file);
+    assert.match(trigger, /reject/, file);
   }
 });
 
@@ -672,6 +720,51 @@ test("update replaces only core files it shipped, keeps edits, and retires unedi
   assert.equal(await fs.readFile(path.join(target, "Agents/claudia.md"), "utf8"), edited);
 });
 
+// Installs from before the worker role was split out hold the full role in augustus.md and julius.md
+// and have no worker.md. A plain update brings them to the name files plus worker.md; no migration.
+test("update turns a shipped pre-worker install into name files plus worker.md and keeps an edited one", async (t) => {
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), "hai-harness-worker-"));
+  t.after(() => fs.rm(project, { recursive: true, force: true }));
+  const target = path.join(project, ".hai");
+  assert.equal(harness(project, "init", "--target", project).status, 0);
+  // The last committed versions before worker.md existed (HEAD while the split is uncommitted).
+  const added = run("git", ["log", "--diff-filter=A", "--format=%H", "--", "Agents/worker.md"], projectRoot).stdout.trim().split("\n").pop();
+  const before = added ? `${added}^` : "HEAD";
+  const previous = (file) => {
+    const shown = run("git", ["show", `${before}:${file}`], projectRoot);
+    assert.equal(shown.status, 0, shown.stderr);
+    return shown.stdout;
+  };
+  const oldAugustus = previous("Agents/augustus.md");
+  const oldJulius = previous("Agents/julius.md");
+  assert.match(oldAugustus, /## Working rules/, "the previous augustus.md held the whole role");
+  assert.equal(run("git", ["cat-file", "-e", `${before}:Agents/worker.md`], projectRoot).status === 0, false);
+  await fs.writeFile(path.join(target, "Agents/augustus.md"), oldAugustus);
+  await fs.writeFile(path.join(target, "Agents/julius.md"), oldJulius);
+  await fs.unlink(path.join(target, "Agents/worker.md"));
+  const updated = harness(project, "update", "--target", project);
+  assert.equal(updated.status, 0, updated.stderr);
+  for (const file of ["Agents/augustus.md", "Agents/julius.md", "Agents/worker.md"]) {
+    assert.equal(await fs.readFile(path.join(target, file), "utf8"), await fs.readFile(path.join(projectRoot, file), "utf8"), file);
+  }
+  assert.match(updated.stdout, /Updated: 2\n  - \.hai\/Agents\/augustus\.md\n  - \.hai\/Agents\/julius\.md/);
+  assert.match(updated.stdout, /\.hai\/Agents\/worker\.md/);
+  assert.doesNotMatch(updated.stdout, /Locally modified, kept/);
+  const healthy = harness(project, "doctor", "--target", project);
+  assert.equal(healthy.status, 0, healthy.stdout + healthy.stderr);
+
+  // A project that filled the old Default Scope section edited a core file: update keeps it and says so.
+  const filled = oldAugustus.replace(/(## Default Scope\n)<!--[^\n]*-->/, "$1Frontend first.");
+  assert.notEqual(filled, oldAugustus);
+  await fs.writeFile(path.join(target, "Agents/augustus.md"), filled);
+  const kept = harness(project, "update", "--target", project);
+  assert.equal(kept.status, 0, kept.stderr);
+  assert.match(kept.stdout, /Locally modified, kept[^\n]*: 1\n  - \.hai\/Agents\/augustus\.md/);
+  assert.equal(await fs.readFile(path.join(target, "Agents/augustus.md"), "utf8"), filled);
+  assert.equal(await fs.readFile(path.join(target, "Agents/worker.md"), "utf8"), await fs.readFile(path.join(projectRoot, "Agents/worker.md"), "utf8"));
+  assert.match(harness(project, "doctor", "--target", project).stdout, /Core files edited in this project[^\n]*\.hai\/Agents\/augustus\.md/);
+});
+
 test("update moves a root-layout install into .hai and reports what it cannot classify", async (t) => {
   const { repo } = await makeGitFixture(t);
   // A 0.2.x root install with a project's own customizations, as in the field.
@@ -768,6 +861,7 @@ test("doctor validates custom roles and skills, and traces custom role docs", as
   await fs.writeFile(path.join(roles, "apollo.md"), role({ name: "Apollo", description: "Schema architect.", "route-when": "schema changes", writes: "code" }));
   await fs.writeFile(path.join(roles, "hermes.md"), role({ name: "Hermes", description: "Messenger.", writes: "everything" }));
   await fs.writeFile(path.join(roles, "claudia.md"), role({ name: "Claudia", description: "Impostor.", "route-when": "always", writes: "code" }));
+  await fs.writeFile(path.join(roles, "worker.md"), role({ name: "Worker", description: "Impostor.", "route-when": "always", writes: "code" }));
   await fs.writeFile(path.join(roles, "zeus.md"), role({ name: "Jupiter", description: "Mismatch.", "route-when": "x", writes: "none" }));
   await fs.mkdir(path.join(skills, "release-notes"), { recursive: true });
   await fs.writeFile(path.join(skills, "release-notes/SKILL.md"), "---\nname: release-notes\ndescription: Draft release notes.\n---\n");
@@ -779,6 +873,17 @@ test("doctor validates custom roles and skills, and traces custom role docs", as
   assert.doesNotMatch(report, /release-notes/);
   assert.match(report, /hermes\.md is incomplete \(missing route-when; writes must be code, docs, none\)/);
   assert.match(report, /claudia\.md uses a built-in role name; agents ignore it/);
+  // worker is now the shared worker role's name: say so, and how to get out.
+  assert.match(report, /roles\/worker\.md is named worker, which is now the name of the role Augustus and Julius share, so agents ignore it\. Rename it\./);
+  assert.doesNotMatch(report, /roles\/worker\.md[^\n]*--default-role/);
+  const entry = path.join(project, "AGENTS.md");
+  const entryBefore = await fs.readFile(entry, "utf8");
+  assert.match(entryBefore, /<!-- hai-harness:start default=own -->/);
+  // A block written by an older CLI may name it as the default; the warning then says how to move the default.
+  await fs.writeFile(entry, entryBefore.replace("default=own", "default=worker"));
+  const asDefault = harness(project, "doctor", "--target", project).stdout;
+  assert.match(asDefault, /roles\/worker\.md is named worker[^\n]*Rename it; it is this project's default role, so then run "[^"]*update --default-role <new name>" \(or own, or claudia\)/);
+  await fs.writeFile(entry, entryBefore);
   assert.match(report, /zeus\.md is incomplete \(file name must be the lowercase role name \(jupiter\.md\)\)/);
   assert.match(report, /custom\/skills\/implement uses a shipped skill name/);
   assert.match(report, /custom\/skills\/empty is incomplete \(missing SKILL\.md\)/);
@@ -908,7 +1013,7 @@ test("the project sets who answers an unnamed message once, in the block marker"
   content = await fs.readFile(entry, "utf8");
   assert.ok(content.startsWith(`${own}\n<!-- hai-harness:start default=claudia -->\n`));
   assert.match(content, /Otherwise you are Claudia, even for a plain coding request/);
-  for (const [value, message] of [["augustus", /is not one/], ["apollo", /add \.hai\/Agents\/custom\/roles\/apollo\.md first/], ["Bad Name", /is not one/]]) {
+  for (const [value, message] of [["augustus", /is not one/], ["worker", /is not one/], ["apollo", /add \.hai\/Agents\/custom\/roles\/apollo\.md first/], ["Bad Name", /is not one/]]) {
     const refused = harness(project, "update", "--target", project, "--default-role", value);
     assert.notEqual(refused.status, 0, value);
     assert.match(refused.stderr, message, value);
@@ -1201,6 +1306,35 @@ test("Momus role tracing preserves pre-Momus packet baselines until explicit ack
   assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/momus\.md/);
   await appendTrail(packet, [trailEntry(3, "user", "process", "Agents/momus.md scoped role change")]);
   assert.equal(acknowledge(root, "T3").status, 0);
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
+});
+
+test("worker role tracing keeps pre-worker packets readable and reports worker.md until acknowledged", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  const file = path.join(packet, "packet.json");
+  const baseline = JSON.parse(await fs.readFile(file, "utf8"));
+  assert.match(baseline.acknowledged.paths["Agents/worker.md"], /^[0-9a-f]{64}$/, "new packets trace worker.md");
+  // A packet created before worker.md was traced has no hash for it, and a digest over the old path set.
+  delete baseline.acknowledged.paths["Agents/worker.md"];
+  baseline.acknowledged.digest = createHash("sha256").update(JSON.stringify(baseline.acknowledged.paths)).digest("hex");
+  const oldBytes = `${JSON.stringify(baseline, null, 2)}\n`;
+  await fs.writeFile(file, oldBytes);
+  const continued = harness(root, "human-sync", "status", "--target", root);
+  assert.equal(continued.status, 0, continued.stderr);
+  assert.equal(await fs.readFile(file, "utf8"), oldBytes);
+  assert.match(harness(root, "doctor", "--target", root).stdout, /no new entry: Agents\/worker\.md/);
+  assert.equal(await fs.readFile(file, "utf8"), oldBytes);
+  // A present but malformed hash is still refused.
+  const invalid = structuredClone(baseline);
+  invalid.acknowledged.paths["Agents/worker.md"] = "bad hash";
+  invalid.acknowledged.digest = createHash("sha256").update(JSON.stringify(invalid.acknowledged.paths)).digest("hex");
+  await fs.writeFile(file, JSON.stringify(invalid));
+  assert.match(harness(root, "human-sync", "status", "--target", root).stderr, /Invalid task packet/);
+  await fs.writeFile(file, oldBytes);
+  // An ordinary trace entry adopts it.
+  await appendTrail(packet, [trailEntry(1, "user", "process", "Agents/worker.md shared worker role")]);
+  assert.equal(acknowledge(root, "T1").status, 0);
+  assert.match(JSON.parse(await fs.readFile(file, "utf8")).acknowledged.paths["Agents/worker.md"], /^[0-9a-f]{64}$/);
   assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
 });
 
