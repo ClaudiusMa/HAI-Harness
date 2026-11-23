@@ -1679,6 +1679,41 @@ test("a packet acknowledged under the old basis stays readable and adopts the co
   assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no new entry/);
 });
 
+test("human-sync draft refuses a trail whose acknowledged entries were edited, doctor reports it, and capture warns on an unclosed comment", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  assert.equal(note(root, "--change", "one", "--why", "first", "--origin", "user", "--area", "product").status, 0);
+  assert.equal(note(root, "--change", "two", "--why", "user decision two", "--origin", "user", "--area", "product").status, 0);
+  const trailFile = path.join(packet, "decision-trail.md");
+  const original = await fs.readFile(trailFile, "utf8");
+  // Review case: T2 briefly rewritten as an agent code entry so a draft from T1 would carry the cursor past it.
+  const lines = original.split("\n");
+  const second = lines.lastIndexOf("- Origin: user");
+  lines[second] = "- Origin: agent";
+  lines[second + 1] = "- Area: code";
+  await fs.writeFile(trailFile, lines.join("\n"));
+  const before = await packetBytes(packet);
+  const refused = draft(root, "--from", "T1", "--kind", "decision", "--text", "d1");
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /no longer begins with its acknowledged entries; earlier entries were edited\. Nothing was written/);
+  assert.deepEqual(await packetBytes(packet), before);
+  assert.match(harness(root, "doctor", "--target", root).stdout, /decision-trail\.md no longer begins with its acknowledged entries/);
+  await fs.writeFile(trailFile, original);
+  assert.doesNotMatch(harness(root, "doctor", "--target", root).stdout, /no longer begins with its acknowledged entries/);
+  assert.match(draft(root, "--from", "T1", "--kind", "decision", "--text", "d1").stdout, /Captured through: T1\./);
+  assert.match(harness(root, "human-sync", "--target", root).stdout, /T2 · decision/);
+  // A planning source has no trail entry to mention when it is dropped.
+  assert.equal(draft(root, "--from", "planning#1", "--kind", "open-question", "--text", "open item").status, 0);
+  const dropped = resolve(root, "--from", "planning#1", "--kind", "open-question", "--as", "dropped");
+  assert.match(dropped.stdout, /Dropped: the draft left the inbox\. Nothing was written to Human\//);
+  // Capture stays read-only and says when a comment hides what follows.
+  await fs.appendFile(trailFile, "\nstray <!-- opener\n");
+  const bytes = await packetBytes(packet);
+  const capture = harness(root, "human-sync", "--target", root);
+  assert.equal(capture.status, 0, capture.stderr);
+  assert.match(capture.stdout, /Warning: decision-trail\.md has an unclosed "<!--"; what follows it is hidden/);
+  assert.deepEqual(await packetBytes(packet), bytes);
+});
+
 function draft(root, ...args) {
   return harness(root, "human-sync", "draft", "--target", root, ...args);
 }

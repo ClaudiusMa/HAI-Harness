@@ -1452,6 +1452,8 @@ async function draftCommand(lane, options) {
   for (const [name, content] of [[decisionTrailPath, trail], [humanInboxPath, inbox]]) {
     if (hasUnclosedComment(content)) throw new Error(`${name} has an unclosed "<!--". Nothing was written; close or remove it by hand first.`);
   }
+  // Like note: an edited acknowledged entry could change what capture keeps.
+  if (!trail.startsWith(packet.trail)) throw new Error("The trail no longer begins with its acknowledged entries; earlier entries were edited. Nothing was written; restore them from the verified checkpoint.");
   const order = trailOrderAdvice(trail, packet.trail, "draft");
   if (order) throw new Error(`${order.message} Nothing was written.`);
   const cursor = readCaptureCursor(inbox);
@@ -1502,7 +1504,7 @@ async function resolveCommand(lane, options) {
   await writePacketFile(lane, inboxFile, updated);
   const target = draft.target ?? Object.values(draftKinds).find((item) => item.heading === heading).target;
   const next = outcome === "approved" ? `Recorded as approved. This command wrote nothing to Human/; the entry belongs in ${target} in this lane before the merge.`
-    : outcome === "dropped" ? "Dropped: the draft left the inbox; its trail entry remains. Nothing was written to Human/."
+    : outcome === "dropped" ? `Dropped: the draft left the inbox${source.startsWith("T") ? "; its trail entry remains" : ""}. Nothing was written to Human/.`
       : "Deferred: it stays in the inbox and is raised at the next intake; cleanup keeps the lane until it is resolved. Nothing was written to Human/.";
   console.log(`Resolved the ${heading} draft from ${source}. ${next}`);
 }
@@ -1564,6 +1566,7 @@ async function humanSyncWarnings(target) {
     const packet = await readPacket(lane);
     const counts = countInboxDrafts(await fs.readFile(path.join(lane.directory, humanInboxPath), "utf8"));
     if (counts.pending + counts.deferred > 0) warnings.push(`Task packet ${humanInboxPath} has ${counts.pending} pending and ${counts.deferred} deferred draft(s) awaiting the user's closeout review.`);
+    if (!(await fs.readFile(path.join(lane.directory, decisionTrailPath), "utf8")).startsWith(packet.trail)) warnings.push(`Task packet ${decisionTrailPath} no longer begins with its acknowledged entries; earlier entries were edited.`);
     const snapshot = await tracedSnapshot(lane.root);
     const changed = await driftedPaths(lane, packet, snapshot);
     if (changed.length) warnings.push(`Changed with no new entry: ${changed.join(", ")}. Record why: ${cliCommand} human-sync note --change "<what changed in ${changed.join(", ")}>" --why "<reason>" --origin "<user|agent>" --area "<product|design|process|code>"`);
@@ -1578,8 +1581,12 @@ async function humanSync(options) {
   for (const [relativePath, filePath] of [[decisionTrailPath, trailFile], [humanInboxPath, inboxFile]]) {
     if (!(await exists(filePath))) throw new Error(`Missing task packet ${relativePath}; restore the verified checkpoint.`);
   }
-  const cursor = readCaptureCursor(await fs.readFile(inboxFile, "utf8"));
+  const inbox = await fs.readFile(inboxFile, "utf8");
+  const cursor = readCaptureCursor(inbox);
   const trail = await fs.readFile(trailFile, "utf8");
+  for (const [name, content] of [[decisionTrailPath, trail], [humanInboxPath, inbox]]) {
+    if (hasUnclosedComment(content)) console.log(`Warning: ${name} has an unclosed "<!--"; what follows it is hidden. Close or remove it by hand.`);
+  }
   const entries = entriesAfterCursor(parseTrailEntries(trail), cursor);
   const after = cursor === 0 ? "since the trail began" : `after T${cursor}`;
   // Read-only: a trail the commands cannot work on gets one warning line.

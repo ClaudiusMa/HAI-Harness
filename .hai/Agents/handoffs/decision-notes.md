@@ -240,3 +240,25 @@ At closeout it becomes a decision draft for the user's log. No Human item was ap
 
 - CRLF inboxes are covered by the regex change only, not by a test.
 - The crash-window and atomic-write notes from Follow-up 2 still apply.
+
+## Follow-up 4 — re-check of the second review (2026-11-23, master session)
+
+The reviewer re-ran every reproduction against `eb5eac7`: findings 1 (both variants), 2, 3, 4 and 6 are closed and 5 is closed for trail sources. It found one more should-fix and two minor points, which the master session fixed directly (no builder round):
+
+- **`draft` now checks the acknowledged prefix, as `note` does.** Before, an acknowledged entry could be hand-edited to look like an agent code entry, a draft from an earlier entry would carry the cursor past it, and restoring the entry left it captured without a draft. `draft` now refuses with the message `note` uses, writing nothing. `doctor` also reports a trail that no longer begins with its acknowledged entries (a warning; it does not block).
+- **Dropping a planning draft** no longer says "its trail entry remains".
+- **Capture** prints a warning when the trail or inbox holds an unclosed `<!--`. It still writes nothing.
+- One new test covers all three, using the reviewer's reproduction. R135 in the rule inventory names the new refusal.
+
+Decisions by the master session on what the reviews left open:
+
+- **Accepted limit:** an unnumbered heading placed before the cursor's entry, together with a cursor moved by hand, is still hidden from cleanup. The commands never move the cursor there, the state needs two hand edits, and it exists on main today. Cleanup was not made stricter because that would strand older lanes that numbered a heading by hand, which the previous guidance told them to do.
+- **Left as they are:** a planning source can be drafted again after it was dropped, and `draft` accepts an entry capture drops. Both only add items for the user to see.
+- **Not tested:** re-creating a lane with the same name and base but a different integration branch; concurrent writers (the docs rely on one writer per lane).
+
+Replays on clean installs, verified by the master session in the folders afterwards:
+
+- Routine fix ("the date test is failing, fix it"): go-ahead, fix, merge, lane removed, with no packet command at all.
+- Request carrying a lasting decision (house date format), before the closeout commands: one `note`; the hand edit of the cursor was blocked by the host's permission check and the lane stayed after the merge. This is what Follow-up 2 fixes.
+- The same request after Follow-up 2: `note`, `draft`, the owner's edited approval recorded with `resolve --text`, the entry written to the decision log, merge, lane removed. No hand edit outside tracked files.
+- Upgrade: a lane and packet made by the previous version stay readable after `update`; plan edits are not drift; only the three role docs the update changed were reported, and one note cleared them.

@@ -1,6 +1,6 @@
 {
  "schemaVersion": 1,
- "generatedFrom": "6311db619f96bed7606c8c8c836cbb81ec54f82c",
+ "generatedFrom": "eb5eac7be260a54fcc62fd68e99f2825d97692e1",
  "hashes": {
   "AGENTS.md": [
    "0a7f1443fa198c3a33c34bb6a0e556f8daca99a65ebf2280ef7acdae13280523",
@@ -139,7 +139,8 @@
    "d2a046913670e019fc486d58dc5c3b90290c228f1adcd9b35e52e59f0adb0993",
    "e775f2a1d639ebb4bee7d9c8f51f64eabe5beac930f721c80c05402b27d62b63",
    "e83a8e786c1a7ca40805733b3f9873178bac45be4321d8d7e01175fa33521e31",
-   "fcec01da0e89646de476457f541d83ccb6c037dab07f18c9dc6a35de331c13d9"
+   "fcec01da0e89646de476457f541d83ccb6c037dab07f18c9dc6a35de331c13d9",
+   "fd67aed184465eff0943f973fe393d24e7bc43b5605b5158c4ce9ffcdc289ce4"
   ],
   "Agents/handoffs/README.md": [
    "323cb412d652c10ee75c501609a21fcebb543d8ac3f0e54716628bc34c27f51c",
