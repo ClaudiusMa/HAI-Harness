@@ -1230,7 +1230,7 @@ test("human-sync doctor and acknowledgment bind new traces to content, not commi
   const stale = observed(root);
   await appendTrail(packet, [trailEntry(1, "user", "process", "Agents/project_context.md direction")]);
   const drift = harness(root, "doctor", "--target", root).stdout;
-  assert.match(drift, /no new entry: Agents\/project_context\.md\. Record why: .*human-sync note --change/);
+  assert.match(drift, /no new entry: Agents\/project_context\.md\. Record why: .*human-sync note --change "[^"]*" --why "<reason>" --origin "<user\|agent>" --area "<product\|design\|process\|code>"$/m);
   await fs.appendFile(path.join(root, "Agents/project_context.md"), "\nMore direction.\n");
   assert.notEqual(acknowledge(root, "T1", stale).status, 0);
   assert.equal(acknowledge(root, "T1").status, 0);
@@ -1470,6 +1470,7 @@ test("human-sync note refuses bad input and unnamed changes without writing anyt
     [["--change", "Agents/claudia.md", "--why", "line one\nline two", "--origin", "user", "--area", "process"], /--why must be a single line/],
     [["--change", "Agents/claudia.md", "--why", "r", "--origin", "user", "--area", "process", "--applies", "a\r\nb"], /--applies must be a single line/],
     [["--change", "Agents/claudia.md", "--origin", "user", "--area", "process"], /requires --why/],
+    [["--change", "Agents/claudia.md <!-- aside", ...valid], /--change must not contain "<!--"; write it in words/],
     [["--change", "Agents/claudia.md", ...valid, "--through", "T1"], /require acknowledge/]
   ]) {
     const refused = note(root, ...args);
@@ -1503,6 +1504,21 @@ test("human-sync note numbers after hand-appended entries and gaps, with or with
   const capture = harness(root, "human-sync", "--target", root);
   assert.match(capture.stdout, /5 new trail entries were agent-origin code changes/);
   assert.match(capture.stdout, /Captured through: T10/);
+});
+
+test("a note containing --> leaves later entries visible, and the trail is replaced atomically", async (t) => {
+  const { root, packet } = await makePacketFixture(t);
+  const trailFile = path.join(packet, "decision-trail.md");
+  // A leftover temporary file from a crashed note is ignored.
+  await fs.writeFile(`${trailFile}.99999.1.tmp`, "partial");
+  const mode = (await fs.stat(trailFile)).mode & 0o777;
+  assert.equal(note(root, "--change", "Arrow --> in prose", "--why", "a -> b --> c", "--origin", "user", "--area", "product").status, 0);
+  assert.equal(note(root, "--change", "Second decision", "--why", "reason", "--origin", "user", "--area", "process").stdout.split("\n")[0], "Recorded T2; no traced file changed.");
+  assert.equal((await fs.stat(trailFile)).mode & 0o777, mode);
+  const capture = harness(root, "human-sync", "--target", root).stdout;
+  assert.match(capture, /2 of 2 new trail entries/);
+  assert.match(capture, /^T1 · decision[\s\S]*^T2 · decision/m);
+  assert.deepEqual((await fs.readdir(packet)).filter((name) => name.endsWith(".tmp")), ["decision-trail.md.99999.1.tmp"]);
 });
 
 test("human-sync note creates the packet in a lane made by an older CLI", async (t) => {
@@ -1598,6 +1614,25 @@ test("cleanup retains current-task pending and uncaptured packets but leaves pee
   assert.ok(await fs.stat(peerLane));
   assert.match(await fs.readFile(path.join(peerPacket, "human-inbox.md"), "utf8"), /pending/);
   assert.ok(await fs.stat(path.join(packet, "packet.json")));
+});
+
+test("a lane re-created with the same name and starting commit continues the earlier packet", async (t) => {
+  const { repo, root, packet } = await makePacketFixture(t);
+  const escaped = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  assert.equal(harness(repo, "worktree", "cleanup", "task/capture", "--target", repo).status, 0);
+  const again = harness(repo, "worktree", "create", "capture", "--target", repo);
+  assert.equal(again.status, 0, again.stderr);
+  assert.match(again.stdout, new RegExp(`^Task packet continues an earlier lane with the same name and starting commit: ${escaped(packet)}$`, "m"));
+  assert.doesNotMatch(again.stdout, /human-sync init/);
+  assert.equal(observed(root).packet, packet);
+  // An invalid earlier packet keeps the refusal, with no init suggestion.
+  await fs.writeFile(path.join(packet, "packet.json"), "{}\n");
+  assert.equal(harness(repo, "worktree", "cleanup", "task/capture", "--target", repo).status, 0);
+  const invalid = harness(repo, "worktree", "create", "capture", "--target", repo);
+  assert.equal(invalid.status, 0, invalid.stderr);
+  assert.match(invalid.stdout, /^No task packet: Task packet already exists; preserve it and use status or restore its checkpoint: /m);
+  assert.doesNotMatch(invalid.stdout, /human-sync init/);
+  assert.equal(await fs.readFile(path.join(packet, "packet.json"), "utf8"), "{}\n");
 });
 
 test("cleanup selects current packet incarnation when a completed task slug is reused", async (t) => {

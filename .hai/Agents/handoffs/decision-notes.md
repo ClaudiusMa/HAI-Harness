@@ -78,3 +78,30 @@ At closeout it becomes a decision draft for the user's log. No Human item was ap
 - The trail append is a plain `writeFile`, not a temp-file rename; a crash mid-write could leave a truncated trail. `packet.json` is still written atomically.
 - `worktree create` from an installed project's copy of the CLI is covered only through the existing project-copy test (the packet is now created there before the old `init` call, which now exits 0).
 - Not run: any behavior replay with a model; `doctor` on a real kept lane after a `main` merge.
+
+## Follow-up 1 (2026-11-23, review findings)
+
+- Item 1, `bin/hai-harness.mjs` `noteFields`: any value containing `<!--` is refused before anything is written (`--<flag> must not contain "<!--"; write it in words.`). A value with `-->` alone is accepted.
+- Item 2, `noteCommand`: the trail is written to `<trail>.<pid>.<timestamp>.tmp` in the packet directory with the trail's mode and flag `wx`, then renamed over the trail. Leftover `.tmp` files are never read: `validatePacketPaths` checks only the three packet names, and cleanup reads only those files.
+- Item 3: the re-check failure message adds "If a traced file changed that T<n> does not name, record a new note naming it instead."
+- Item 4, `createLanePacket`: when the packet already exists and reads as valid, it prints `Task packet continues an earlier lane with the same name and starting commit: <path>` and suggests nothing. When it exists and is invalid, it prints `No task packet: Task packet already exists; preserve it and use status or restore its checkpoint: <path>` with no `init` suggestion.
+- Item 5: doctor prints `--origin "<user|agent>" --area "<product|design|process|code>"`, so an unedited paste reaches `note` and is refused there. The doctor test now matches the full quoted form.
+- Item 6, `Agents/skills/human-scribe/SKILL.md`: one sentence on the baseline adopted when `note` or `init` creates a packet late. Two short sentences on using one CLI version per lane and packet: merge `main` after an update, and an older copy calling a newer packet invalid is a version mismatch. 1,822 words (under 1,875).
+- Tests:
+  - The refusal test covers `<!--` in `--change` and leaves the packet byte-identical.
+  - New test: a note with `-->`, then another note, keeps T1 and T2 visible to capture, numbering continues, the trail mode is kept, and a planted leftover `.tmp` file is ignored.
+  - New test: a lane re-created with the same name and base continues its packet, and `status` gives the same path. An invalid earlier packet gives the refusal without `init`, and its bytes are kept.
+- Ran:
+  - `node scripts/shipped-hashes.mjs` (40 paths, 264 hashes).
+  - `./hai-meta sync` (2 updated).
+  - `npm test`: `ℹ tests 59`, `ℹ pass 59`, `ℹ fail 0`.
+  - `node --test .hai/evals/test/calibrate.test.mjs`: `ℹ tests 16`, `ℹ pass 16`, `ℹ fail 0`.
+  - `git diff --check`: clean.
+  - `./hai-meta doctor`: no warnings.
+  - The sync-created `.hai/.hai-harness.json` was removed again.
+- Word counts: worker path 2,198 / 2,200; lead path 5,679 / 5,800; human-scribe 1,822.
+- The lane's task packet was not touched. Its T1 from the by-hand run still awaits closeout.
+- Unverified:
+  - The re-check failure path is still untested; it cannot be triggered deterministically.
+  - A crash between the temp write and the rename is reasoned about, not tested. The trail stays at its old content, which is what makes it safe.
+  - `savePacket`'s own temporary name is still `<packet.json>.<pid>.tmp` with `wx`. A leftover from a crashed process with the same pid would make a later save refuse. That was outside these six items, so it is left as it was.

@@ -1273,6 +1273,8 @@ function noteFields(options) {
     const value = options[flag].trim();
     if (!value) throw new Error(`--${flag} must not be empty.`);
     if (/[\r\n]/.test(value)) throw new Error(`--${flag} must be a single line; write it as one line.`);
+    // The trail is read with comments stripped: an opened comment would hide later entries.
+    if (value.includes("<!--")) throw new Error(`--${flag} must not contain "<!--"; write it in words.`);
     fields[flag] = value;
   }
   if (!noteOrigins.includes(fields.origin)) throw new Error(`--origin must be ${noteOrigins.join(" or ")}.`);
@@ -1302,10 +1304,13 @@ async function noteCommand(lane, fields) {
   if (fields.applies) lines.push(`- Applies: ${fields.applies}`);
   const updated = `${trail}${trail.endsWith("\n") ? "\n" : "\n\n"}${lines.join("\n")}\n`;
   await validatePacketPaths(lane.common, lane.directory);
-  await fs.writeFile(trailFile, updated);
+  // Atomic like savePacket; a leftover temporary file from a crash is never read.
+  const temporary = `${trailFile}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(temporary, updated, { mode: (await fs.stat(trailFile)).mode & 0o777, flag: "wx" });
+  await fs.rename(temporary, trailFile);
   const rechecked = await tracedSnapshot(lane.root);
   if (rechecked.head !== snapshot.head || rechecked.digest !== snapshot.digest || await fs.readFile(trailFile, "utf8") !== updated) {
-    throw new Error(`${id} was appended but not acknowledged: the lane changed during the note. Do not run note again; run "${cliCommand} human-sync status", then "${cliCommand} human-sync acknowledge --through ${id} --head <HEAD> --snapshot <digest>" with its values.`);
+    throw new Error(`${id} was appended but not acknowledged: the lane changed during the note. Do not run note again; run "${cliCommand} human-sync status", then "${cliCommand} human-sync acknowledge --through ${id} --head <HEAD> --snapshot <digest>" with its values. If a traced file changed that ${id} does not name, record a new note naming it instead.`);
   }
   packet.acknowledged = { ...snapshot, through: id, recordedAt: new Date().toISOString() };
   packet.trail = updated;
@@ -1377,7 +1382,7 @@ async function humanSyncWarnings(target) {
     if (counts.pending + counts.deferred > 0) warnings.push(`Task packet ${humanInboxPath} has ${counts.pending} pending and ${counts.deferred} deferred draft(s) awaiting the user's closeout review.`);
     const snapshot = await tracedSnapshot(lane.root);
     const changed = await driftedPaths(lane, packet, snapshot);
-    if (changed.length) warnings.push(`Changed with no new entry: ${changed.join(", ")}. Record why: ${cliCommand} human-sync note --change "<what changed in ${changed.join(", ")}>" --why "<reason>" --origin user|agent --area product|design|process|code`);
+    if (changed.length) warnings.push(`Changed with no new entry: ${changed.join(", ")}. Record why: ${cliCommand} human-sync note --change "<what changed in ${changed.join(", ")}>" --why "<reason>" --origin "<user|agent>" --area "<product|design|process|code>"`);
   } catch (error) { warnings.push(error.message); }
   return warnings;
 }
@@ -1626,6 +1631,11 @@ async function createLanePacket(target, primaryRoot, taskRoot) {
     if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error("the harness root is outside the primary checkout");
     if (!(await fs.stat(path.join(harnessRoot, "Agents")).then((stat) => stat.isDirectory(), () => false))) return `No task packet: ${harnessRoot} has no Agents directory.`;
     const lane = await taskPacket(harnessRoot);
+    // Packets outlive cleanup, so a lane re-created with the same name and base maps to its packet.
+    if (await exists(lane.directory)) {
+      if (await readPacket(lane).then(() => true, () => false)) return `Task packet continues an earlier lane with the same name and starting commit: ${lane.directory}`;
+      return `No task packet: Task packet already exists; preserve it and use status or restore its checkpoint: ${lane.directory}`;
+    }
     await initPacket(lane);
     return `Task packet initialized: ${lane.directory}`;
   } catch (error) {

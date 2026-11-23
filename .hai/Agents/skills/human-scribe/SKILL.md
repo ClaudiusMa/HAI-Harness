@@ -13,7 +13,7 @@ Every lane `worktree create` makes starts with its task packet, baselined at the
 
 `human-sync status` prints the packet path in the Git common directory (`packet.json`, `decision-trail.md`, `human-inbox.md`). Identity binds branch, base, integration and harness scope. Symlink redirects refuse. Keep packet contents out of tracked files.
 
-A lane from an older CLI has none; `note` or `human-sync init` creates it (`init` changes nothing on an existing packet). With legacy `Agents/decision-trail.md` and `Agents/human-inbox.md`, run `human-sync init --migrate --target .`; it verifies exact copies and keeps a receipt before retiring them. Partial packets refuse; never delete populated legacy state.
+A lane from an older CLI has none; `note` or `human-sync init` creates it (`init` changes nothing on an existing packet). Its baseline is the lane's state at that moment, so earlier edits to traced files are adopted without an entry. With legacy `Agents/decision-trail.md` and `Agents/human-inbox.md`, run `human-sync init --migrate --target .`; it verifies exact copies and keeps a receipt before retiring them. Partial packets refuse; never delete populated legacy state. A lane and its packet use one CLI version: after a harness update, merge `main` into an open lane before recording there. An older CLI copy reporting a newer packet as invalid is a version mismatch, not a reason to restore a checkpoint.
 
 ## When to record, and how
 
