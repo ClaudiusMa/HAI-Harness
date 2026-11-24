@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "version": "0.3.0",
-  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.3.0",
-  "summary": "HAI-Harness 0.3.0: Merge task/default-role: Let each project choose who answers an unnamed message; ask before defaulting to Claudia; Record the project default-role decision; Ask before making Claudia the default for a project with no AGENTS.md; Let each project choose who answers an unnamed message; Merge task/plugin-layout: Make HAI-Harness a plugin: .hai/ folder, AGENTS.md block, edit-safe updates, custom roles (+4 more)"
+  "version": "0.3.1",
+  "releaseNotesUrl": "https://github.com/ClaudiusMa/HAI-Harness/releases/tag/v0.3.1",
+  "summary": "HAI-Harness 0.3.1: Merge task/decision-notes: user, 2026-11-23: Yes, merge; user, 2026-11-23: Yes, merge; Record the decision-notes plan entry and two decision drafts as written; Make draft refuse an edited acknowledged trail; Keep the capture cursor and cleanup from passing an undrafted entry (+32 more)"
 }
