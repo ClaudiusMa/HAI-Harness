@@ -2,14 +2,28 @@
 
 Planner-owned source of truth for developing the HAI-Harness product. Product source lives one level up; all real planning stays in this outer `.hai/` instance.
 
-Last updated: 2026-11-23 — role fixes (one worker role, narrower UI checker), lane `task/role-fixes`; before that, the lean core rewrite and calibration eval suite
+Last updated: 2026-11-23 — decision notes (one-step why-entries, the plan no longer traced, closeout commands), lane `task/decision-notes`; before that, role fixes, the lean core rewrite and the calibration eval suite
 Last updated by: direct session (no HAI role), acting as master for builder, reviewer and replay subagents
 User check-in: 2026-10-05 — user rejected the registry/lock design as over-engineered. Model: each session opens its own branch, works there, records decisions, and merges into main; conflicts go to the user. Main must always be clean; uncommitted edits there go to the user to review and commit first. Chosen: shared-notes conflicts resolved by keeping both sides; approve stops for a re-test when main moved; dirty main blocks; keep a read-only `status --all`.
 Verification: `node --test test/hai-harness.test.mjs` 17/17 in `task/trunk-lanes`; `git diff --check` clean; `./hai-meta sync` done.
 Local integration approved: 2026-10-05 — user approved the decision entry and the merge into `main` ("appraove and release").
 Remote acts approved: 2026-10-05 — push `main` so the release workflow opens the version PR; merging that PR still needs the repository's required GitHub reviews.
 
-## Current iteration — role fixes, 2026-11-23
+## Current iteration — decision notes, 2026-11-23
+
+- Request (verbatim): asked "Start on moving the decision-packet bookkeeping into the CLI?", the user answered "Yes, start". Shown three designs and asked "Which bookkeeping design should I build: options 1 and 2 together, or only option 1?", the user answered "1 and 2 together". Told that a replay left a merged lane on disk because closeout still needed hand edits inside the Git folder, and that the master session would add two commands for it, the user answered "go ahead".
+- Lane `task/decision-notes` (base `1889954`); contract and its four follow-ups [decision-notes](tasks/decision-notes.md); evidence [handoff](handoffs/decision-notes.md). One builder subagent, two independent read-only reviews with a re-check, four replays on clean installs.
+- Delivered:
+  - `human-sync note` writes the next numbered why-entry and acknowledges the traced files in one step; it refuses unless the entry names every traced file that changed. `worktree create` starts each lane's packet. `human-sync init` on an existing packet changes nothing and succeeds.
+  - `planning.md` is no longer traced: recording a request there needs no entry. An entry is needed when project context, the design guide, `designs/` or a role doc changes, or for a decision the user should see again.
+  - Drift compares file content only, so committing a noted change is not new drift (the master session's choice). Packets written by the previous version stay readable and are compared the old way until their next note.
+  - `human-sync draft` and `human-sync resolve` replace the hand edits of the inbox at closeout. The capture marker moves only past entries that have a draft; cleanup refuses a trail that is out of order, duplicated or hidden by an unclosed comment. A lane with no entries and no drafts needs no capture, and cleanup no longer announces an empty packet.
+- Verification: `npm test` 68/68 and the eval suite 16/16, run by the master session; mirrors match; worker path 2,198 of 2,200 words, lead path 5,685 of 5,800, `human-scribe` 1,875 to 1,815. Replays: a routine fix went from request to merge with no packet command; a request carrying a lasting decision used one `note`, one `draft` and one `resolve`, and its lane was removed after the merge. The first review found a comment-marker defect; the second found that a hand-numbered trail could carry the marker past an undrafted decision. Both are fixed and re-checked.
+- Known limits: a lane and its packet use one CLI version (merge `main` into an open lane after an update before recording there). An unnumbered trail heading placed before the marker's entry, with the marker moved by hand, is still not caught at cleanup.
+- Integration: user approved the local merge and the two decision entries on 2026-11-23 ("Yes, merge"). No push is approved.
+- Still open: the baseline (waiting on the user's login to the Claude command-line tool), gate strictness as a project setting, component-removal variants, doctor staleness checks.
+
+## Previous iteration — role fixes, 2026-11-23
 
 - Request (verbatim): "Are all the roles fixed or just the momus?" — the master session answered that three role issues were open and proposed two fixes; the user answered "Yes, fix roles".
 - Lane `task/role-fixes` (base `16b5c41`); contract [role-fixes](tasks/role-fixes.md); evidence [handoff](handoffs/role-fixes.md). One builder subagent, one independent read-only reviewer (the installer is a risk area), two replay agents.
@@ -46,7 +60,7 @@ Remote acts approved: 2026-10-05 — push `main` so the release workflow opens t
 - Not done, in the order the master session would take them:
   1. First baseline (approved, "Yes, run it"): no harness, the pre-rewrite harness and the lean harness. Waiting on the user's login to the Claude command-line tool.
   2. Gate strictness as a project setting, decided from baseline numbers. Includes whether a one-row or bug-fix UI change needs the spec table and the separate UI reader.
-  3. Move decision-packet bookkeeping (init, trail entry, status, acknowledge) into `worktree create` and `worktree approve`.
+  3. Move decision-packet bookkeeping (init, trail entry, status, acknowledge) into `worktree create` and `worktree approve`. Done 2026-11-23 in `task/decision-notes`.
   4. Augustus and Julius are still one file twice; merging them is a product decision. (Done 2026-11-23; see the role-fixes iteration above.)
   5. Component-removal variants for the calibration suite, built from the rule inventory.
   6. Doctor staleness checks from the Engram field report.

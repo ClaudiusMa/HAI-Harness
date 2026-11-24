@@ -214,28 +214,24 @@ A copy moves to a reversible quarantine (a dated folder under the Git common dir
 
 ### Keeping Human/ current
 
-Agents keep Human records current through [human-scribe](Agents/skills/human-scribe/SKILL.md), and you approve every batch. Provisional why-entries and pending/deferred drafts live outside Agents and product files in task-owned Git common metadata. The packet identity binds the canonical task branch, base, integration and physical harness scope. Root and `--target .hai` are separate scopes; there is no global inbox fallback.
+Agents keep Human records current through [human-scribe](Agents/skills/human-scribe/SKILL.md), and you approve every batch. Provisional why-entries and pending/deferred drafts live outside Agents and product files in a task packet in Git common metadata. Its identity binds the task branch, base, integration and physical harness scope; root and `--target .hai` are separate scopes, and there is no global inbox fallback.
 
-In a recognized task lane, explicitly adopt the scope once:
+`worktree create` starts the lane's packet. An entry is needed when project context, the design guide, `designs/` or a role doc changes, or for a decision you should see again; recording a request in `planning.md` needs none. Agents record one:
 
 ```sh
-node .hai/Agents/hai-harness.mjs human-sync init --target .
-node .hai/Agents/hai-harness.mjs human-sync status --target .
+node .hai/Agents/hai-harness.mjs human-sync note --target . --change "Agents/design.md: accent is teal" --why "You picked it over blue" --origin user --area design
 node .hai/Agents/hai-harness.mjs human-sync --target .
 ```
 
-Use `init --migrate` instead when both legacy Agents trail/inbox files exist. It verifies exact copies, saves a supersession receipt, then retires the sources; partial or populated storage is never blindly overwritten. Initialization adopts the current state as baseline and cannot reconstruct earlier history. `status` returns the physical packet directory, identity, HEAD and snapshot. Append trace entries and drafts only there, serialized with the task lane writer.
+`note` appends the next numbered entry and acknowledges the lane's traced files. It writes nothing unless `--change` names every traced file changed since the last acknowledgment. Committing a noted edit is not new drift. In an older lane, `note` or `human-sync init` creates the packet; use `init --migrate` when both legacy Agents trail/inbox files exist (it verifies copies before retiring them). `status` then `acknowledge --through T<n> --head <HEAD> --snapshot <digest>` remain the manual form.
 
-Default capture is offline, deterministic and read-only: no model or network call occurs in the CLI. It filters entries after the inbox cursor, preserving malformed-item review and duplicate suppression. The skill drafts user decisions and agent assumptions, and Claudia presents pending and deferred items in one batch. Claudia, or the worker holding the lane's writer slot, deduplicates and applies only approved Human items in the verified task lane with the accepted changes before integration. Approved README drafts go through a task lane. Unreviewed and deferred choices remain provisional.
-
-`doctor` warns about waiting drafts and dirty or committed traced-path drift. After appending a valid new trace entry naming every changed traced path, use the exact observations from `status`:
+Capture is offline and read-only: the CLI makes no model or network call. It lists entries after the inbox cursor. Agents record drafts with `human-sync draft` (the cursor moves itself) and your answers with `human-sync resolve`; Claudia presents pending and deferred items in one batch. Claudia, or the worker holding the lane's writer slot, deduplicates and applies only approved Human items in the verified task lane with the accepted changes before integration. Approved README drafts go through a task lane. Unreviewed and deferred choices remain provisional. `doctor` warns about waiting drafts and unrecorded traced changes. No command approves a Human draft.
 
 ```sh
-node .hai/Agents/hai-harness.mjs human-sync acknowledge --through T1 --head <HEAD> --snapshot <digest> --target .
 node .hai/Agents/hai-harness.mjs human-sync checkpoint --output /private/checkpoints/task.json --target .
 ```
 
-Replace the placeholders and use the actual new trace ID. Acknowledgment does not approve Human drafts; committing an acknowledged dirty change requires another trace and acknowledgment. The checkpoint parent must exist and its new file must be outside every registered repository worktree. Packets remain in Git common metadata after lane cleanup, but Git push/fetch never transfers them. Transfer the checkpoint explicitly for cross-machine recovery and reconcile the original identity; import automation is not implemented. Retain the lane and packet for unfinished work and record the physical packet/checkpoint in its handoff.
+The checkpoint parent must exist and its new file must be outside every registered repository worktree. Packets remain in Git common metadata after lane cleanup, but Git push/fetch never transfers them. Transfer the checkpoint explicitly for cross-machine recovery and reconcile the original identity; import automation is not implemented. Retain the lane and packet for unfinished work and record the physical packet/checkpoint in its handoff.
 
 Automatic session attachment, submit freezing, full lifecycle/host write enforcement, generation fencing and distributed coordination remain pending.
 

@@ -174,13 +174,32 @@ const roleDocs = [
 // Traced after packets already existed: an older packet has no hash for them,
 // which reads as drift until an ordinary trace acknowledgment adopts it.
 const laterTracedPaths = new Set(["Agents/momus.md", "Agents/worker.md", customRolesPath]);
+// The plan is not traced: recording a request there needs no trail entry. An
+// older packet's planning.md hash stays in its stored paths and is ignored.
 const tracedPaths = [
-  "Agents/planning.md",
   "Agents/project_context.md",
   "Agents/design.md",
   "Agents/designs",
   ...roleDocs
 ];
+
+// Snapshots compare physical content only, so staging or committing a noted
+// edit is not new drift. A packet acknowledged before `basis` was recorded is
+// compared under the old basis (last touching commit, index entry and content)
+// until its next note or acknowledgment records the content basis.
+const contentBasis = "content";
+const noteFlags = ["change", "why", "origin", "area", "applies"];
+const noteOrigins = ["user", "agent"];
+const noteAreas = [...captureAreas, "code"];
+const draftFlags = ["from", "kind", "as", "text"];
+// Kinds as the inbox template spells them, and the Human file each one targets.
+const draftKinds = {
+  decision: { heading: "decision", target: "Human/decisions.md" },
+  "open-question": { heading: "open question", target: "Human/open_questions.md" },
+  brief: { heading: "brief", target: "Human/brief.md" },
+  reflection: { heading: "reflection", target: "Human/reflections.md" },
+  readme: { heading: "readme", target: "README.md" }
+};
 
 // Mandatory startup context should stay current and scannable. These budgets
 // are intentionally generous; they catch history dumps without constraining
@@ -213,8 +232,11 @@ Usage:
   ${cliCommand} update            [--target <project>] [--dry-run] [--accept-upstream <path>]... [--default-role <role>]
   ${cliCommand} migrate           [--target <project>] [--dry-run]
   ${cliCommand} doctor            [--target <project>]
-  ${cliCommand} human-sync        [capture|status|init|acknowledge|checkpoint] [--target <dir>]
+  ${cliCommand} human-sync        [capture|status|init|note|draft|resolve|acknowledge|checkpoint] [--target <dir>]
     init [--migrate]
+    note --change <text> --why <text> --origin user|agent --area product|design|process|code [--applies <text>]
+    draft --from T<n>|planning[#<n>] --kind decision|open-question|brief|reflection|readme --text <text>
+    resolve --from T<n>|planning[#<n>] --kind <kind> --as approved|dropped|deferred [--text <text>]
     acknowledge --through T<n> --head <HEAD> --snapshot <digest>
     checkpoint --output <file>
   ${cliCommand} worktree create   <task-slug> [--integration <branch>] [--target <dir>]
@@ -243,7 +265,12 @@ Commands:
              roles and skills, and report cloud-sync conflict copies ("<name> <N>") without
              moving anything.
   human-sync List decision-trail entries after the inbox cursor that the user should review.
-             Read-only; makes no model or network call.
+             Read-only; makes no model or network call. note appends the next numbered entry
+             to the task trail and acknowledges the lane's traced files in one step; its
+             --change must name every traced file changed since the last acknowledgment.
+             draft records one pending inbox draft and moves the capture cursor past every
+             entry that has one; resolve records the user's answer to one draft. Neither
+             writes Human/.
   worktree   Create, inspect, or explicitly approve a native Git task lane.
              create, approve, cleanup and sweep first move redundant cloud-sync conflict
              copies ("<name> <N>") to a reversible quarantine under the Git common dir.
@@ -346,6 +373,15 @@ function parseOptions(args, allowed) {
     ["--head", "head"],
     ["--snapshot", "snapshot"],
     ["--output", "output"],
+    ["--change", "change"],
+    ["--why", "why"],
+    ["--origin", "origin"],
+    ["--area", "area"],
+    ["--applies", "applies"],
+    ["--from", "from"],
+    ["--kind", "kind"],
+    ["--as", "as"],
+    ["--text", "text"],
     ["--quarantine", "quarantine"],
     ["--default-role", "defaultRole"]
   ]);
@@ -1109,7 +1145,7 @@ async function legacyPacketPaths(lane) {
 }
 
 async function readPacket(lane) {
-  if (!(await exists(lane.metadata))) throw new Error(`Missing task packet. Run "${cliCommand} human-sync init" in this recognized task lane (use --migrate for legacy Agents files).`);
+  if (!(await exists(lane.metadata))) throw new Error(`Missing task packet. Run "${cliCommand} human-sync init" in this recognized task lane (use --migrate for legacy Agents files); human-sync note also creates it.`);
   const packet = await readJson(lane.metadata);
   // Older packets have no hash for later traced paths. Keep their existing
   // digest/history intact; snapshot comparison reports the absent hash as
@@ -1117,7 +1153,7 @@ async function readPacket(lane) {
   const validPathHash = (name) =>
     (laterTracedPaths.has(name) && packet.acknowledged?.paths && !Object.hasOwn(packet.acknowledged.paths, name)) ||
     (typeof packet.acknowledged?.paths?.[name] === "string" && /^[0-9a-f]{64}$/.test(packet.acknowledged.paths[name]));
-  if (packet.schemaVersion !== 1 || JSON.stringify(packet.identity) !== JSON.stringify(lane.identity) || !/^[0-9a-f]{40,64}$/.test(packet.acknowledged?.head ?? "") || tracedPaths.some((name) => !validPathHash(name)) || digest(JSON.stringify(packet.acknowledged?.paths)) !== packet.acknowledged?.digest || typeof packet.trail !== "string") {
+  if (packet.schemaVersion !== 1 || JSON.stringify(packet.identity) !== JSON.stringify(lane.identity) || !/^[0-9a-f]{40,64}$/.test(packet.acknowledged?.head ?? "") || tracedPaths.some((name) => !validPathHash(name)) || digest(JSON.stringify(packet.acknowledged?.paths)) !== packet.acknowledged?.digest || ![undefined, contentBasis].includes(packet.acknowledged?.basis) || typeof packet.trail !== "string") {
     throw new Error("Invalid task packet identity or baseline; preserve it and restore this lane's verified checkpoint.");
   }
   for (const name of [decisionTrailPath, humanInboxPath]) {
@@ -1126,16 +1162,30 @@ async function readPacket(lane) {
   return packet;
 }
 
-async function tracedSnapshot(root) {
+function comparisonBasis(packet) {
+  return packet.acknowledged.basis === contentBasis ? contentBasis : "legacy";
+}
+
+function changedTracedPaths(packet, comparison) {
+  return tracedPaths.filter((name) => packet.acknowledged.paths[name] !== comparison.paths[name]);
+}
+
+// Paths changed since the last acknowledgment, compared under the packet's basis.
+async function driftedPaths(lane, packet, snapshot) {
+  const comparison = comparisonBasis(packet) === contentBasis ? snapshot : await tracedSnapshot(lane.root, "legacy");
+  return changedTracedPaths(packet, comparison);
+}
+
+async function tracedSnapshot(root, basis = contentBasis) {
   const paths = {};
   const gitRoot = await git(root, ["rev-parse", "--show-toplevel"]);
   const scope = path.relative(gitRoot, root);
   for (const name of tracedPaths) {
-    // Last touching commit catches committed changes even when their contents
-    // are subsequently reverted. Index and physical content catch dirty edits.
     const gitPath = scope ? `${scope}/${name}` : name;
-    const commit = await gitOptional(gitRoot, ["log", "-1", "--format=%H", "--", gitPath]);
-    const index = await git(gitRoot, ["ls-files", "--stage", "--", gitPath]);
+    const legacy = basis === contentBasis ? null : {
+      commit: await gitOptional(gitRoot, ["log", "-1", "--format=%H", "--", gitPath]),
+      index: await git(gitRoot, ["ls-files", "--stage", "--", gitPath])
+    };
     const files = [];
     async function visit(relative) {
       const absolute = path.join(root, relative);
@@ -1148,9 +1198,10 @@ async function tracedSnapshot(root) {
       } else if (stat.isFile()) files.push([relative, stat.mode & 0o777, digest(await fs.readFile(absolute))]);
     }
     await visit(name);
-    paths[name] = digest(JSON.stringify({ commit, index, files }));
+    paths[name] = digest(JSON.stringify(legacy ? { ...legacy, files } : { files }));
   }
-  return { head: await git(root, ["rev-parse", "HEAD"]), paths, digest: digest(JSON.stringify(paths)) };
+  const snapshot = { head: await git(root, ["rev-parse", "HEAD"]), paths, digest: digest(JSON.stringify(paths)) };
+  return basis === contentBasis ? { basis, ...snapshot } : snapshot;
 }
 
 async function savePacket(lane, packet) {
@@ -1161,51 +1212,42 @@ async function savePacket(lane, packet) {
 }
 
 async function humanSyncCommand(args) {
-  const options = parseOptions(args, new Set(["--target", "--migrate", "--through", "--head", "--snapshot", "--output"]));
+  const options = parseOptions(args, new Set(["--target", "--migrate", "--through", "--head", "--snapshot", "--output", ...[...noteFlags, ...draftFlags].map((flag) => `--${flag}`)]));
   const [action = "capture"] = options.positional;
   if (options.positional.length > 1) throw new Error("human-sync accepts one lifecycle action.");
-  if (!["capture", "status", "init", "acknowledge", "checkpoint"].includes(action)) throw new Error(`Unknown human-sync action: ${action}`);
+  if (!["capture", "status", "init", "note", "draft", "resolve", "acknowledge", "checkpoint"].includes(action)) throw new Error(`Unknown human-sync action: ${action}`);
   if (options.migrate && action !== "init") throw new Error("--migrate requires human-sync init.");
   if ((options.through || options.head || options.snapshot) && action !== "acknowledge") throw new Error("--through, --head and --snapshot require acknowledge.");
   if (options.output && action !== "checkpoint") throw new Error("--output requires checkpoint.");
+  if (noteFlags.some((flag) => options[flag] !== undefined) && action !== "note") throw new Error("--change, --why, --origin, --area and --applies require note.");
+  if (["from", "kind", "text"].some((flag) => options[flag] !== undefined) && !["draft", "resolve"].includes(action)) throw new Error("--from, --kind and --text require draft or resolve.");
+  if (options.as !== undefined && action !== "resolve") throw new Error("--as requires resolve.");
+  const note = action === "note" ? noteFields(options) : null;
+  if (action === "draft" || action === "resolve") draftSource(options, action);
   const lane = await taskPacket(await harnessRootFor(options.target));
   if (action === "init") {
-    if (await exists(lane.directory)) throw new Error("Task packet already exists; preserve it and use status or restore its checkpoint.");
-    const legacy = await legacyPacketPaths(lane);
-    const present = await Promise.all(legacy.map(exists));
-    if (present.some(Boolean) && !options.migrate) throw new Error("Legacy Agents storage exists. Use human-sync init --migrate to verify and retire it explicitly.");
-    if (options.migrate && !present.every(Boolean)) throw new Error("Migration requires both legacy Agents files; preserve partial storage and reconcile it before migration.");
-    const contents = await Promise.all([decisionTrailPath, humanInboxPath].map(async (name, index) => {
-      if (!options.migrate) return packetTemplates[name];
-      if (!(await fs.lstat(legacy[index])).isFile()) throw new Error("Legacy migration requires regular files, not symlinks.");
-      return fs.readFile(legacy[index], "utf8");
-    }));
-    readCaptureCursor(contents[1]);
-    const packet = { schemaVersion: 1, identity: lane.identity, createdAt: new Date().toISOString(), acknowledged: await tracedSnapshot(lane.root), trail: contents[0] };
-    if (options.migrate) packet.supersession = { recordedAt: new Date().toISOString(), reason: "Task-owned packet supersedes Agents provisional storage; copied and verified before retirement.", files: legacy.map((source, index) => ({ source, sha256: digest(contents[index]), content: contents[index] })) };
-    if (options.migrate) await legacyPacketPaths(lane);
-    await fs.mkdir(lane.directory, { recursive: true, mode: 0o700 });
-    for (const [index, name] of [decisionTrailPath, humanInboxPath].entries()) {
-      const destination = path.join(lane.directory, name);
-      await fs.writeFile(destination, contents[index], { mode: 0o600, flag: "wx" });
-      if (await fs.readFile(destination, "utf8") !== contents[index]) throw new Error("Packet copy verification failed; legacy files retained.");
+    if (!options.migrate && await exists(lane.directory)) {
+      const valid = await readPacket(lane).then(() => true, () => false);
+      if (!valid) throw new Error("Task packet already exists; preserve it and use status or restore its checkpoint.");
+      console.log(`Task packet already exists: ${lane.directory}. Nothing changed.`);
+      return;
     }
-    await savePacket(lane, packet); // Durable supersession receipt precedes deletion.
-    if (options.migrate) {
-      await legacyPacketPaths(lane);
-      for (const [index, source] of legacy.entries()) {
-        if (!(await fs.lstat(source)).isFile() || await fs.readFile(source, "utf8") !== contents[index]) throw new Error("Legacy storage changed during migration; packet and remaining legacy files preserved.");
-      }
-      for (const source of legacy) {
-        await legacyPacketPaths(lane);
-        await fs.unlink(source);
-      }
-    }
+    await initPacket(lane, { migrate: options.migrate });
     console.log(`Task packet initialized: ${lane.directory}`);
     return;
   }
+  if (action === "note") {
+    // A lane made by an older CLI has no packet yet; a partial one still refuses.
+    if (!(await exists(lane.directory))) {
+      await initPacket(lane);
+      console.log(`Task packet initialized (this lane had none): ${lane.directory}`);
+    }
+    return noteCommand(lane, note);
+  }
+  if (action === "draft") return draftCommand(lane, options);
+  if (action === "resolve") return resolveCommand(lane, options);
   const packet = await readPacket(lane);
-  if (action === "capture") return humanSync({ ...options, target: lane.directory });
+  if (action === "capture") return humanSync({ ...options, target: lane.directory, acknowledgedTrail: packet.trail });
   const snapshot = await tracedSnapshot(lane.root);
   if (action === "status") {
     console.log(JSON.stringify({ packet: lane.directory, identity: lane.identity, head: snapshot.head, snapshot: snapshot.digest }, null, 2));
@@ -1232,8 +1274,8 @@ async function humanSyncCommand(args) {
   const appended = trail.startsWith(packet.trail) ? trail.slice(packet.trail.length) : "";
   const priorIds = parseTrailEntries(packet.trail).map((entry) => entry.id).filter(Number.isInteger);
   const entry = parseTrailEntries(`## Entries\n${appended}`).find((item) => item.id === Number(options.through.slice(1)));
-  if (!entry || entry.id <= Math.max(0, ...priorIds) || !["date", "change", "why", "origin", "area"].every((field) => entry.fields[field]) || !["user", "agent"].includes(normalizeField(entry.fields.origin)) || !(captureAreas.has(normalizeField(entry.fields.area)) || normalizeField(entry.fields.area) === "code")) throw new Error("Acknowledgment requires a newly appended valid trace entry; edits to old trail entries or inbox drafts do not acknowledge drift.");
-  const changed = tracedPaths.filter((name) => packet.acknowledged.paths[name] !== snapshot.paths[name]);
+  if (!entry || entry.id <= Math.max(0, ...priorIds) || !["date", "change", "why", "origin", "area"].every((field) => entry.fields[field]) || !noteOrigins.includes(normalizeField(entry.fields.origin)) || !noteAreas.includes(normalizeField(entry.fields.area))) throw new Error("Acknowledgment requires a newly appended valid trace entry; edits to old trail entries or inbox drafts do not acknowledge drift.");
+  const changed = await driftedPaths(lane, packet, snapshot);
   if (changed.some((name) => !entry.fields.change.includes(name))) throw new Error("The new trace Change must name every changed traced path before acknowledging its snapshot.");
   const rechecked = await tracedSnapshot(lane.root);
   if (rechecked.head !== snapshot.head || rechecked.digest !== snapshot.digest || await fs.readFile(path.join(lane.directory, decisionTrailPath), "utf8") !== trail) throw new Error("Task state changed during acknowledgment; re-observe before retrying.");
@@ -1241,6 +1283,266 @@ async function humanSyncCommand(args) {
   packet.trail = trail;
   await savePacket(lane, packet);
   console.log(`Acknowledged ${options.through} at ${snapshot.head}, snapshot ${snapshot.digest}. No Human item was approved.`);
+}
+
+// Every note flag is checked before anything is written.
+function noteFields(options) {
+  const fields = {};
+  for (const flag of noteFlags) {
+    if (options[flag] === undefined) {
+      if (flag === "applies") continue;
+      throw new Error(`human-sync note requires --${flag}.`);
+    }
+    fields[flag] = singleLine(flag, options[flag]);
+  }
+  if (!noteOrigins.includes(fields.origin)) throw new Error(`--origin must be ${noteOrigins.join(" or ")}.`);
+  if (!noteAreas.includes(fields.area)) throw new Error(`--area must be one of ${noteAreas.join(", ")}.`);
+  return fields;
+}
+
+// Packet files are read with comments stripped: an opened comment would hide later items.
+function singleLine(flag, raw) {
+  const value = raw.trim();
+  if (!value) throw new Error(`--${flag} must not be empty.`);
+  if (/[\r\n]/.test(value)) throw new Error(`--${flag} must be a single line; write it as one line.`);
+  for (const marker of ["<!--", "-->"]) if (value.includes(marker)) throw new Error(`--${flag} must not contain "${marker}"; write it in words.`);
+  return value;
+}
+
+// An opener left after comments are stripped would swallow anything appended after it.
+function hasUnclosedComment(content) {
+  return stripComments(content).includes("<!--");
+}
+
+// The commands need a trail numbered in order: every ### heading under ## Entries is
+// ### T<n>, with ids strictly increasing in file order (so no duplicates either).
+function orderProblem(entries, last = 0) {
+  for (const entry of entries) {
+    if (entry.malformed) return { entry, problem: "has no number" };
+    if (entry.id <= last) return { entry, problem: "is out of order or duplicated" };
+    last = entry.id;
+  }
+  return null;
+}
+
+// A problem after the acknowledged prefix can still be renumbered by hand; one inside it cannot.
+function trailOrderAdvice(trail, acknowledgedTrail, command) {
+  const whole = orderProblem(parseTrailEntries(trail));
+  if (!whole) return null;
+  const prefix = trail.startsWith(acknowledgedTrail) ? acknowledgedTrail : null;
+  const prefixIds = prefix === null ? [] : parseTrailEntries(prefix).map((entry) => entry.id).filter(Number.isInteger);
+  const tail = prefix === null ? null : orderProblem(parseTrailEntries(`## Entries\n${trail.slice(prefix.length)}`), Math.max(0, ...prefixIds));
+  const ids = [...stripComments(trail).matchAll(/^### T(\d+)\b/gm)].map((match) => Number(match[1]));
+  const { entry, problem } = tail ?? whole;
+  return {
+    pending: Boolean(tail),
+    message: tail
+      ? `The trail heading "${entry.heading}" ${problem}. It is not acknowledged yet: number it by hand as T${Math.max(0, ...ids) + 1}, then run ${command} again.`
+      : `The trail heading "${entry.heading}" ${problem}, inside the acknowledged trail. The commands only work on a trail numbered in order, so capture for this lane is done by hand (the manual form).`
+  };
+}
+
+function localDate(date = new Date()) {
+  return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map((part) => String(part).padStart(2, "0")).join("-");
+}
+
+// One step: append the next numbered entry, then acknowledge the observed state.
+async function noteCommand(lane, fields) {
+  const packet = await readPacket(lane);
+  const trailFile = path.join(lane.directory, decisionTrailPath);
+  const trail = await fs.readFile(trailFile, "utf8");
+  if (!trail.startsWith(packet.trail)) throw new Error("The trail no longer begins with its acknowledged entries; earlier entries were edited. Nothing was written; restore them from the verified checkpoint.");
+  const sections = stripComments(trail).split(/\r?\n/).filter((line) => line.startsWith("## "));
+  if (sections.filter((line) => line.trim() === "## Entries").length !== 1 || sections.at(-1).trim() !== "## Entries") throw new Error(`${decisionTrailPath} must end with exactly one ## Entries section for note to append to. Nothing was written.`);
+  if (hasUnclosedComment(trail)) throw new Error(`${decisionTrailPath} has an unclosed "<!--". Nothing was written; close or remove it by hand first.`);
+  const order = trailOrderAdvice(trail, packet.trail, "note");
+  if (order?.pending) throw new Error(`${order.message} Nothing was written.`);
+  const snapshot = await tracedSnapshot(lane.root);
+  const changed = await driftedPaths(lane, packet, snapshot);
+  const missing = changed.filter((name) => !fields.change.includes(name));
+  if (missing.length) throw new Error(`--change must name every traced path changed since the last acknowledgment; missing: ${missing.join(", ")}. Nothing was written. Name them in --change if this note covers them; if someone else changed them, that writer records their note first.`);
+  const ids = [...stripComments(trail).matchAll(/^### T(\d+)\b/gm)].map((match) => Number(match[1]));
+  const id = `T${Math.max(0, ...ids) + 1}`;
+  const lines = [`### ${id}`, `- Date: ${localDate()}`, `- Change: ${fields.change}`, `- Why: ${fields.why}`, `- Origin: ${fields.origin}`, `- Area: ${fields.area}`];
+  if (fields.applies) lines.push(`- Applies: ${fields.applies}`);
+  const updated = `${trail}${trail.endsWith("\n") ? "\n" : "\n\n"}${lines.join("\n")}\n`;
+  await writePacketFile(lane, trailFile, updated);
+  const rechecked = await tracedSnapshot(lane.root);
+  if (rechecked.head !== snapshot.head || rechecked.digest !== snapshot.digest || await fs.readFile(trailFile, "utf8") !== updated) {
+    throw new Error(`${id} was appended but not acknowledged: the lane changed during the note. Do not run note again; run "${cliCommand} human-sync status", then "${cliCommand} human-sync acknowledge --through ${id} --head <HEAD> --snapshot <digest>" with its values. If a traced file changed that ${id} does not name, record a new note naming it instead.`);
+  }
+  packet.acknowledged = { ...snapshot, through: id, recordedAt: new Date().toISOString() };
+  packet.trail = updated;
+  await savePacket(lane, packet);
+  const kind = captureKind({ malformed: false, fields });
+  const closeout = kind === "decision" ? "At closeout it becomes a decision draft for the user's log."
+    : kind ? "At closeout it becomes an open question for the user (Agents assumed ... Confirm or change?)."
+      : reflectsApproved({ fields }) ? "It reflects an approved item; closeout drafts nothing." : "It stays in the trail only.";
+  console.log(`Recorded ${id}; ${changed.length ? `acknowledged ${changed.join(", ")}` : "no traced file changed"}.`);
+  console.log(`${closeout} No Human item was approved.`);
+}
+
+// Replace a packet file atomically, like savePacket; a leftover temporary file from a crash is never read.
+async function writePacketFile(lane, file, content) {
+  await validatePacketPaths(lane.common, lane.directory);
+  const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(temporary, content, { mode: (await fs.stat(file)).mode & 0o777, flag: "wx" });
+  await fs.rename(temporary, file);
+}
+
+// --from T<n>|planning and --kind, shared by draft and resolve.
+function draftSource(options, action) {
+  for (const flag of action === "draft" ? ["from", "kind", "text"] : ["from", "kind", "as"]) {
+    if (options[flag] === undefined) throw new Error(`human-sync ${action} requires --${flag}.`);
+  }
+  const from = singleLine("from", options.from);
+  if (!/^(?:T[1-9]\d*|planning(?:#[1-9]\d*)?)$/.test(from)) throw new Error("--from must be T<n>, planning or planning#<n>.");
+  const kind = singleLine("kind", options.kind);
+  if (!Object.hasOwn(draftKinds, kind)) throw new Error(`--kind must be one of ${Object.keys(draftKinds).join(", ")}.`);
+  const outcome = action === "resolve" ? singleLine("as", options.as) : undefined;
+  if (outcome !== undefined && !["approved", "dropped", "deferred"].includes(outcome)) throw new Error("--as must be approved, dropped or deferred.");
+  if (action === "resolve" && options.text !== undefined && outcome !== "approved") throw new Error("--text is allowed only with --as approved (the user's edit of the draft).");
+  const text = options.text === undefined ? undefined : singleLine("text", options.text);
+  return { from, source: from.replace(/^planning/, "planning.md"), kind, heading: draftKinds[kind].heading, outcome, text };
+}
+
+// Drafts in the inbox's ## Drafts section, with their raw line ranges. A hand-written
+// heading counts when it reads "<kind> · from T<n>" or "from planning.md".
+function inboxDrafts(inbox) {
+  const lines = inbox.split("\n");
+  const sections = lines.map((line, index) => [line, index]).filter(([line]) => line.startsWith("## "));
+  if (sections.filter(([line]) => line.trim() === "## Drafts").length !== 1 || sections.at(-1)[0].trim() !== "## Drafts") throw new Error(`${humanInboxPath} must end with exactly one ## Drafts section. Nothing was written; reconcile it by hand.`);
+  const start = sections.at(-1)[1] + 1;
+  if (lines.slice(start).some((line) => line.includes("<!--"))) throw new Error(`${humanInboxPath} has a comment under ## Drafts. Nothing was written; remove it by hand first.`);
+  const drafts = [];
+  for (let index = start; index < lines.length; index += 1) {
+    if (!lines[index].startsWith("###")) continue;
+    let end = index + 1;
+    while (end < lines.length && !lines[end].startsWith("###") && !lines[end].startsWith("## ")) end += 1;
+    const match = lines[index].match(/^###\s+(.+?)\s+·\s+from\s+`?(T[1-9]\d*|planning(?:\.md)?(?:#[1-9]\d*)?)`?\s*$/);
+    const field = (name) => lines.slice(index, end).find((line) => line.startsWith(`- ${name}:`))?.slice(name.length + 3).trim() ?? null;
+    drafts.push({ start: index, end, heading: match ? normalizeField(match[1]) : null, source: match ? match[2].replace(/^planning(?:\.md)?/, "planning.md") : null, target: field("Target"), text: field("Draft") });
+  }
+  return { lines, drafts };
+}
+
+// The highest m such that every entry capture keeps after the cursor, up to m, has a
+// draft. Independent of file order: it stays below the smallest undrafted kept id, and
+// does not move while an unnumbered heading is after the cursor.
+function capturedThrough(trail, cursor, drafts) {
+  const drafted = new Set(drafts.map((item) => item.source));
+  const after = entriesAfterCursor(parseTrailEntries(trail), cursor);
+  if (after.some((entry) => entry.malformed)) return cursor;
+  const blocking = Math.min(Infinity, ...after.filter((entry) => captureKind(entry) && !drafted.has(`T${entry.id}`)).map((entry) => entry.id));
+  return Math.max(cursor, ...after.map((entry) => entry.id).filter((id) => id < blocking));
+}
+
+function setCaptureCursor(inbox, through) {
+  const updated = inbox.replace(/^Captured through:[ \t]*(?:`?T\d+`?|`?none`?)[ \t]*$/im, `Captured through: ${through ? `T${through}` : "none"}`);
+  if (readCaptureCursor(updated) !== through) throw new Error(`Cannot locate the "Captured through:" line in ${humanInboxPath}. Nothing was written; reconcile it by hand.`);
+  return updated;
+}
+
+async function draftCommand(lane, options) {
+  const { from, source, kind, heading, text } = draftSource(options, "draft");
+  const packet = await readPacket(lane);
+  const inboxFile = path.join(lane.directory, humanInboxPath);
+  const inbox = await fs.readFile(inboxFile, "utf8");
+  const trail = await fs.readFile(path.join(lane.directory, decisionTrailPath), "utf8");
+  for (const [name, content] of [[decisionTrailPath, trail], [humanInboxPath, inbox]]) {
+    if (hasUnclosedComment(content)) throw new Error(`${name} has an unclosed "<!--". Nothing was written; close or remove it by hand first.`);
+  }
+  // Like note: an edited acknowledged entry could change what capture keeps.
+  if (!trail.startsWith(packet.trail)) throw new Error("The trail no longer begins with its acknowledged entries; earlier entries were edited. Nothing was written; restore them from the verified checkpoint.");
+  const order = trailOrderAdvice(trail, packet.trail, "draft");
+  if (order) throw new Error(`${order.message} Nothing was written.`);
+  const cursor = readCaptureCursor(inbox);
+  const { drafts } = inboxDrafts(inbox);
+  if (drafts.some((item) => item.source === source && item.heading === heading)) throw new Error(`A ${heading} draft from ${source} is already in the inbox. Nothing was written.`);
+  const settled = from.startsWith("T") && (Array.isArray(packet.resolved) ? packet.resolved : []).find((item) => item.source === source && item.kind === heading && ["approved", "dropped"].includes(item.outcome));
+  if (settled) throw new Error(`The ${heading} draft from ${source} was already resolved as ${settled.outcome}. Nothing was written. If something changed, record a new note and draft that.`);
+  if (from.startsWith("T")) {
+    const id = Number(from.slice(1));
+    const entries = parseTrailEntries(trail);
+    const position = entries.findIndex((entry) => entry.id === id);
+    if (position === -1) throw new Error(`${from} is not a numbered entry in the trail. Nothing was written.`);
+    const drafted = new Set(drafts.map((item) => item.source));
+    for (const entry of entriesAfterCursor(entries, cursor)) {
+      if (entries.indexOf(entry) >= position) break;
+      if (captureKind(entry) && !drafted.has(`T${entry.id}`)) throw new Error(`T${entry.id} comes before ${from} and has no draft yet; draft T${entry.id} first. Nothing was written.`);
+    }
+  }
+  const target = draftKinds[kind].target;
+  const block = [`### ${heading} · from ${source}`, "- Status: pending", `- Target: ${target}`, `- Draft: ${text}`].join("\n");
+  const appended = `${inbox}${inbox.endsWith("\n") ? "\n" : "\n\n"}${block}\n`;
+  const through = capturedThrough(trail, cursor, [...drafts, { source }]);
+  const updated = through === cursor ? appended : setCaptureCursor(appended, through);
+  await writePacketFile(lane, inboxFile, updated);
+  console.log(`Drafted ${heading} from ${source} for ${target}. Captured through: ${through ? `T${through}` : "none"}. Nothing was written to Human/.`);
+}
+
+async function resolveCommand(lane, options) {
+  const { source, heading, outcome, text } = draftSource(options, "resolve");
+  const packet = await readPacket(lane);
+  if (packet.resolved !== undefined && !Array.isArray(packet.resolved)) throw new Error("Invalid task packet resolved record; preserve it and restore this lane's verified checkpoint.");
+  const inboxFile = path.join(lane.directory, humanInboxPath);
+  const inbox = await fs.readFile(inboxFile, "utf8");
+  const { lines, drafts } = inboxDrafts(inbox);
+  const matches = drafts.filter((item) => item.source === source && item.heading === heading);
+  if (matches.length === 0) throw new Error(`No ${heading} draft from ${source} is in the inbox. Nothing was written.`);
+  if (matches.length > 1) throw new Error(`${matches.length} ${heading} drafts from ${source} are in the inbox. Nothing was written; resolve them by hand.`);
+  const [draft] = matches;
+  const kept = outcome === "deferred"
+    ? lines.map((line, index) => (index > draft.start && index < draft.end && /^\s*- Status:/.test(line) ? "- Status: deferred" : line))
+    : [...lines.slice(0, draft.start), ...lines.slice(draft.end)];
+  if (outcome === "deferred" && !lines.slice(draft.start + 1, draft.end).some((line) => /^\s*- Status:/.test(line))) kept.splice(draft.start + 1, 0, "- Status: deferred");
+  let updated = kept.join("\n");
+  if (!updated.endsWith("\n")) updated += "\n";
+  const record = { source, kind: heading, outcome, draft: draft.text, ...(text === undefined ? {} : { text }), recordedAt: new Date().toISOString() };
+  packet.resolved = [...(packet.resolved ?? []), record];
+  await savePacket(lane, packet); // The record precedes the inbox change.
+  await writePacketFile(lane, inboxFile, updated);
+  const target = draft.target ?? Object.values(draftKinds).find((item) => item.heading === heading).target;
+  const next = outcome === "approved" ? `Recorded as approved. This command wrote nothing to Human/; the entry belongs in ${target} in this lane before the merge.`
+    : outcome === "dropped" ? `Dropped: the draft left the inbox${source.startsWith("T") ? "; its trail entry remains" : ""}. Nothing was written to Human/.`
+      : "Deferred: it stays in the inbox and is raised at the next intake; cleanup keeps the lane until it is resolved. Nothing was written to Human/.";
+  console.log(`Resolved the ${heading} draft from ${source}. ${next}`);
+}
+
+// Starts a packet whose baseline is the lane's current traced state. Without
+// migrate, legacy Agents files refuse (error.legacy) so nothing is adopted silently.
+async function initPacket(lane, { migrate = false } = {}) {
+  if (await exists(lane.directory)) throw new Error("Task packet already exists; preserve it and use status or restore its checkpoint.");
+  const legacy = await legacyPacketPaths(lane);
+  const present = await Promise.all(legacy.map(exists));
+  if (present.some(Boolean) && !migrate) throw Object.assign(new Error(`Legacy Agents storage exists. Use "${cliCommand} human-sync init --migrate --target ${shellWord(lane.root)}" to verify and retire it explicitly.`), { legacy: true });
+  if (migrate && !present.every(Boolean)) throw new Error("Migration requires both legacy Agents files; preserve partial storage and reconcile it before migration.");
+  const contents = await Promise.all([decisionTrailPath, humanInboxPath].map(async (name, index) => {
+    if (!migrate) return packetTemplates[name];
+    if (!(await fs.lstat(legacy[index])).isFile()) throw new Error("Legacy migration requires regular files, not symlinks.");
+    return fs.readFile(legacy[index], "utf8");
+  }));
+  readCaptureCursor(contents[1]);
+  const packet = { schemaVersion: 1, identity: lane.identity, createdAt: new Date().toISOString(), acknowledged: await tracedSnapshot(lane.root), trail: contents[0] };
+  if (migrate) packet.supersession = { recordedAt: new Date().toISOString(), reason: "Task-owned packet supersedes Agents provisional storage; copied and verified before retirement.", files: legacy.map((source, index) => ({ source, sha256: digest(contents[index]), content: contents[index] })) };
+  if (migrate) await legacyPacketPaths(lane);
+  await fs.mkdir(lane.directory, { recursive: true, mode: 0o700 });
+  for (const [index, name] of [decisionTrailPath, humanInboxPath].entries()) {
+    const destination = path.join(lane.directory, name);
+    await fs.writeFile(destination, contents[index], { mode: 0o600, flag: "wx" });
+    if (await fs.readFile(destination, "utf8") !== contents[index]) throw new Error("Packet copy verification failed; legacy files retained.");
+  }
+  await savePacket(lane, packet); // Durable supersession receipt precedes deletion.
+  if (migrate) {
+    await legacyPacketPaths(lane);
+    for (const [index, source] of legacy.entries()) {
+      if (!(await fs.lstat(source)).isFile() || await fs.readFile(source, "utf8") !== contents[index]) throw new Error("Legacy storage changed during migration; packet and remaining legacy files preserved.");
+    }
+    for (const source of legacy) {
+      await legacyPacketPaths(lane);
+      await fs.unlink(source);
+    }
+  }
 }
 
 // Advisory only. Non-task projects retain normal installation doctor behavior.
@@ -1264,9 +1566,10 @@ async function humanSyncWarnings(target) {
     const packet = await readPacket(lane);
     const counts = countInboxDrafts(await fs.readFile(path.join(lane.directory, humanInboxPath), "utf8"));
     if (counts.pending + counts.deferred > 0) warnings.push(`Task packet ${humanInboxPath} has ${counts.pending} pending and ${counts.deferred} deferred draft(s) awaiting the user's closeout review.`);
+    if (!(await fs.readFile(path.join(lane.directory, decisionTrailPath), "utf8")).startsWith(packet.trail)) warnings.push(`Task packet ${decisionTrailPath} no longer begins with its acknowledged entries; earlier entries were edited.`);
     const snapshot = await tracedSnapshot(lane.root);
-    const changed = tracedPaths.filter((name) => packet.acknowledged.paths[name] !== snapshot.paths[name]);
-    if (changed.length) warnings.push(`Changed with no new entry: ${changed.join(", ")}. Append the why to the task trail and explicitly acknowledge the observed HEAD/snapshot.`);
+    const changed = await driftedPaths(lane, packet, snapshot);
+    if (changed.length) warnings.push(`Changed with no new entry: ${changed.join(", ")}. Record why: ${cliCommand} human-sync note --change "<what changed in ${changed.join(", ")}>" --why "<reason>" --origin "<user|agent>" --area "<product|design|process|code>"`);
   } catch (error) { warnings.push(error.message); }
   return warnings;
 }
@@ -1278,23 +1581,26 @@ async function humanSync(options) {
   for (const [relativePath, filePath] of [[decisionTrailPath, trailFile], [humanInboxPath, inboxFile]]) {
     if (!(await exists(filePath))) throw new Error(`Missing task packet ${relativePath}; restore the verified checkpoint.`);
   }
-  const cursor = readCaptureCursor(await fs.readFile(inboxFile, "utf8"));
-  const entries = entriesAfterCursor(parseTrailEntries(await fs.readFile(trailFile, "utf8")), cursor);
+  const inbox = await fs.readFile(inboxFile, "utf8");
+  const cursor = readCaptureCursor(inbox);
+  const trail = await fs.readFile(trailFile, "utf8");
+  for (const [name, content] of [[decisionTrailPath, trail], [humanInboxPath, inbox]]) {
+    if (hasUnclosedComment(content)) console.log(`Warning: ${name} has an unclosed "<!--"; what follows it is hidden. Close or remove it by hand.`);
+  }
+  const entries = entriesAfterCursor(parseTrailEntries(trail), cursor);
   const after = cursor === 0 ? "since the trail began" : `after T${cursor}`;
+  // Read-only: a trail the commands cannot work on gets one warning line.
+  const order = trailOrderAdvice(trail, options.acknowledgedTrail ?? "", "draft");
+  if (order) console.log(`Warning: ${order.message}`);
   if (entries.length === 0) {
     console.log(`Human sync: no new trail entries ${after}.`);
     return;
   }
-  const numericIds = entries.map((entry) => entry.id).filter((id) => Number.isInteger(id));
-  const latest = numericIds.length > 0 ? Math.max(...numericIds) : null;
   const kept = entries.map((entry) => ({ entry, kind: captureKind(entry) })).filter((item) => item.kind);
-  const advance = latest === null
-    ? `number the malformed trail heading, then set "Captured through:" in ${humanInboxPath}.`
-    : `set "Captured through: T${latest}" in ${humanInboxPath}.`;
   if (kept.length === 0) {
     console.log(`Human sync: nothing to capture ${after}.`);
     console.log(`${nothingToCaptureReason(entries)}; no draft is needed.`);
-    console.log(`Next: ${advance}`);
+    console.log("Next: nothing needs doing.");
     return;
   }
   console.log(`Human sync: ${kept.length} of ${entries.length} new trail entries to capture ${after}.\n`);
@@ -1304,7 +1610,12 @@ async function humanSync(options) {
     console.log(`  Change: ${change}`);
     console.log(`  Why: ${why}`);
   }
-  console.log(`\nNext: draft each entry into ${humanInboxPath}, then ${advance}`);
+  if (order && !order.pending) {
+    console.log(`\nNext: capture this lane by hand (the manual form): write a draft for each entry under ## Drafts in ${humanInboxPath} and set "Captured through:".`);
+    return;
+  }
+  const numbering = order ? "number the heading as the warning says, then " : "";
+  console.log(`\nNext: ${numbering}record a draft for each entry, in order: ${cliCommand} human-sync draft --from T<n> --kind "<decision|open-question|brief|reflection|readme>" --text "<draft>". The cursor moves as drafts are recorded.`);
 }
 
 function entriesAfterCursor(entries, cursor) {
@@ -1501,7 +1812,31 @@ async function createWorktree(options, slug) {
   console.log(`  branch:      ${taskBranch}`);
   console.log(`  integrates:  ${integrationBranch}`);
   console.log(`  base commit: ${baseCommit}`);
+  console.log(await createLanePacket(options.target, currentRoot, taskRoot));
   console.log("Run the project's own preview or dev command from this task worktree; review this exact lane before approval.");
+}
+
+// The lane's task packet starts with the lane, at the harness root the command
+// was run against, mapped into the lane. A failure here never undoes the lane.
+async function createLanePacket(target, primaryRoot, taskRoot) {
+  let harnessRoot = taskRoot;
+  try {
+    const relative = path.relative(await fs.realpath(primaryRoot), await fs.realpath(await harnessRootFor(target)));
+    harnessRoot = path.join(taskRoot, relative);
+    if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error("the harness root is outside the primary checkout");
+    if (!(await fs.stat(path.join(harnessRoot, "Agents")).then((stat) => stat.isDirectory(), () => false))) return `No task packet: ${harnessRoot} has no Agents directory.`;
+    const lane = await taskPacket(harnessRoot);
+    // Packets outlive cleanup, so a lane re-created with the same name and base maps to its packet.
+    if (await exists(lane.directory)) {
+      if (await readPacket(lane).then(() => true, () => false)) return `Task packet continues an earlier lane with the same name and starting commit: ${lane.directory}`;
+      return `No task packet: Task packet already exists; preserve it and use status or restore its checkpoint: ${lane.directory}`;
+    }
+    await initPacket(lane);
+    return `Task packet initialized: ${lane.directory}`;
+  } catch (error) {
+    if (error.legacy) return `No task packet: legacy Agents/${decisionTrailPath} or Agents/${humanInboxPath} is in the lane. To adopt it: ${cliCommand} human-sync init --migrate --target ${shellWord(harnessRoot)}`;
+    return `No task packet: ${error.message} The lane stays; to create it: ${cliCommand} human-sync init --target ${shellWord(harnessRoot)}`;
+  }
 }
 
 async function worktreeStatus(options) {
@@ -1676,6 +2011,24 @@ async function approveWorktree(options) {
   console.log("No push, pull request, remote merge, deployment, or publication was performed.");
 }
 
+// Empty: one section each, no trail entry heading, no draft, cursor none.
+// Anything unreadable or malformed counts as not empty.
+async function packetIsEmpty(directory) {
+  try {
+    const trail = await fs.readFile(path.join(directory, decisionTrailPath), "utf8");
+    const inbox = await fs.readFile(path.join(directory, humanInboxPath), "utf8");
+    const sectionCount = (content, heading) => stripComments(content).split(/\r?\n/).filter((line) => line.trim() === heading).length;
+    const counts = countInboxDrafts(inbox);
+    return sectionCount(trail, "## Entries") === 1 && sectionCount(inbox, "## Drafts") === 1
+      && counts.pending + counts.deferred === 0
+      && !sectionLines(trail, "## Entries").some((line) => line.startsWith("###"))
+      && !sectionLines(inbox, "## Drafts").some((line) => line.startsWith("###"))
+      && readCaptureCursor(inbox) === 0;
+  } catch {
+    return false;
+  }
+}
+
 // No process ownership is inferred here. The agent stops its own preview sessions
 // before calling cleanup, and retains the lane while outward work remains pending.
 async function cleanupWorktree(target, branch) {
@@ -1749,7 +2102,8 @@ async function cleanupWorktree(target, branch) {
       // recoverable, but do not govern this lane's closeout.
       if (packet.identity.base !== base) continue;
       await validatePacketPaths(common, directory);
-      console.log(`Task packet retained: ${directory}`);
+      // Every lane has a packet from creation; an empty one is left in place silently.
+      if (!(await packetIsEmpty(directory))) console.log(`Task packet retained: ${directory}`);
       if (packet.schemaVersion !== 1 || packet.identity.base !== base || packet.identity.integration !== integration || typeof packet.identity.scope !== "string" || entry !== digest(`${branch}\n${base}\n${packet.identity.scope}`)) throw new Error(`Invalid task packet identity: ${directory}`);
       const inbox = await fs.readFile(path.join(directory, humanInboxPath), "utf8");
       const trail = await fs.readFile(path.join(directory, decisionTrailPath), "utf8");
@@ -1757,6 +2111,10 @@ async function cleanupWorktree(target, branch) {
         const headings = stripComments(content).split(/\r?\n/).filter((line) => line.trim() === heading);
         if (headings.length !== 1) throw new Error(`Task packet requires exactly one ${heading} section; found ${headings.length}: ${directory}`);
       }
+      for (const [content, name] of [[inbox, humanInboxPath], [trail, decisionTrailPath]]) {
+        if (hasUnclosedComment(content)) throw new Error(`Task packet ${name} has an unclosed "<!--"; needs review: ${directory}`);
+      }
+      if (orderProblem(parseTrailEntries(trail).filter((item) => !item.malformed))) throw new Error(`Task packet trail entries are out of order or duplicated; needs review: ${directory}`);
       const counts = countInboxDrafts(inbox);
       if (counts.pending + counts.deferred) throw new Error(`Task packet has ${counts.pending} pending and ${counts.deferred} deferred draft(s): ${directory}`);
       if (sectionLines(inbox, "## Drafts").some((line) => line.startsWith("###"))) throw new Error(`Task packet has unresolved draft entries: ${directory}`);
