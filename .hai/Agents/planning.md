@@ -20,7 +20,7 @@ Remote acts approved: 2026-10-05 — push `main` so the release workflow opens t
   - `human-sync draft` and `human-sync resolve` replace the hand edits of the inbox at closeout. The capture marker moves only past entries that have a draft; cleanup refuses a trail that is out of order, duplicated or hidden by an unclosed comment. A lane with no entries and no drafts needs no capture, and cleanup no longer announces an empty packet.
 - Verification: `npm test` 68/68 and the eval suite 16/16, run by the master session; mirrors match; worker path 2,198 of 2,200 words, lead path 5,685 of 5,800, `human-scribe` 1,875 to 1,815. Replays: a routine fix went from request to merge with no packet command; a request carrying a lasting decision used one `note`, one `draft` and one `resolve`, and its lane was removed after the merge. The first review found a comment-marker defect; the second found that a hand-numbered trail could carry the marker past an undrafted decision. Both are fixed and re-checked.
 - Known limits: a lane and its packet use one CLI version (merge `main` into an open lane after an update before recording there). An unnumbered trail heading placed before the marker's entry, with the marker moved by hand, is still not caught at cleanup.
-- Integration: waiting for the user's approval of the merge and of the two decision entries. No push is approved.
+- Integration: user approved the local merge and the two decision entries on 2026-11-23 ("Yes, merge"). No push is approved.
 - Still open: the baseline (waiting on the user's login to the Claude command-line tool), gate strictness as a project setting, component-removal variants, doctor staleness checks.
 
 ## Previous iteration — role fixes, 2026-11-23
